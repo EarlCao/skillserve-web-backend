@@ -1,10 +1,21 @@
 # Laravel backend — PHP 8.3 + PostgreSQL (pdo_pgsql)
 FROM php:8.3-cli-alpine
 
-# System dependencies required to build the pdo_pgsql extension.
+# System dependencies and PHP extensions:
+#   pdo_pgsql        — PostgreSQL driver
+#   gd               — image processing (medialibrary, intervention/image, dompdf, phpspreadsheet)
+#   zip              — archive support (maatwebsite/excel, spatie/laravel-backup)
+#   exif             — image metadata (spatie/laravel-medialibrary)
+#   pcntl            — process signals (laravel/reverb WebSocket server)
 # --network=host: the VM sandbox blocks bridge-network egress during builds.
-RUN --network=host apk add --no-cache libpq-dev \
-    && docker-php-ext-install pdo_pgsql
+RUN --network=host apk add --no-cache \
+        libpq-dev \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+        libzip-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install pdo_pgsql gd zip exif pcntl
 
 # Composer (PHP package manager)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
