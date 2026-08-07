@@ -1,9 +1,39 @@
+# Git metadata
 .git
+.gitattributes
+.gitignore
+
+# Dependencies (installed in-image or via bind-mount volumes)
 vendor
 node_modules
+
+# Secrets — never bake these into an image layer
 .env
+.env.backup
+.env.production
+
+# Test / coverage artifacts
 .phpunit.result.cache
+.phpunit.cache
+coverage
+
+# Frontend build artifacts inside the Laravel public dir
+public/build
+public/hot
+public/storage
+public/fonts-manifest.dev.json
+
+# Runtime storage (bind-mounted in dev; media/caches/logs don't belong in the image)
 storage/logs/*
+storage/pail
 storage/framework/cache/*
 storage/framework/sessions/*
+storage/framework/testing/*
 storage/framework/views/*
+storage/app/public/*
+storage/app/private/*
+
+# Editor / OS
+.idea
+.vscode
+.DS_Store
