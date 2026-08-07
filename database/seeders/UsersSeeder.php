@@ -7,12 +7,14 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeds at least 150 platform users so the User Management screens have
+ * Seeds at least 150 customer accounts so the User Management screens have
  * realistic data to list, search, filter and moderate.
  *
- * Seeded accounts are created WITHOUT roles — role-bearing accounts are
- * administrators and belong to the Administrator Management module, so they
- * would be hidden from the platform user listing.
+ * Only customers are seeded: every account is created WITHOUT roles and with
+ * user_type "customer". Role-bearing accounts are administrators and belong
+ * to the Administrator Management module, so they are never created here —
+ * the only administrator in the database is the bootstrap super-admin from
+ * RolePermissionSeeder.
  *
  * A realistic spread is applied: the vast majority are active and verified,
  * with a slice of suspended / banned / unverified accounts so the status and
@@ -37,11 +39,14 @@ class UsersSeeder extends Seeder
         // Any role-bearing account works as the actor on moderation stamps.
         $actor = User::query()->whereHas('roles')->first();
 
-        $existing = User::query()->doesntHave('roles')->count();
+        $existing = User::query()
+            ->where('user_type', 'customer')
+            ->doesntHave('roles')
+            ->count();
         $missing = max(0, self::TARGET_USERS - $existing);
 
         if ($missing === 0) {
-            $this->command?->info("Already {$existing} platform users — nothing to seed.");
+            $this->command?->info("Already {$existing} customers — nothing to seed.");
 
             return;
         }
@@ -50,7 +55,7 @@ class UsersSeeder extends Seeder
             User::factory()->create($this->profileState($actor));
         }
 
-        $this->command?->info("Seeded {$missing} platform users — status breakdown: ".$this->statusBreakdown().'.');
+        $this->command?->info("Seeded {$missing} customers — status breakdown: ".$this->statusBreakdown().'.');
     }
 
     /**
@@ -118,6 +123,7 @@ class UsersSeeder extends Seeder
     private function statusBreakdown(): string
     {
         return User::query()
+            ->where('user_type', 'customer')
             ->doesntHave('roles')
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
