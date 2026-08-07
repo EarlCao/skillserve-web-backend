@@ -6,26 +6,20 @@ namespace App\Shared\Actions;
  * Base class for single-purpose business actions (e.g. CreateUserAction).
  *
  * Actions encapsulate one unit of work — they are the building blocks used
- * by Services and Controllers. Call an action either as a method
- * (`(new CreateUserAction())->handle($data)`) or as a callable
- * (`app(CreateUserAction::class)($data)`).
+ * by Services and Controllers. Concrete actions declare their own typed
+ * `handle(...)` signature, because a fixed abstract signature would prevent
+ * actions from requiring their own parameters (PHP method compatibility
+ * forbids adding required parameters in an override):
+ *
+ *     final class CreateUserAction extends BaseAction
+ *     {
+ *         public function handle(array $data): User { ... }
+ *     }
+ *
+ * Resolve through the container and invoke directly:
+ *
+ *     app(CreateUserAction::class)->handle($data);
  */
 abstract class BaseAction
 {
-    /**
-     * Execute the action.
-     *
-     * @return mixed
-     */
-    abstract public function handle(): mixed;
-
-    /**
-     * Allow actions to be invoked as callables.
-     *
-     * @return mixed
-     */
-    public function __invoke(): mixed
-    {
-        return $this->handle();
-    }
 }

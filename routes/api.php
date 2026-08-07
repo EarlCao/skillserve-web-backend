@@ -7,7 +7,12 @@ use Illuminate\Support\Facades\Route;
 | API Routes
 |--------------------------------------------------------------------------
 |
-| Phase 0 — shared infrastructure only. Feature routes (authentication,
-| users, providers, services, bookings, ...) will be added in later phases.
+| Phase 0 — shared infrastructure only. Module routes are mounted here and
+| inherit the "api" middleware group (throttle:api, SubstituteBindings,
+| force.json).
 |
 */
+
+Route::prefix('auth')->group(
+    base_path('app/Modules/Authentication/Routes/api.php'),
+);
