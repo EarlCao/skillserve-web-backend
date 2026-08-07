@@ -64,8 +64,34 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function index(Request $request): JsonResponse
@@ -123,9 +149,50 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'name' => ['The name field is required.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function store(StoreRoleRequest $request): JsonResponse
@@ -170,9 +237,48 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 404, description: 'Role not found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Role not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function show(Role $role): JsonResponse
@@ -230,10 +336,64 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 404, description: 'Role not found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Role not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'name' => ['A role with this name already exists.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function update(UpdateRoleRequest $request, Role $role): JsonResponse
@@ -271,10 +431,64 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 404, description: 'Role not found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'System default role cannot be deleted', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Role not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'System default role cannot be deleted',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The system default role cannot be deleted.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'role' => ['The system default role cannot be deleted.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function destroy(Request $request, Role $role): JsonResponse
@@ -336,10 +550,64 @@ class RoleController extends Controller
                     ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Missing the manage administrators permission', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 404, description: 'Role not found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'Validation error / super administrator permissions immutable', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Role not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error / super administrator permissions immutable',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'permissions.0' => ['One or more selected permissions do not exist.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function syncPermissions(SyncRolePermissionsRequest $request, Role $role): JsonResponse

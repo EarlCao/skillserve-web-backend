@@ -23,6 +23,17 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(
     schema: 'ApiEnvelope',
     required: ['success', 'message'],
+    // Schema-level example: Swagger UI uses it as the fallback for any
+    // response that references the envelope without its own media-type
+    // example. Every endpoint overrides this with a real-world example that
+    // matches the live API (see the controllers' OA\Response annotations).
+    example: [
+        'success' => false,
+        'message' => 'Something went wrong.',
+        'data' => new \stdClass,
+        'errors' => null,
+        'meta' => [],
+    ],
     properties: [
         new OA\Property(property: 'success', type: 'boolean', example: true),
         new OA\Property(property: 'message', type: 'string', example: 'Request successful.'),

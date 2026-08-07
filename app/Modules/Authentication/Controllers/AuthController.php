@@ -28,8 +28,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthenticationService $authenticationService,
         private readonly PasswordService $passwordService,
-    ) {
-    }
+    ) {}
 
     /**
      * POST /api/auth/login — validate credentials and issue a Sanctum token.
@@ -86,10 +85,10 @@ class AuthController extends Controller
                     ref: '#/components/schemas/ApiEnvelope',
                     example: [
                         'success' => false,
-                        'message' => 'Invalid credentials.',
-                        'data' => null,
+                        'message' => 'Invalid email or password.',
+                        'data' => new \stdClass,
                         'errors' => null,
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -100,12 +99,12 @@ class AuthController extends Controller
                     ref: '#/components/schemas/ApiEnvelope',
                     example: [
                         'success' => false,
-                        'message' => 'Validation error.',
-                        'data' => null,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
                         'errors' => [
                             'email' => ['The email field must be a valid email address.'],
                         ],
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -117,9 +116,9 @@ class AuthController extends Controller
                     example: [
                         'success' => false,
                         'message' => 'Too many login attempts. Please try again later.',
-                        'data' => null,
+                        'data' => new \stdClass,
                         'errors' => null,
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -164,9 +163,9 @@ class AuthController extends Controller
                     example: [
                         'success' => false,
                         'message' => 'Unauthenticated.',
-                        'data' => null,
+                        'data' => new \stdClass,
                         'errors' => null,
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -217,9 +216,9 @@ class AuthController extends Controller
                     example: [
                         'success' => false,
                         'message' => 'Unauthenticated.',
-                        'data' => null,
+                        'data' => new \stdClass,
                         'errors' => null,
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -277,9 +276,9 @@ class AuthController extends Controller
                     example: [
                         'success' => false,
                         'message' => 'Unauthenticated.',
-                        'data' => null,
+                        'data' => new \stdClass,
                         'errors' => null,
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
@@ -290,12 +289,12 @@ class AuthController extends Controller
                     ref: '#/components/schemas/ApiEnvelope',
                     example: [
                         'success' => false,
-                        'message' => 'Validation error.',
-                        'data' => null,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
                         'errors' => [
                             'current_password' => ['The current password is incorrect.'],
                         ],
-                        'meta' => null,
+                        'meta' => [],
                     ],
                 ),
             ),
