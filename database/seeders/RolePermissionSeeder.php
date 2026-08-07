@@ -24,6 +24,7 @@ class RolePermissionSeeder extends Seeder
 
         $permissions = [
             'manage administrators',
+            'manage users',
             'manage providers',
             'manage services',
             'manage bookings',

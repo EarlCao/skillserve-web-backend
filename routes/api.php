@@ -18,3 +18,5 @@ Route::prefix('auth')->group(
 );
 
 Route::group([], base_path('app/Modules/Administrators/Routes/api.php'));
+
+Route::group([], base_path('app/Modules/Users/Routes/api.php'));

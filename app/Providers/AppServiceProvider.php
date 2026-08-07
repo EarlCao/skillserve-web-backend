@@ -18,6 +18,13 @@ use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
+use App\Modules\Users\Events\UserActivated;
+use App\Modules\Users\Events\UserBanned;
+use App\Modules\Users\Events\UserDeleted;
+use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserUpdated;
+use App\Modules\Users\Listeners\LogUserActivity;
+use App\Modules\Users\Policies\UserManagementPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -74,9 +81,21 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(RoleDeleted::class, LogAdministratorActivity::class);
         Event::listen(RolePermissionsSynced::class, LogAdministratorActivity::class);
 
+        // User Management module events.
+        Event::listen(UserUpdated::class, LogUserActivity::class);
+        Event::listen(UserSuspended::class, LogUserActivity::class);
+        Event::listen(UserActivated::class, LogUserActivity::class);
+        Event::listen(UserBanned::class, LogUserActivity::class);
+        Event::listen(UserDeleted::class, LogUserActivity::class);
+
         // Administrator Management module policies.
         Gate::policy(User::class, AdministratorPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
+
+        // User Management — the User model policy slot belongs to the
+        // Administrators module, so this module exposes a single named ability
+        // backed by its own policy class.
+        Gate::define('manage users', [UserManagementPolicy::class, 'manage']);
     }
 }
