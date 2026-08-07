@@ -16,7 +16,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'deleted_by'])]
+#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -88,11 +88,21 @@ class User extends Authenticatable
     }
 
     /**
-     * Whether the account is permanently banned.
+     * Whether the account is banned (permanently or until a lift date).
      */
     public function isBanned(): bool
     {
         return $this->status === 'banned';
+    }
+
+    /**
+     * Whether a temporary ban has expired and should be lifted.
+     */
+    public function banExpired(): bool
+    {
+        return $this->isBanned()
+            && $this->banned_until !== null
+            && $this->banned_until->isPast();
     }
 
     /**
@@ -110,6 +120,7 @@ class User extends Authenticatable
             'suspended_at' => 'datetime',
             'activated_at' => 'datetime',
             'banned_at' => 'datetime',
+            'banned_until' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }

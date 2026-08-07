@@ -29,9 +29,11 @@ use OpenApi\Attributes as OA;
     // matches the live API (see the controllers' OA\Response annotations).
     example: [
         'success' => false,
-        'message' => 'Something went wrong.',
+        'message' => 'The given data was invalid.',
         'data' => new \stdClass,
-        'errors' => null,
+        'errors' => [
+            'email' => ['The email field is required.'],
+        ],
         'meta' => [],
     ],
     properties: [

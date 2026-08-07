@@ -22,6 +22,7 @@ use App\Modules\Users\Events\UserActivated;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Modules\Users\Listeners\LogUserActivity;
 use App\Modules\Users\Policies\UserManagementPolicy;
@@ -86,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(UserSuspended::class, LogUserActivity::class);
         Event::listen(UserActivated::class, LogUserActivity::class);
         Event::listen(UserBanned::class, LogUserActivity::class);
+        Event::listen(UserUnbanned::class, LogUserActivity::class);
         Event::listen(UserDeleted::class, LogUserActivity::class);
 
         // Administrator Management module policies.

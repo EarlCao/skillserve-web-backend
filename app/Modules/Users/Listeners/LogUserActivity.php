@@ -7,6 +7,7 @@ use App\Modules\Users\Events\UserActivated;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 
 /**
@@ -21,7 +22,7 @@ class LogUserActivity
      * Handle the user-module events.
      */
     public function handle(
-        UserUpdated|UserSuspended|UserActivated|UserBanned|UserDeleted $event,
+        UserUpdated|UserSuspended|UserActivated|UserBanned|UserUnbanned|UserDeleted $event,
     ): void {
         match (true) {
             $event instanceof UserUpdated => $this->log(
@@ -39,6 +40,10 @@ class LogUserActivity
             $event instanceof UserBanned => $this->log(
                 $event->actor, $event->user,
                 ['reason' => $event->reason], 'user_banned',
+            ),
+            $event instanceof UserUnbanned => $this->log(
+                $event->actor, $event->user,
+                ['reason' => $event->reason], 'user_unbanned',
             ),
             default => $this->log(
                 $event->actor, $event->user,

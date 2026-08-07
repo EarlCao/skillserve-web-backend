@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\Users\Requests\BanUserRequest;
 use App\Modules\Users\Requests\SuspendUserRequest;
+use App\Modules\Users\Requests\UnbanUserRequest;
 use App\Modules\Users\Requests\UpdateUserRequest;
 use App\Modules\Users\Resources\UserManagementResource;
 use App\Modules\Users\Services\UserManagementService;
@@ -82,12 +83,30 @@ class UserController extends Controller
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]
@@ -148,17 +167,44 @@ class UserController extends Controller
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]
@@ -209,22 +255,73 @@ class UserController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'User updated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User updated.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'Alice Customer',
+                            'email' => 'alice@skillserve.test',
+                            'roles' => [],
+                            'permissions' => [],
+                            'first_name' => 'Alice',
+                            'last_name' => 'Customer',
+                            'user_type' => 'customer',
+                            'phone' => '+1 555 0100',
+                            'status' => 'active',
+                            'verification' => 'verified',
+                            'last_login_at' => null,
+                            'created_by' => null,
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 422,
@@ -280,27 +377,87 @@ class UserController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'User suspended',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User suspended.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'Alice Customer',
+                            'email' => 'alice@skillserve.test',
+                            'roles' => [],
+                            'permissions' => [],
+                            'first_name' => 'Alice',
+                            'last_name' => 'Customer',
+                            'user_type' => 'customer',
+                            'phone' => '+1 555 0100',
+                            'status' => 'suspended',
+                            'verification' => 'verified',
+                            'last_login_at' => null,
+                            'created_by' => null,
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 422,
                 description: 'Validation error / account state guard',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The account is already suspended.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]
@@ -332,27 +489,87 @@ class UserController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'User activated',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User activated.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'Alice Customer',
+                            'email' => 'alice@skillserve.test',
+                            'roles' => [],
+                            'permissions' => [],
+                            'first_name' => 'Alice',
+                            'last_name' => 'Customer',
+                            'user_type' => 'customer',
+                            'phone' => '+1 555 0100',
+                            'status' => 'active',
+                            'verification' => 'verified',
+                            'last_login_at' => null,
+                            'created_by' => null,
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 422,
                 description: 'Account state guard (e.g. banned accounts are terminal)',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'A banned account cannot be activated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]
@@ -366,11 +583,11 @@ class UserController extends Controller
     }
 
     /**
-     * PATCH /api/users/{user}/ban — permanently ban a user.
+     * PATCH /api/users/{user}/ban — ban a user for a number of days or forever.
      */
     #[OA\Patch(
         path: '/api/users/{user}/ban',
-        summary: 'Ban a user account',
+        summary: 'Ban a user account (temporary or permanent)',
         tags: ['Users'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -379,10 +596,16 @@ class UserController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['reason'],
-                example: ['reason' => 'Repeated policy violations.'],
+                required: ['reason', 'duration'],
+                example: [
+                    'reason' => 'Repeated policy violations.',
+                    'duration' => 'days',
+                    'days' => 30,
+                ],
                 properties: [
                     new OA\Property(property: 'reason', type: 'string', maxLength: 500, example: 'Repeated policy violations.'),
+                    new OA\Property(property: 'duration', type: 'string', enum: ['days', 'forever'], description: 'days = temporary (auto-unban after N days), forever = permanent', example: 'days'),
+                    new OA\Property(property: 'days', type: 'integer', minimum: 1, maximum: 3650, description: 'Required when duration is days', example: 30, nullable: true),
                 ],
             ),
         ),
@@ -390,27 +613,88 @@ class UserController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'User banned',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User banned.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'Alice Customer',
+                            'email' => 'alice@skillserve.test',
+                            'roles' => [],
+                            'permissions' => [],
+                            'first_name' => 'Alice',
+                            'last_name' => 'Customer',
+                            'user_type' => 'customer',
+                            'phone' => '+1 555 0100',
+                            'status' => 'banned',
+                            'verification' => 'verified',
+                            'last_login_at' => null,
+                            'created_by' => null,
+                            'banned_until' => '2026-09-06T08:00:00+00:00',
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 422,
                 description: 'Validation error / account state guard',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The account is already banned.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]
@@ -420,11 +704,135 @@ class UserController extends Controller
 
         $user = $this->userManagementService->ban(
             $user,
-            $request->validated('reason'),
             $request->user(),
+            $request->validated('reason'),
+            $request->validated('duration'),
+            $request->validated('days'),
         );
 
         return $this->success(new UserManagementResource($user), 'User banned.');
+    }
+
+    /**
+     * PATCH /api/users/{user}/unban — lift a ban (temporary or permanent).
+     */
+    #[OA\Patch(
+        path: '/api/users/{user}/unban',
+        summary: 'Unban a user account',
+        tags: ['Users'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\JsonContent(
+                example: ['reason' => 'Ban lifted after review.'],
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', maxLength: 500, description: 'Optional note recorded in the audit log', example: 'Ban lifted after review.', nullable: true),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'User unbanned',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User unbanned.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'Alice Customer',
+                            'email' => 'alice@skillserve.test',
+                            'roles' => [],
+                            'permissions' => [],
+                            'first_name' => 'Alice',
+                            'last_name' => 'Customer',
+                            'user_type' => 'customer',
+                            'phone' => '+1 555 0100',
+                            'status' => 'active',
+                            'verification' => 'verified',
+                            'last_login_at' => null,
+                            'created_by' => null,
+                            'banned_until' => null,
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage users permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'User not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Account is not currently banned',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The account is not currently banned.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    public function unban(UnbanUserRequest $request, User $user): JsonResponse
+    {
+        $this->authorize('manage users', User::class);
+
+        $user = $this->userManagementService->unban(
+            $user,
+            $request->user(),
+            $request->validated('reason'),
+        );
+
+        return $this->success(new UserManagementResource($user), 'User unbanned.');
     }
 
     /**
@@ -442,27 +850,72 @@ class UserController extends Controller
             new OA\Response(
                 response: 200,
                 description: 'User deleted (soft delete)',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'User deleted.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 401,
                 description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 403,
                 description: 'Missing the manage users permission',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 404,
                 description: 'User not found',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
             new OA\Response(
                 response: 422,
                 description: 'Deletion guard violated (e.g. deleting your own account)',
-                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'You cannot delete your own account.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
             ),
         ],
     )]

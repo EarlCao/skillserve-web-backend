@@ -100,6 +100,12 @@ class UsersSeeder extends Seeder
             'banned_at' => $status === 'banned' ? fake()->dateTimeBetween('-90 days', 'now') : null,
             'banned_by' => $status === 'banned' ? $actor?->id : null,
             'ban_reason' => $status === 'banned' ? fake()->sentence(5) : null,
+            // Roughly half of the seeded bans are temporary (auto-lift), the
+            // rest permanent — gives both states demo data.
+            'banned_until' => $status === 'banned' && fake()->boolean(55)
+                ? fake()->dateTimeBetween('+1 day', '+120 days')
+                : null,
+            'unban_reason' => null,
         ];
     }
 

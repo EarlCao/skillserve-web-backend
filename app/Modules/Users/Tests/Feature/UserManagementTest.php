@@ -4,6 +4,7 @@ namespace App\Modules\Users\Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Activitylog\Models\Activity;
@@ -272,10 +273,11 @@ class UserManagementTest extends TestCase
         $target = $this->createUser(['email' => 'ban.me@skillserve.test']);
 
         $this->withToken($token)
-            ->patchJson("/api/users/{$target->id}/ban", ['reason' => 'Policy violations.'])
+            ->patchJson("/api/users/{$target->id}/ban", ['reason' => 'Policy violations.', 'duration' => 'forever'])
             ->assertOk()
             ->assertJsonPath('data.status', 'banned')
-            ->assertJsonPath('data.ban_reason', 'Policy violations.');
+            ->assertJsonPath('data.ban_reason', 'Policy violations.')
+            ->assertJsonPath('data.banned_until', null);
 
         Auth::forgetGuards();
 
@@ -387,11 +389,117 @@ class UserManagementTest extends TestCase
         ]);
 
         $this->withToken($token)
-            ->patchJson("/api/users/{$user->id}/ban", ['reason' => 'Escalated.'])
+            ->patchJson("/api/users/{$user->id}/ban", ['reason' => 'Escalated.', 'duration' => 'forever'])
             ->assertOk()
             ->assertJsonPath('data.status', 'banned')
             ->assertJsonPath('data.suspended_at', null)
             ->assertJsonPath('data.suspension_reason', null);
+    }
+
+    public function test_temporary_ban_sets_banned_until_and_auto_lifts_on_login(): void
+    {
+        [, $token] = $this->actingManager();
+        $target = $this->createUser(['email' => 'temp.ban@skillserve.test']);
+
+        // Freeze time so the response's banned_until matches exactly (the
+        // action computes it from its own now()).
+        $frozen = now();
+        Carbon::setTestNow($frozen);
+
+        try {
+            $this->withToken($token)
+                ->patchJson("/api/users/{$target->id}/ban", [
+                    'reason' => 'Cooling-off period.',
+                    'duration' => 'days',
+                    'days' => 7,
+                ])
+                ->assertOk()
+                ->assertJsonPath('data.status', 'banned')
+                ->assertJsonPath('data.ban_reason', 'Cooling-off period.')
+                ->assertJsonPath('data.banned_until', $frozen->copy()->addDays(7)->toIso8601String());
+
+            // A temporary ban blocks login while the timer is running.
+            Auth::forgetGuards();
+
+            $this->postJson('/api/auth/login', [
+                'email' => 'temp.ban@skillserve.test',
+                'password' => 'password123',
+            ])->assertStatus(403)->assertJsonPath('success', false);
+
+            // Once the timer passes, the next login auto-lifts the ban.
+            $target->update(['banned_until' => now()->subMinute()]);
+            Auth::forgetGuards();
+
+            $this->postJson('/api/auth/login', [
+                'email' => 'temp.ban@skillserve.test',
+                'password' => 'password123',
+            ])->assertOk()->assertJsonPath('success', true);
+
+            $this->assertSame('active', $target->fresh()->status);
+            $this->assertSame('Temporary ban expired.', $target->fresh()->unban_reason);
+        } finally {
+            Carbon::setTestNow(null);
+        }
+    }
+
+    public function test_ban_requires_duration_and_days_when_temporary(): void
+    {
+        [, $token] = $this->actingManager();
+        $user = $this->createUser();
+
+        // Missing duration.
+        $this->withToken($token)
+            ->patchJson("/api/users/{$user->id}/ban", ['reason' => 'Test.'])
+            ->assertStatus(422)
+            ->assertJsonStructure(['errors' => ['duration']]);
+
+        // A temporary ban requires the number of days.
+        $this->withToken($token)
+            ->patchJson("/api/users/{$user->id}/ban", ['reason' => 'Test.', 'duration' => 'days'])
+            ->assertStatus(422)
+            ->assertJsonStructure(['errors' => ['days']]);
+    }
+
+    public function test_unban_restores_account_and_records_audit(): void
+    {
+        [, $token] = $this->actingManager();
+        $target = $this->createUser(['email' => 'unban.me@skillserve.test']);
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/ban", [
+                'reason' => 'Policy violations.',
+                'duration' => 'forever',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'banned');
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/unban", ['reason' => 'Appeal approved.'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'active')
+            ->assertJsonPath('data.banned_until', null)
+            ->assertJsonPath('data.unban_reason', 'Appeal approved.');
+
+        // The account can sign in again.
+        Auth::forgetGuards();
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'unban.me@skillserve.test',
+            'password' => 'password123',
+        ])->assertOk()->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('activity_log', ['description' => 'user_unbanned']);
+    }
+
+    public function test_cannot_unban_an_account_that_is_not_banned(): void
+    {
+        [, $token] = $this->actingManager();
+        $user = $this->createUser();
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$user->id}/unban", ['reason' => 'Nope.'])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'The account is not currently banned.');
     }
 
     public function test_suspending_a_user_revokes_existing_tokens(): void

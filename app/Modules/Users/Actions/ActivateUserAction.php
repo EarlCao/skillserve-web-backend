@@ -38,6 +38,10 @@ final class ActivateUserAction extends BaseAction
             'suspended_at' => null,
             'suspended_by' => null,
             'suspension_reason' => null,
+            // Drop any stale ban-lift markers so a later suspension recovery
+            // isn't mislabelled as an unban in the moderation history.
+            'banned_until' => null,
+            'unban_reason' => null,
         ]);
 
         return $user;

@@ -7,11 +7,13 @@ use App\Modules\Users\Actions\ActivateUserAction;
 use App\Modules\Users\Actions\BanUserAction;
 use App\Modules\Users\Actions\DeleteUserAction;
 use App\Modules\Users\Actions\SuspendUserAction;
+use App\Modules\Users\Actions\UnbanUserAction;
 use App\Modules\Users\Actions\UpdateUserAction;
 use App\Modules\Users\Events\UserActivated;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
@@ -37,6 +39,7 @@ class UserManagementService extends BaseService
         private readonly SuspendUserAction $suspendUserAction,
         private readonly ActivateUserAction $activateUserAction,
         private readonly BanUserAction $banUserAction,
+        private readonly UnbanUserAction $unbanUserAction,
         private readonly DeleteUserAction $deleteUserAction,
     ) {}
 
@@ -182,18 +185,39 @@ class UserManagementService extends BaseService
     }
 
     /**
-     * Permanently ban a user and record the activity.
+     * Ban a user — temporarily (for a number of days) or permanently — and
+     * record the activity.
+     *
+     * @param  string  $duration  'days' (temporary) or 'forever' (permanent).
      */
-    public function ban(User $user, string $reason, User $actor): User
+    public function ban(User $user, User $actor, string $reason, string $duration = 'forever', ?int $days = null): User
     {
         $this->assertPlatformUser($user);
 
-        return $this->transaction(function () use ($user, $reason, $actor): User {
-            $this->banUserAction->handle($user, $actor, $reason);
+        return $this->transaction(function () use ($user, $actor, $reason, $duration, $days): User {
+            $this->banUserAction->handle($user, $actor, $reason, $duration, $days);
 
             $this->loadRelations($user);
 
             event(new UserBanned(user: $user, actor: $actor, reason: $reason));
+
+            return $user;
+        });
+    }
+
+    /**
+     * Lift a ban from a user and record the activity.
+     */
+    public function unban(User $user, User $actor, ?string $reason = null): User
+    {
+        $this->assertPlatformUser($user);
+
+        return $this->transaction(function () use ($user, $actor, $reason): User {
+            $this->unbanUserAction->handle($user, $actor, $reason);
+
+            $this->loadRelations($user);
+
+            event(new UserUnbanned(user: $user, actor: $actor, reason: $reason));
 
             return $user;
         });

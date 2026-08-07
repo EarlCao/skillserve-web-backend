@@ -57,6 +57,8 @@ class UserManagementResource extends UserResource
                 'name' => $this->bannedBy->name,
             ] : null),
             'ban_reason' => $this->ban_reason,
+            'banned_until' => $this->banned_until?->toIso8601String(),
+            'unban_reason' => $this->unban_reason,
             'deleted_at' => $this->deleted_at?->toIso8601String(),
             'deleted_by' => $this->whenLoaded('deletedBy', fn () => $this->deletedBy ? [
                 'id' => $this->deletedBy->id,

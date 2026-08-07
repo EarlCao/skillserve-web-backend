@@ -24,6 +24,21 @@ final class LoginAction extends BaseAction
             throw new ApiException('Invalid email or password.', 401);
         }
 
+        // A temporary ban whose timer has expired is lifted automatically —
+        // the account returns to "active" and the user can sign in again.
+        // (The users:unban-expired scheduler also runs this as a batch.)
+        if ($user->banExpired()) {
+            $user->update([
+                'status' => 'active',
+                'banned_until' => null,
+                'unban_reason' => 'Temporary ban expired.',
+                'activated_at' => now(),
+                'activated_by' => null,
+            ]);
+
+            $user->refresh();
+        }
+
         // Deactivated accounts must not be able to sign in (Administrator
         // Management module).
         if (! $user->isActive()) {
