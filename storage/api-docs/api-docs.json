@@ -2024,6 +2024,761 @@
                     }
                 ]
             }
+        },
+        "/api/users": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "List platform users",
+                "description": "GET /api/users — paginated, searchable, filterable list of platform users.",
+                "operationId": "de627648b749cabc72a2ae5761ba0297",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name, email or user ID",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "user_type",
+                        "in": "query",
+                        "description": "Filter by user type",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "customer"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by account status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "suspended",
+                                "banned"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "verification",
+                        "in": "query",
+                        "description": "Filter by verification status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "verified",
+                                "unverified"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Sort column",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "name",
+                                "created_at",
+                                "last_login_at"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "description": "Sort direction",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of users",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Users retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 3,
+                                            "name": "Alice Customer",
+                                            "email": "alice@skillserve.test",
+                                            "roles": [],
+                                            "permissions": [],
+                                            "first_name": "Alice",
+                                            "last_name": "Customer",
+                                            "user_type": "customer",
+                                            "phone": "+1 555 0100",
+                                            "status": "active",
+                                            "verification": "verified",
+                                            "last_login_at": null,
+                                            "created_by": null,
+                                            "created_at": "2026-08-07T08:00:00+00:00"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": {
+                                        "pagination": {
+                                            "total": 1,
+                                            "per_page": 15,
+                                            "current_page": 1,
+                                            "last_page": 1,
+                                            "from": 1,
+                                            "to": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get a user profile",
+                "description": "GET /api/users/{user} — detailed user profile.",
+                "operationId": "e4ec9eeca0fd4ebaaad7f7ca414ba975",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User profile details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Request successful.",
+                                    "data": {
+                                        "id": 3,
+                                        "name": "Alice Customer",
+                                        "email": "alice@skillserve.test",
+                                        "user_type": "customer",
+                                        "phone": "+1 555 0100",
+                                        "address": "123 Main St",
+                                        "birthday": "1995-04-12",
+                                        "status": "active",
+                                        "verification": "verified",
+                                        "summary": {
+                                            "services_count": 0,
+                                            "bookings_count": 0,
+                                            "ratings_count": 0,
+                                            "reviews_count": 0,
+                                            "recent_activity": []
+                                        }
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update a user profile",
+                "description": "PUT/PATCH /api/users/{user} — update a user's profile.",
+                "operationId": "b25e9c38531ff7ddb52928cdcefb7777",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Alice"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Customer"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alice@skillserve.test"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+1 555 0100",
+                                        "nullable": true
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Main St",
+                                        "nullable": true
+                                    },
+                                    "birthday": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1995-04-12",
+                                        "nullable": true
+                                    },
+                                    "user_type": {
+                                        "type": "string",
+                                        "example": "customer",
+                                        "enum": [
+                                            "customer"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "first_name": "Alice",
+                                "last_name": "Customer",
+                                "email": "alice@skillserve.test",
+                                "phone": "+1 555 0100",
+                                "address": "123 Main St",
+                                "birthday": "1995-04-12",
+                                "user_type": "customer"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "email": [
+                                            "A user with this email already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Delete a user account",
+                "description": "DELETE /api/users/{user} — soft-delete a user account.",
+                "operationId": "6b5ff9c55f042d7fa3228548df8d096d",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deleted (soft delete)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Deletion guard violated (e.g. deleting your own account)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/suspend": {
+            "patch": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Suspend a user account",
+                "description": "PATCH /api/users/{user}/suspend — temporarily suspend a user.",
+                "operationId": "93e95a114a8f5d8f602ed879394946a5",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Suspected fraudulent activity.",
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "reason": "Suspected fraudulent activity."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User suspended",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error / account state guard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/activate": {
+            "patch": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Activate a user account",
+                "description": "PATCH /api/users/{user}/activate — restore a suspended user.",
+                "operationId": "746d22e0e02e6c1092246c850aa427ce",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User activated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Account state guard (e.g. banned accounts are terminal)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/ban": {
+            "patch": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Ban a user account",
+                "description": "PATCH /api/users/{user}/ban — permanently ban a user.",
+                "operationId": "97429fed71b5e08fc1a21a1dafe2d861",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Repeated policy violations.",
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "reason": "Repeated policy violations."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User banned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error / account state guard",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -2299,6 +3054,10 @@
         {
             "name": "Authentication",
             "description": "Admin login, session and password management"
+        },
+        {
+            "name": "Users",
+            "description": "Manage platform user accounts (view, edit, suspend, activate, ban, delete)"
         }
     ]
 }
