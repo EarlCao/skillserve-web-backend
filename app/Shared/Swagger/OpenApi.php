@@ -4,12 +4,8 @@ namespace App\Shared\Swagger;
 
 use OpenApi\Attributes as OA;
 
-/**
- * Global OpenAPI metadata.
- *
- * NOTE: l5-swagger v11 configures an attribute-only analyser, so all
- * documentation is declared with PHP 8 attributes (not @OA docblocks).
- */
+// NOTE: l5-swagger v11 configures an attribute-only analyser, so all
+// documentation is declared with PHP 8 attributes (not @OA docblocks).
 #[OA\Info(
     version: '1.0.0',
     title: 'SkillServe API',

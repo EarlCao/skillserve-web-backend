@@ -42,6 +42,10 @@ class AuthController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['email', 'password'],
+                example: [
+                    'email' => 'admin@skillserve.test',
+                    'password' => 'SkillServe#2026',
+                ],
                 properties: [
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'admin@skillserve.test'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', example: 'SkillServe#2026'),
@@ -49,10 +53,76 @@ class AuthController extends Controller
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Logged in successfully', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 401, description: 'Invalid credentials', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 429, description: 'Too many login attempts', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 200,
+                description: 'Logged in successfully',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Logged in successfully.',
+                        'data' => [
+                            'token' => '1|a1b2c3d4e5f6g7h8i9j0',
+                            'token_type' => 'Bearer',
+                            'expires_at' => '2026-08-08T15:00:00+00:00',
+                            'user' => [
+                                'id' => 1,
+                                'name' => 'System Administrator',
+                                'email' => 'admin@skillserve.test',
+                                'roles' => ['super-admin'],
+                                'permissions' => ['manage administrators'],
+                                'created_at' => '2026-08-07T15:00:00+00:00',
+                            ],
+                        ],
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Invalid credentials',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Invalid credentials.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation error.',
+                        'data' => null,
+                        'errors' => [
+                            'email' => ['The email field must be a valid email address.'],
+                        ],
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 429,
+                description: 'Too many login attempts',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Too many login attempts. Please try again later.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
         ],
     )]
     public function login(LoginRequest $request): JsonResponse
@@ -72,8 +142,34 @@ class AuthController extends Controller
         tags: ['Authentication'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Logged out successfully', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 200,
+                description: 'Logged out successfully',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Logged out successfully.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
         ],
     )]
     public function logout(Request $request): JsonResponse
@@ -92,8 +188,41 @@ class AuthController extends Controller
         tags: ['Authentication'],
         security: [['bearerAuth' => []]],
         responses: [
-            new OA\Response(response: 200, description: 'Authenticated user', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 200,
+                description: 'Authenticated user',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Authenticated user.',
+                        'data' => [
+                            'id' => 1,
+                            'name' => 'System Administrator',
+                            'email' => 'admin@skillserve.test',
+                            'roles' => ['super-admin'],
+                            'permissions' => ['manage administrators'],
+                            'created_at' => '2026-08-07T15:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
         ],
     )]
     public function me(Request $request): JsonResponse
@@ -113,6 +242,11 @@ class AuthController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['current_password', 'password', 'password_confirmation'],
+                example: [
+                    'current_password' => 'SkillServe#2026',
+                    'password' => 'SkillServe#2027',
+                    'password_confirmation' => 'SkillServe#2027',
+                ],
                 properties: [
                     new OA\Property(property: 'current_password', type: 'string', format: 'password'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
@@ -121,9 +255,50 @@ class AuthController extends Controller
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Password changed successfully', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 422, description: 'Validation error / wrong current password', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(
+                response: 200,
+                description: 'Password changed successfully',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Password changed successfully.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => null,
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error / wrong current password',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation error.',
+                        'data' => null,
+                        'errors' => [
+                            'current_password' => ['The current password is incorrect.'],
+                        ],
+                        'meta' => null,
+                    ],
+                ),
+            ),
         ],
     )]
     public function changePassword(ChangePasswordRequest $request): JsonResponse
