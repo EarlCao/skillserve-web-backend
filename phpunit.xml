@@ -26,9 +26,15 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!-- The real safeguard lives in Tests\TestCase::setUp(), which forces
+             sqlite/:memory: into $_ENV/$_SERVER before the app boots. These
+             force=true overrides are a belt-and-braces backup: phpunit's
+             <env> only calls putenv(), and Laravel's env() checks
+             $_ENV/$_SERVER first, so alone they are NOT sufficient in this
+             dockerized stack. -->
+        <env name="DB_CONNECTION" value="sqlite" force="true"/>
+        <env name="DB_DATABASE" value=":memory:" force="true"/>
+        <env name="DB_URL" value="" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

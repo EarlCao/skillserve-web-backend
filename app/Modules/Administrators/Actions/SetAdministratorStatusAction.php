@@ -47,24 +47,14 @@ final class SetAdministratorStatusAction extends BaseAction
             );
         }
 
-        if ($administrator->hasRole(SystemRole::SUPER_ADMIN) && $this->isLastActiveSuperAdministrator($administrator)) {
+        // Super administrators are a fixed system role: their account status
+        // can never be changed.
+        if ($administrator->hasRole(SystemRole::SUPER_ADMIN)) {
             throw new ApiException(
-                'You cannot deactivate the last active super administrator.',
+                'Super administrator accounts cannot be deactivated.',
                 422,
-                errors: ['status' => ['You cannot deactivate the last active super administrator.']],
+                errors: ['status' => ['Super administrator accounts cannot be deactivated.']],
             );
         }
-    }
-
-    /**
-     * Whether this is the only remaining active super administrator.
-     */
-    private function isLastActiveSuperAdministrator(User $administrator): bool
-    {
-        return User::query()
-            ->where('status', 'active')
-            ->role(SystemRole::SUPER_ADMIN)
-            ->whereKeyNot($administrator->getKey())
-            ->doesntExist();
     }
 }

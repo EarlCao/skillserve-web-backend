@@ -238,6 +238,37 @@ class AdministratorManagementTest extends TestCase
             ->assertJsonPath('data.status', 'inactive');
     }
 
+    public function test_super_administrator_role_is_fixed_and_profile_is_not_partially_saved(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Role::findOrCreate('super-admin');
+
+        $superAdmin = $this->createAdministrator([
+            'email' => 'fixed.super@skillserve.test',
+            'first_name' => 'Fixed',
+            'last_name' => 'Super',
+            'name' => 'Fixed Super',
+        ]);
+        $superAdmin->assignRole('super-admin');
+
+        // Changing the super administrator role away is rejected.
+        $this->withToken($token)
+            ->putJson("/api/administrators/{$superAdmin->id}", [
+                'first_name' => 'Changed',
+                'last_name' => 'Super',
+                'email' => 'fixed.super@skillserve.test',
+                'role' => 'admin',
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure(['errors' => ['role']]);
+
+        // The rejection is atomic — the profile was not partially saved.
+        $superAdmin->refresh();
+        $this->assertSame('Fixed Super', $superAdmin->name);
+        $this->assertTrue($superAdmin->hasRole('super-admin'));
+    }
+
     public function test_cannot_deactivate_your_own_account(): void
     {
         [$actor, $token] = $this->actingAdministrator();

@@ -3,7 +3,9 @@
 namespace App\Modules\Administrators\Actions;
 
 use App\Models\User;
+use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Actions\BaseAction;
+use App\Shared\Exceptions\ApiException;
 
 /**
  * Single unit of work: update an administrator's profile (name, email, role).
@@ -23,6 +25,21 @@ final class UpdateAdministratorAction extends BaseAction
      */
     public function handle(User $administrator, array $validated, User $actor): User
     {
+        // The super administrator role is fixed: it can never be changed.
+        // Checked up front so a rejected request cannot partially save
+        // name/email before returning the 422.
+        if (
+            array_key_exists('role', $validated)
+            && $administrator->hasRole(SystemRole::SUPER_ADMIN)
+            && $validated['role'] !== SystemRole::SUPER_ADMIN
+        ) {
+            throw new ApiException(
+                'The super administrator role is fixed and cannot be changed.',
+                422,
+                errors: ['role' => ['The super administrator role is fixed and cannot be changed.']],
+            );
+        }
+
         if (array_key_exists('status', $validated)) {
             $this->setAdministratorStatusAction->handle($administrator, $actor, $validated['status']);
         }
