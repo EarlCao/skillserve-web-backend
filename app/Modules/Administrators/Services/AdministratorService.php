@@ -38,6 +38,9 @@ class AdministratorService extends BaseService
     public function index(array $filters): LengthAwarePaginator
     {
         $query = User::query()
+            // Administrator Management = role-bearing accounts only; plain
+            // platform users (customers) are managed in User Management.
+            ->has('roles')
             ->with(['roles', 'roles.permissions'])
             ->with('createdBy:id,name');
 

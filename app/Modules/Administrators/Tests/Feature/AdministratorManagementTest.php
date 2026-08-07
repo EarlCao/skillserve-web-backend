@@ -112,6 +112,30 @@ class AdministratorManagementTest extends TestCase
             ]);
     }
 
+    public function test_index_excludes_platform_users_without_roles(): void
+    {
+        [, $token] = $this->actingAdministrator();
+
+        // A role-bearing administrator belongs to the listing.
+        $admin = $this->createAdministrator(['email' => 'real.admin@skillserve.test']);
+        $admin->assignRole('admin');
+
+        // A plain platform user (no roles) must never appear as an administrator.
+        $this->createAdministrator(['email' => 'plain.user@skillserve.test']);
+
+        $response = $this->withToken($token)
+            ->getJson('/api/administrators')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            // The acting manager + real.admin are both role-bearing.
+            ->assertJsonPath('meta.pagination.total', 2);
+
+        $emails = collect($response->json('data'))->pluck('email');
+
+        $this->assertContains('real.admin@skillserve.test', $emails);
+        $this->assertNotContains('plain.user@skillserve.test', $emails);
+    }
+
     public function test_store_creates_an_active_administrator_with_hashed_password_and_role(): void
     {
         [, $token] = $this->actingAdministrator();
