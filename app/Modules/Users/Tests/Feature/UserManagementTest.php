@@ -3,10 +3,13 @@
 namespace App\Modules\Users\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Users\Mail\UserBannedMail;
+use App\Modules\Users\Mail\UserUnbannedMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -500,6 +503,66 @@ class UserManagementTest extends TestCase
             ->patchJson("/api/users/{$user->id}/unban", ['reason' => 'Nope.'])
             ->assertStatus(422)
             ->assertJsonPath('message', 'The account is not currently banned.');
+    }
+
+    public function test_ban_and_unban_send_notification_emails(): void
+    {
+        Mail::fake();
+        [, $token] = $this->actingManager();
+        $target = $this->createUser(['email' => 'notify.me@skillserve.test']);
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/ban", [
+                'reason' => 'Spam.',
+                'duration' => 'days',
+                'days' => 7,
+            ])
+            ->assertOk();
+
+        Mail::assertSent(
+            UserBannedMail::class,
+            fn (UserBannedMail $mail) => $mail->hasTo('notify.me@skillserve.test'),
+        );
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/unban", ['reason' => 'Appeal approved.'])
+            ->assertOk();
+
+        Mail::assertSent(
+            UserUnbannedMail::class,
+            fn (UserUnbannedMail $mail) => $mail->hasTo('notify.me@skillserve.test'),
+        );
+    }
+
+    public function test_moderation_history_lists_all_ban_and_unban_events(): void
+    {
+        [, $token] = $this->actingManager();
+        $target = $this->createUser(['email' => 'history.me@skillserve.test']);
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/ban", ['reason' => 'First ban.', 'duration' => 'days', 'days' => 3])
+            ->assertOk();
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/unban", ['reason' => 'Appeal one.'])
+            ->assertOk();
+        $this->withToken($token)
+            ->patchJson("/api/users/{$target->id}/ban", ['reason' => 'Second ban.', 'duration' => 'forever'])
+            ->assertOk();
+
+        $this->withToken($token)
+            ->getJson("/api/users/{$target->id}/moderation-history")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonCount(3, 'data');
+
+        $events = $this->withToken($token)
+            ->getJson("/api/users/{$target->id}/moderation-history")
+            ->json('data');
+
+        $this->assertSame(
+            ['user_banned', 'user_unbanned', 'user_banned'],
+            collect($events)->pluck('event')->values()->all(),
+        );
     }
 
     public function test_suspending_a_user_revokes_existing_tokens(): void

@@ -804,6 +804,170 @@
                 ]
             }
         },
+        "/api/administrators/{administrator}/password": {
+            "patch": {
+                "tags": [
+                    "Administrators"
+                ],
+                "summary": "Reset an administrator password",
+                "description": "Sets a new password for the account and revokes all existing sessions. A super administrator's password can only be changed by that super administrator themselves; regular administrators use the self-service change-password flow for their own account.",
+                "operationId": "b871f661433c9be67b9347e9a08512bf",
+                "parameters": [
+                    {
+                        "name": "administrator",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "password": "NewSecret#2026",
+                                "password_confirmation": "NewSecret#2026"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset — existing sessions revoked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Administrator password updated.",
+                                    "data": {
+                                        "id": 2,
+                                        "first_name": "Jane",
+                                        "last_name": "Doe",
+                                        "name": "Jane Doe",
+                                        "email": "jane.doe@skillserve.test",
+                                        "status": "active",
+                                        "roles": [
+                                            "admin"
+                                        ],
+                                        "permissions": [
+                                            "view reports"
+                                        ],
+                                        "last_login_at": "2026-08-07T09:30:00+00:00",
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-07T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage administrators permission, or resetting a super administrator without being one",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Administrator not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "password": [
+                                            "The new password must be at least 8 characters."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/permissions": {
             "get": {
                 "tags": [
@@ -3199,6 +3363,123 @@
                                 "example": {
                                     "success": false,
                                     "message": "The account is not currently banned.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{user}/moderation-history": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get a user moderation history",
+                "description": "GET /api/users/{user}/moderation-history — full ban/unban audit trail.",
+                "operationId": "2e145f8147c78c143b964ff03987c661",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Moderation history (newest first)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Moderation history retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 42,
+                                            "event": "user_banned",
+                                            "logged_at": "2026-08-07T08:00:00+00:00",
+                                            "actor": {
+                                                "id": 1,
+                                                "name": "System Administrator"
+                                            },
+                                            "properties": {
+                                                "reason": "Repeated policy violations."
+                                            }
+                                        },
+                                        {
+                                            "id": 41,
+                                            "event": "user_unbanned",
+                                            "logged_at": "2026-08-01T09:00:00+00:00",
+                                            "actor": null,
+                                            "properties": {
+                                                "reason": "Temporary ban expired."
+                                            }
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
                                     "data": {},
                                     "errors": null,
                                     "meta": []

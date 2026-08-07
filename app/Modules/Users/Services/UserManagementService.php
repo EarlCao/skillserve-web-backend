@@ -18,6 +18,7 @@ use App\Modules\Users\Events\UserUpdated;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * Orchestrates user management: listing (search/filter/sort/paginate),
@@ -221,6 +222,40 @@ class UserManagementService extends BaseService
 
             return $user;
         });
+    }
+
+    /**
+     * Full moderation history for a user — every suspension, activation, ban
+     * and unban recorded in the activity log (newest first).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function moderationHistory(User $user): array
+    {
+        $this->assertPlatformUser($user);
+
+        return Activity::query()
+            ->where('subject_type', $user->getMorphClass())
+            ->where('subject_id', $user->id)
+            ->whereIn('description', [
+                'user_banned', 'user_unbanned', 'user_suspended', 'user_activated', 'user_deleted',
+            ])
+            ->with('causer:id,name')
+            ->latest('id')
+            ->limit(100)
+            ->get()
+            ->map(fn (Activity $activity): array => [
+                'id' => $activity->id,
+                'event' => $activity->description,
+                'logged_at' => $activity->created_at?->toIso8601String(),
+                'actor' => $activity->causer ? [
+                    'id' => $activity->causer->id,
+                    'name' => $activity->causer->name,
+                ] : null,
+                'properties' => $activity->properties->toArray(),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

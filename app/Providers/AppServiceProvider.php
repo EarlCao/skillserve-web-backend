@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use App\Modules\Administrators\Events\AdministratorCreated;
+use App\Modules\Administrators\Events\AdministratorPasswordChanged;
 use App\Modules\Administrators\Events\AdministratorStatusChanged;
 use App\Modules\Administrators\Events\AdministratorUpdated;
 use App\Modules\Administrators\Events\RoleCreated;
@@ -25,6 +26,7 @@ use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Modules\Users\Listeners\LogUserActivity;
+use App\Modules\Users\Listeners\SendUserModerationMail;
 use App\Modules\Users\Policies\UserManagementPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -77,6 +79,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(AdministratorCreated::class, LogAdministratorActivity::class);
         Event::listen(AdministratorUpdated::class, LogAdministratorActivity::class);
         Event::listen(AdministratorStatusChanged::class, LogAdministratorActivity::class);
+        Event::listen(AdministratorPasswordChanged::class, LogAdministratorActivity::class);
         Event::listen(RoleCreated::class, LogAdministratorActivity::class);
         Event::listen(RoleUpdated::class, LogAdministratorActivity::class);
         Event::listen(RoleDeleted::class, LogAdministratorActivity::class);
@@ -89,6 +92,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(UserBanned::class, LogUserActivity::class);
         Event::listen(UserUnbanned::class, LogUserActivity::class);
         Event::listen(UserDeleted::class, LogUserActivity::class);
+
+        // Ban / unban notifications (best-effort email delivery).
+        Event::listen(UserBanned::class, SendUserModerationMail::class);
+        Event::listen(UserUnbanned::class, SendUserModerationMail::class);
 
         // Administrator Management module policies.
         Gate::policy(User::class, AdministratorPolicy::class);

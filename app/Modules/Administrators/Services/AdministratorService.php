@@ -4,9 +4,11 @@ namespace App\Modules\Administrators\Services;
 
 use App\Models\User;
 use App\Modules\Administrators\Actions\CreateAdministratorAction;
+use App\Modules\Administrators\Actions\ResetAdministratorPasswordAction;
 use App\Modules\Administrators\Actions\SetAdministratorStatusAction;
 use App\Modules\Administrators\Actions\UpdateAdministratorAction;
 use App\Modules\Administrators\Events\AdministratorCreated;
+use App\Modules\Administrators\Events\AdministratorPasswordChanged;
 use App\Modules\Administrators\Events\AdministratorStatusChanged;
 use App\Modules\Administrators\Events\AdministratorUpdated;
 use App\Shared\Services\BaseService;
@@ -28,6 +30,7 @@ class AdministratorService extends BaseService
         private readonly CreateAdministratorAction $createAdministratorAction,
         private readonly UpdateAdministratorAction $updateAdministratorAction,
         private readonly SetAdministratorStatusAction $setAdministratorStatusAction,
+        private readonly ResetAdministratorPasswordAction $resetAdministratorPasswordAction,
     ) {}
 
     /**
@@ -150,6 +153,24 @@ class AdministratorService extends BaseService
                     to: $administrator->status,
                 ));
             }
+
+            return $administrator;
+        });
+    }
+
+    /**
+     * Reset an administrator's password (revoking existing sessions) and
+     * record the activity.
+     */
+    public function resetPassword(User $administrator, string $password, User $actor, ?int $keepTokenId = null): User
+    {
+        return $this->transaction(function () use ($administrator, $password, $actor, $keepTokenId): User {
+            $this->resetAdministratorPasswordAction->handle($administrator, $password, $actor, $keepTokenId);
+
+            $administrator->load(['roles', 'roles.permissions', 'createdBy:id,name']);
+
+            // Never persist credentials in the audit trail.
+            event(new AdministratorPasswordChanged(administrator: $administrator, actor: $actor));
 
             return $administrator;
         });

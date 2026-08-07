@@ -9,9 +9,13 @@ use App\Models\User;
  */
 class UserUnbanned
 {
+    /**
+     * @param  User|null  $actor  null when the lift is system-driven
+     *                            (expired temporary ban).
+     */
     public function __construct(
         public readonly User $user,
-        public readonly User $actor,
+        public readonly ?User $actor,
         public readonly ?string $reason,
     ) {}
 }

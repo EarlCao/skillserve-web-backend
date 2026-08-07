@@ -4,6 +4,7 @@ namespace App\Modules\Administrators\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Administrators\Requests\ResetAdministratorPasswordRequest;
 use App\Modules\Administrators\Requests\SetAdministratorStatusRequest;
 use App\Modules\Administrators\Requests\StoreAdministratorRequest;
 use App\Modules\Administrators\Requests\UpdateAdministratorRequest;
@@ -574,5 +575,133 @@ class AdministratorController extends Controller
         );
 
         return $this->success(new AdministratorResource($administrator), 'Administrator status updated.');
+    }
+
+    /**
+     * PATCH /api/administrators/{administrator}/password — reset a password.
+     */
+    #[OA\Patch(
+        path: '/api/administrators/{administrator}/password',
+        summary: 'Reset an administrator password',
+        description: 'Sets a new password for the account and revokes all existing sessions. A super administrator\'s password can only be changed by that super administrator themselves; regular administrators use the self-service change-password flow for their own account.',
+        tags: ['Administrators'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'administrator', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['password', 'password_confirmation'],
+                example: [
+                    'password' => 'NewSecret#2026',
+                    'password_confirmation' => 'NewSecret#2026',
+                ],
+                properties: [
+                    new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Password reset — existing sessions revoked',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Administrator password updated.',
+                        'data' => [
+                            'id' => 2,
+                            'first_name' => 'Jane',
+                            'last_name' => 'Doe',
+                            'name' => 'Jane Doe',
+                            'email' => 'jane.doe@skillserve.test',
+                            'status' => 'active',
+                            'roles' => ['admin'],
+                            'permissions' => ['view reports'],
+                            'last_login_at' => '2026-08-07T09:30:00+00:00',
+                            'created_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission, or resetting a super administrator without being one',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Administrator not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'password' => ['The new password must be at least 8 characters.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    public function resetPassword(ResetAdministratorPasswordRequest $request, User $administrator): JsonResponse
+    {
+        $this->authorize('resetPassword', $administrator);
+
+        $administrator = $this->administratorService->resetPassword(
+            $administrator,
+            $request->validated('password'),
+            $request->user(),
+            // Keep the current session alive when resetting your own password.
+            $request->user()->currentAccessToken()?->id,
+        );
+
+        return $this->success(new AdministratorResource($administrator), 'Administrator password updated.');
     }
 }

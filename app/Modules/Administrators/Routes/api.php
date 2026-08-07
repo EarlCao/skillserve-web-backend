@@ -23,6 +23,7 @@ Route::prefix('administrators')->middleware('auth:sanctum')->group(function (): 
     Route::put('/{administrator}', [AdministratorController::class, 'update']);
     Route::patch('/{administrator}', [AdministratorController::class, 'update']);
     Route::patch('/{administrator}/status', [AdministratorController::class, 'updateStatus']);
+    Route::patch('/{administrator}/password', [AdministratorController::class, 'resetPassword']);
 });
 
 Route::prefix('roles')->middleware('auth:sanctum')->group(function (): void {

@@ -836,6 +836,101 @@ class UserController extends Controller
     }
 
     /**
+     * GET /api/users/{user}/moderation-history — full ban/unban audit trail.
+     */
+    #[OA\Get(
+        path: '/api/users/{user}/moderation-history',
+        summary: 'Get a user moderation history',
+        tags: ['Users'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Moderation history (newest first)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Moderation history retrieved.',
+                        'data' => [
+                            [
+                                'id' => 42,
+                                'event' => 'user_banned',
+                                'logged_at' => '2026-08-07T08:00:00+00:00',
+                                'actor' => ['id' => 1, 'name' => 'System Administrator'],
+                                'properties' => ['reason' => 'Repeated policy violations.'],
+                            ],
+                            [
+                                'id' => 41,
+                                'event' => 'user_unbanned',
+                                'logged_at' => '2026-08-01T09:00:00+00:00',
+                                'actor' => null,
+                                'properties' => ['reason' => 'Temporary ban expired.'],
+                            ],
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage users permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'User not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    public function moderationHistory(Request $request, User $user): JsonResponse
+    {
+        $this->authorize('manage users', User::class);
+
+        return $this->success(
+            $this->userManagementService->moderationHistory($user),
+            'Moderation history retrieved.',
+        );
+    }
+
+    /**
      * DELETE /api/users/{user} — soft-delete a user account.
      */
     #[OA\Delete(

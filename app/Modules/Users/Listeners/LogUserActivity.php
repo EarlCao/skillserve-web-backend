@@ -39,7 +39,10 @@ class LogUserActivity
             ),
             $event instanceof UserBanned => $this->log(
                 $event->actor, $event->user,
-                ['reason' => $event->reason], 'user_banned',
+                [
+                    'reason' => $event->reason,
+                    'banned_until' => $event->user->banned_until?->toIso8601String(),
+                ], 'user_banned',
             ),
             $event instanceof UserUnbanned => $this->log(
                 $event->actor, $event->user,
@@ -56,13 +59,19 @@ class LogUserActivity
      * Write a single activity-log entry.
      *
      * @param  array<string, mixed>  $properties
+     * @param  User|null  $actor  null for system-driven actions (e.g. an
+     *                            expired temporary ban lifting itself).
      */
-    private function log(User $actor, User $subject, array $properties, string $description): void
+    private function log(?User $actor, User $subject, array $properties, string $description): void
     {
-        activity('users')
-            ->causedBy($actor)
+        $log = activity('users')
             ->performedOn($subject)
-            ->withProperties($properties)
-            ->log($description);
+            ->withProperties($properties);
+
+        if ($actor) {
+            $log->causedBy($actor);
+        }
+
+        $log->log($description);
     }
 }

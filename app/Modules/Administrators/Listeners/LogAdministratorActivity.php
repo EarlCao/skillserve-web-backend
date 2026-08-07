@@ -4,6 +4,7 @@ namespace App\Modules\Administrators\Listeners;
 
 use App\Models\User;
 use App\Modules\Administrators\Events\AdministratorCreated;
+use App\Modules\Administrators\Events\AdministratorPasswordChanged;
 use App\Modules\Administrators\Events\AdministratorStatusChanged;
 use App\Modules\Administrators\Events\AdministratorUpdated;
 use App\Modules\Administrators\Events\RoleCreated;
@@ -24,7 +25,7 @@ class LogAdministratorActivity
      * Handle the administrator-module events.
      */
     public function handle(
-        AdministratorCreated|AdministratorUpdated|AdministratorStatusChanged|
+        AdministratorCreated|AdministratorUpdated|AdministratorStatusChanged|AdministratorPasswordChanged|
         RoleCreated|RoleUpdated|RoleDeleted|RolePermissionsSynced $event,
     ): void {
         match (true) {
@@ -39,6 +40,10 @@ class LogAdministratorActivity
             $event instanceof AdministratorStatusChanged => $this->log(
                 'administrators', $event->actor, $event->administrator,
                 ['from' => $event->from, 'to' => $event->to], 'administrator_status_changed',
+            ),
+            $event instanceof AdministratorPasswordChanged => $this->log(
+                'administrators', $event->actor, $event->administrator,
+                [], 'administrator_password_changed',
             ),
             $event instanceof RoleCreated => $this->log(
                 'roles', $event->actor, $event->role,

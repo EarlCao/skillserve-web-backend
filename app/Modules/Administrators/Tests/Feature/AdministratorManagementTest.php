@@ -350,6 +350,124 @@ class AdministratorManagementTest extends TestCase
         $this->assertNotNull($target->fresh()->last_login_at);
     }
 
+    /**
+     * Create an actor with the super-admin role (bypasses every gate).
+     */
+    private function actingSuperAdministrator(): array
+    {
+        $role = Role::findOrCreate('super-admin');
+
+        $user = $this->createAdministrator(['email' => 'super.manager@skillserve.test']);
+        $user->assignRole($role->name);
+
+        return [$user, $user->createToken('test')->plainTextToken];
+    }
+
+    public function test_administrator_can_reset_another_administrators_password(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Role::findOrCreate('admin');
+        $target = $this->createAdministrator(['email' => 'reset.me@skillserve.test']);
+        $target->assignRole('admin');
+        $targetToken = $target->createToken('session')->plainTextToken;
+
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$target->id}/password", [
+                'password' => 'NewSecret#2026',
+                'password_confirmation' => 'NewSecret#2026',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.id', $target->id);
+
+        // All of the target's existing sessions are revoked.
+        $this->assertSame(0, $target->tokens()->count());
+        $this->assertNotNull($targetToken);
+
+        // The new password works, the old one does not.
+        Auth::forgetGuards();
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'reset.me@skillserve.test',
+            'password' => 'NewSecret#2026',
+        ])->assertOk();
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'reset.me@skillserve.test',
+            'password' => 'password123',
+        ])->assertStatus(401);
+
+        $this->assertDatabaseHas('activity_log', ['description' => 'administrator_password_changed']);
+    }
+
+    public function test_administrator_cannot_reset_the_super_administrator_password(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Role::findOrCreate('super-admin');
+        $superAdmin = $this->createAdministrator(['email' => 'boss@skillserve.test']);
+        $superAdmin->assignRole('super-admin');
+
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$superAdmin->id}/password", [
+                'password' => 'NopeSecret#2026',
+                'password_confirmation' => 'NopeSecret#2026',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_administrator_cannot_reset_their_own_password_via_admin_tools(): void
+    {
+        [$actor, $token] = $this->actingAdministrator();
+
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$actor->id}/password", [
+                'password' => 'SelfSecret#2026',
+                'password_confirmation' => 'SelfSecret#2026',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+    }
+
+    public function test_super_administrator_can_reset_other_admins_and_own_but_not_another_super_admins_password(): void
+    {
+        [$superActor, $token] = $this->actingSuperAdministrator();
+        Role::findOrCreate('admin');
+        $admin = $this->createAdministrator(['email' => 'minion@skillserve.test']);
+        $admin->assignRole('admin');
+        Role::findOrCreate('super-admin');
+        $superAdmin = $this->createAdministrator(['email' => 'chief@skillserve.test']);
+        $superAdmin->assignRole('super-admin');
+
+        // Another admin's password.
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$admin->id}/password", [
+                'password' => 'AdminSecret#2026',
+                'password_confirmation' => 'AdminSecret#2026',
+            ])
+            ->assertOk();
+
+        // Another super-admin's password is exclusively self-managed — even a
+        // super-admin cannot change it.
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$superAdmin->id}/password", [
+                'password' => 'BossSecret#2026',
+                'password_confirmation' => 'BossSecret#2026',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        // The password was not changed.
+        $this->assertFalse(Hash::check('BossSecret#2026', $superAdmin->fresh()->password));
+
+        // The super administrator's own password.
+        $this->withToken($token)
+            ->patchJson("/api/administrators/{$superActor->id}/password", [
+                'password' => 'OwnSecret#2026',
+                'password_confirmation' => 'OwnSecret#2026',
+            ])
+            ->assertOk();
+    }
+
     public function test_administrator_actions_write_audit_log_entries(): void
     {
         [, $token] = $this->actingAdministrator();

@@ -24,5 +24,6 @@ Route::prefix('users')->middleware('auth:sanctum')->group(function (): void {
     Route::patch('/{user}/activate', [UserController::class, 'activate']);
     Route::patch('/{user}/ban', [UserController::class, 'ban']);
     Route::patch('/{user}/unban', [UserController::class, 'unban']);
+    Route::get('/{user}/moderation-history', [UserController::class, 'moderationHistory']);
     Route::delete('/{user}', [UserController::class, 'destroy']);
 });

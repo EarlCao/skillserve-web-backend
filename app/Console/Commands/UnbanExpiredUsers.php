@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
+use App\Modules\Users\Events\UserUnbanned;
 use Illuminate\Console\Command;
 
 /**
@@ -37,6 +38,10 @@ class UnbanExpiredUsers extends Command
                 'activated_at' => $now,
                 'activated_by' => null,
             ]);
+
+            // Keeps the audit trail and the notification email in sync with
+            // the state change (actor is null: system-driven lift).
+            event(new UserUnbanned(user: $user, actor: null, reason: 'Temporary ban expired.'));
         }
 
         $count = $expired->count();

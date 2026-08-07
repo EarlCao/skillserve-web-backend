@@ -3,6 +3,7 @@
 namespace App\Modules\Authentication\Actions;
 
 use App\Models\User;
+use App\Modules\Users\Events\UserUnbanned;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\Hash;
@@ -37,6 +38,9 @@ final class LoginAction extends BaseAction
             ]);
 
             $user->refresh();
+
+            // Audit trail + notification email (actor null: system lift).
+            event(new UserUnbanned(user: $user, actor: null, reason: 'Temporary ban expired.'));
         }
 
         // Deactivated accounts must not be able to sign in (Administrator
