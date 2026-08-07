@@ -16,3 +16,5 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(
     base_path('app/Modules/Authentication/Routes/api.php'),
 );
+
+Route::group([], base_path('app/Modules/Administrators/Routes/api.php'));

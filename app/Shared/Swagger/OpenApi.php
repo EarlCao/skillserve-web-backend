@@ -51,6 +51,46 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'user', ref: '#/components/schemas/User'),
     ],
 )]
-class OpenApi
-{
-}
+#[OA\Schema(
+    schema: 'Administrator',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 2),
+        new OA\Property(property: 'first_name', type: 'string', example: 'Jane'),
+        new OA\Property(property: 'last_name', type: 'string', example: 'Doe'),
+        new OA\Property(property: 'name', type: 'string', example: 'Jane Doe'),
+        new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane.doe@skillserve.test'),
+        new OA\Property(property: 'status', type: 'string', enum: ['active', 'inactive'], example: 'active'),
+        new OA\Property(property: 'roles', type: 'array', items: new OA\Items(type: 'string'), example: ['admin']),
+        new OA\Property(property: 'permissions', type: 'array', items: new OA\Items(type: 'string'), example: ['view reports']),
+        new OA\Property(property: 'last_login_at', type: 'string', format: 'date-time', nullable: true, example: '2026-08-07T09:30:00+00:00'),
+        new OA\Property(property: 'created_by', type: 'object', description: 'Administrator who created this account', nullable: true, properties: [
+            new OA\Property(property: 'id', type: 'integer', example: 1),
+            new OA\Property(property: 'name', type: 'string', example: 'System Administrator'),
+        ]),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-08-07T08:00:00+00:00'),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', example: '2026-08-07T08:00:00+00:00'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'Role',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 3),
+        new OA\Property(property: 'name', type: 'string', example: 'reports-manager'),
+        new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Manages operational reports.'),
+        new OA\Property(property: 'guard_name', type: 'string', example: 'web'),
+        new OA\Property(property: 'permissions', type: 'array', items: new OA\Items(type: 'string'), example: ['view reports']),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'Permission',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 5),
+        new OA\Property(property: 'name', type: 'string', example: 'manage administrators'),
+        new OA\Property(property: 'guard_name', type: 'string', example: 'web'),
+        new OA\Property(property: 'module', type: 'string', example: 'Administrators'),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+    ],
+)]
+class OpenApi {}

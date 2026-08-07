@@ -2,12 +2,12 @@
 
 namespace App\Modules\Authentication\Services;
 
+use App\Models\User;
 use App\Modules\Authentication\Actions\LoginAction;
 use App\Modules\Authentication\Actions\LogoutAction;
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Resources\AuthResource;
-use App\Models\User;
 
 /**
  * Orchestrates authentication: credential validation, token issuance and
@@ -18,8 +18,7 @@ class AuthenticationService
     public function __construct(
         private readonly LoginAction $loginAction,
         private readonly LogoutAction $logoutAction,
-    ) {
-    }
+    ) {}
 
     /**
      * Authenticate an administrator and issue a Sanctum token.
@@ -29,6 +28,10 @@ class AuthenticationService
     public function login(array $validated): AuthResource
     {
         $user = $this->loginAction->handle($validated['email'], $validated['password']);
+
+        // Track the last successful login (surfaced by the Administrator
+        // Management module).
+        $user->fill(['last_login_at' => now()])->save();
 
         $expiration = config('sanctum.expiration');
 

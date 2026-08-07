@@ -2,6 +2,18 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Modules\Administrators\Events\AdministratorCreated;
+use App\Modules\Administrators\Events\AdministratorStatusChanged;
+use App\Modules\Administrators\Events\AdministratorUpdated;
+use App\Modules\Administrators\Events\RoleCreated;
+use App\Modules\Administrators\Events\RoleDeleted;
+use App\Modules\Administrators\Events\RolePermissionsSynced;
+use App\Modules\Administrators\Events\RoleUpdated;
+use App\Modules\Administrators\Listeners\LogAdministratorActivity;
+use App\Modules\Administrators\Policies\AdministratorPolicy;
+use App\Modules\Administrators\Policies\PermissionPolicy;
+use App\Modules\Administrators\Policies\RolePolicy;
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
@@ -12,6 +24,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -44,11 +58,25 @@ class AppServiceProvider extends ServiceProvider
             return $user?->hasRole('super-admin') ? true : null;
         });
 
-        // The module lives outside app/Events + app/Listeners, so register
+        // The modules live outside app/Events + app/Listeners, so register
         // the event→listener wiring explicitly instead of relying on
         // auto-discovery.
         Event::listen(AdministratorLoggedIn::class, LogAuthenticationActivity::class);
         Event::listen(AdministratorLoggedOut::class, LogAuthenticationActivity::class);
         Event::listen(PasswordChanged::class, LogAuthenticationActivity::class);
+
+        // Administrator Management module events.
+        Event::listen(AdministratorCreated::class, LogAdministratorActivity::class);
+        Event::listen(AdministratorUpdated::class, LogAdministratorActivity::class);
+        Event::listen(AdministratorStatusChanged::class, LogAdministratorActivity::class);
+        Event::listen(RoleCreated::class, LogAdministratorActivity::class);
+        Event::listen(RoleUpdated::class, LogAdministratorActivity::class);
+        Event::listen(RoleDeleted::class, LogAdministratorActivity::class);
+        Event::listen(RolePermissionsSynced::class, LogAdministratorActivity::class);
+
+        // Administrator Management module policies.
+        Gate::policy(User::class, AdministratorPolicy::class);
+        Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Permission::class, PermissionPolicy::class);
     }
 }
