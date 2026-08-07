@@ -1,0 +1,4 @@
+# Helpers
+
+Add global helper functions here if/when needed. Prefer services and traits
+over loose helpers — only add something here when it is genuinely cross-cutting.
