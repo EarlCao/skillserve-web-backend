@@ -65,9 +65,11 @@ return [
              * Middleware allows to prevent unexpected access to API documentation
              */
             'middleware' => [
-                'api' => [],
+                // Shared guard: hide the docs outside local development
+                // unless SWAGGER_UI_ENABLED=true.
+                'api' => [\App\Shared\Middleware\EnsureSwaggerUiEnabled::class],
                 'asset' => [],
-                'docs' => [],
+                'docs' => [\App\Shared\Middleware\EnsureSwaggerUiEnabled::class],
                 'oauth2_callback' => [],
             ],
 
