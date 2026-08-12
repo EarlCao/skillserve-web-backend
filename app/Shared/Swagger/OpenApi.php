@@ -106,4 +106,33 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
     ],
 )]
+#[OA\Schema(
+    schema: 'ServiceCategory',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 1),
+        new OA\Property(property: 'name', type: 'string', example: 'Home Maintenance'),
+        new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Plumbing, electrical and painting services.'),
+        new OA\Property(property: 'status', type: 'string', enum: ['enabled', 'disabled'], example: 'enabled'),
+        new OA\Property(property: 'subcategories_count', type: 'integer', example: 3),
+        new OA\Property(property: 'subcategories', type: 'array', items: new OA\Items(ref: '#/components/schemas/ServiceSubcategory'), nullable: true),
+        new OA\Property(property: 'created_by', type: 'object', nullable: true, properties: [
+            new OA\Property(property: 'id', type: 'integer', example: 1),
+            new OA\Property(property: 'name', type: 'string', example: 'System Administrator'),
+        ]),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-08-12T08:00:00+00:00'),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', example: '2026-08-12T08:00:00+00:00'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ServiceSubcategory',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 1),
+        new OA\Property(property: 'category_id', type: 'integer', example: 1),
+        new OA\Property(property: 'name', type: 'string', example: 'Plumbing'),
+        new OA\Property(property: 'description', type: 'string', nullable: true, example: 'Pipe installation, repair and maintenance.'),
+        new OA\Property(property: 'status', type: 'string', enum: ['enabled', 'disabled'], example: 'enabled'),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', example: '2026-08-12T08:00:00+00:00'),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', example: '2026-08-12T08:00:00+00:00'),
+    ],
+)]
 class OpenApi {}

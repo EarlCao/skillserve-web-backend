@@ -28,6 +28,16 @@ use App\Modules\Users\Events\UserUpdated;
 use App\Modules\Users\Listeners\LogUserActivity;
 use App\Modules\Users\Listeners\SendUserModerationMail;
 use App\Modules\Users\Policies\UserManagementPolicy;
+use App\Modules\ServiceCategories\Events\ServiceCategoryCreated;
+use App\Modules\ServiceCategories\Events\ServiceCategoryDeleted;
+use App\Modules\ServiceCategories\Events\ServiceCategoryStatusChanged;
+use App\Modules\ServiceCategories\Events\ServiceCategoryUpdated;
+use App\Modules\ServiceCategories\Events\ServiceSubcategoryCreated;
+use App\Modules\ServiceCategories\Events\ServiceSubcategoryDeleted;
+use App\Modules\ServiceCategories\Events\ServiceSubcategoryUpdated;
+use App\Modules\ServiceCategories\Listeners\LogServiceCategoryActivity;
+use App\Modules\ServiceCategories\Models\ServiceCategory;
+use App\Modules\ServiceCategories\Policies\ServiceCategoryPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -97,6 +107,15 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(UserBanned::class, SendUserModerationMail::class);
         Event::listen(UserUnbanned::class, SendUserModerationMail::class);
 
+        // Service Category Management module events.
+        Event::listen(ServiceCategoryCreated::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceCategoryUpdated::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceCategoryDeleted::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceCategoryStatusChanged::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceSubcategoryCreated::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceSubcategoryUpdated::class, LogServiceCategoryActivity::class);
+        Event::listen(ServiceSubcategoryDeleted::class, LogServiceCategoryActivity::class);
+
         // Administrator Management module policies.
         Gate::policy(User::class, AdministratorPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
@@ -106,5 +125,8 @@ class AppServiceProvider extends ServiceProvider
         // Administrators module, so this module exposes a single named ability
         // backed by its own policy class.
         Gate::define('manage users', [UserManagementPolicy::class, 'manage']);
+
+        // Service Category Management module policies.
+        Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);
     }
 }

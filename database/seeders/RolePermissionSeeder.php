@@ -27,6 +27,7 @@ class RolePermissionSeeder extends Seeder
             'manage users',
             'manage providers',
             'manage services',
+            'manage service categories',
             'manage bookings',
             'view reports',
         ];

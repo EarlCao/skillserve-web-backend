@@ -2189,6 +2189,1292 @@
                 ]
             }
         },
+        "/api/service-categories": {
+            "get": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "List service categories",
+                "description": "GET /api/service-categories — paginated, searchable, filterable list.",
+                "operationId": "61231eb8e17f94363d418ee72cbe3341",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by name or description",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by enabled state",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "enabled",
+                                "disabled"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Sort column",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "name",
+                                "created_at"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "description": "Sort direction",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of service categories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service categories retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 1,
+                                            "name": "Home Maintenance",
+                                            "description": "Plumbing, electrical and painting services.",
+                                            "status": "enabled",
+                                            "subcategories_count": 3,
+                                            "created_by": {
+                                                "id": 1,
+                                                "name": "System Administrator"
+                                            },
+                                            "created_at": "2026-08-12T08:00:00+00:00",
+                                            "updated_at": "2026-08-12T08:00:00+00:00"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": {
+                                        "pagination": {
+                                            "total": 1,
+                                            "per_page": 15,
+                                            "current_page": 1,
+                                            "last_page": 1,
+                                            "from": 1,
+                                            "to": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Create a service category",
+                "description": "POST /api/service-categories — create a new service category.",
+                "operationId": "ed1a9d977148616bce224de8c90d3b4d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Home Maintenance",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Plumbing, electrical and painting services.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "default": "enabled",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Home Maintenance",
+                                "description": "Plumbing, electrical and painting services."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Service category created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service category created.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Home Maintenance",
+                                        "description": "Plumbing, electrical and painting services.",
+                                        "status": "enabled",
+                                        "subcategories_count": 0,
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A service category with this name already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/service-categories/{serviceCategory}": {
+            "get": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Get a service category with its subcategories",
+                "description": "GET /api/service-categories/{serviceCategory} — a category with its subcategories.",
+                "operationId": "8d3b3608106942970863e79ff396830f",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service category details with nested subcategories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Request successful.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Home Maintenance",
+                                        "description": "Plumbing, electrical and painting services.",
+                                        "status": "enabled",
+                                        "subcategories": [
+                                            {
+                                                "id": 1,
+                                                "category_id": 1,
+                                                "name": "Plumbing",
+                                                "description": null,
+                                                "status": "enabled",
+                                                "created_at": "2026-08-12T08:00:00+00:00",
+                                                "updated_at": "2026-08-12T08:00:00+00:00"
+                                            }
+                                        ],
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Update a service category",
+                "description": "PUT/PATCH /api/service-categories/{serviceCategory} — update name/description.",
+                "operationId": "63f678e2b37d153b9d16b6ed4486717f",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Home Maintenance & Repair",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Plumbing, electrical, painting and repair services.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Home Maintenance & Repair",
+                                "description": "Plumbing, electrical, painting and repair services."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service category updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service category updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Home Maintenance & Repair",
+                                        "description": "Plumbing, electrical, painting and repair services.",
+                                        "status": "enabled",
+                                        "subcategories_count": 3,
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A service category with this name already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Delete a service category",
+                "description": "Soft-deletes the category. A category that still has subcategories cannot be deleted — remove its subcategories first.",
+                "operationId": "2337a20d54454f85ebff59a01b29e757",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service category deleted (soft delete)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service category deleted.",
+                                    "data": null,
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Deletion guard violated (category still has subcategories)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This category still has subcategories. Delete its subcategories first.",
+                                    "data": {},
+                                    "errors": {
+                                        "subcategories": [
+                                            "This category still has subcategories. Delete its subcategories first."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/service-categories/{serviceCategory}/status": {
+            "patch": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Enable or disable a service category",
+                "description": "Disabled categories remain in the database but are no longer selectable or displayed on the platform. They are never physically deleted by this operation.",
+                "operationId": "4fa5b14f4daaaa40f7cd03b6109f5cbe",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "status"
+                                ],
+                                "properties": {
+                                    "status": {
+                                        "type": "string",
+                                        "example": "disabled",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "status": "disabled"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service category status updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service category status updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Home Maintenance",
+                                        "description": "Plumbing, electrical and painting services.",
+                                        "status": "disabled",
+                                        "subcategories_count": 3,
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error / invalid status value",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "status": [
+                                            "The selected status is invalid."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/service-categories/{serviceCategory}/subcategories": {
+            "post": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Create a subcategory",
+                "description": "POST /api/service-categories/{serviceCategory}/subcategories — create a subcategory.",
+                "operationId": "451bf8b57c2f6e5670741d44b30bb9e0",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Plumbing",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Pipe installation, repair and maintenance.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "default": "enabled",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Plumbing",
+                                "description": "Pipe installation, repair and maintenance."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Subcategory created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Subcategory created.",
+                                    "data": {
+                                        "id": 1,
+                                        "category_id": 1,
+                                        "name": "Plumbing",
+                                        "description": "Pipe installation, repair and maintenance.",
+                                        "status": "enabled",
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Parent service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name within the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A subcategory with this name already exists in this category."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/service-categories/{serviceCategory}/subcategories/{serviceSubcategory}": {
+            "put": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Update a subcategory",
+                "description": "The subcategory must belong to the parent category in the URL.",
+                "operationId": "c2bb12bdad4962e985fb15f7ce7487bb",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "serviceSubcategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Emergency Plumbing",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "24/7 emergency pipe repair.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Emergency Plumbing",
+                                "description": "24/7 emergency pipe repair.",
+                                "status": "enabled"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Subcategory updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Subcategory updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "category_id": 1,
+                                        "name": "Emergency Plumbing",
+                                        "description": "24/7 emergency pipe repair.",
+                                        "status": "enabled",
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category or subcategory not found (or subcategory does not belong to the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name within the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A subcategory with this name already exists in this category."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Delete a subcategory",
+                "description": "Soft-deletes the subcategory. The subcategory must belong to the parent category in the URL.",
+                "operationId": "cd5e8c6538c40114cf93dce0308634d2",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "serviceSubcategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Subcategory deleted (soft delete)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Subcategory deleted.",
+                                    "data": null,
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category or subcategory not found (or subcategory does not belong to the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Deletion guard violated (subcategory already deleted)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The subcategory is already deleted.",
+                                    "data": {},
+                                    "errors": {
+                                        "id": [
+                                            "The subcategory is already deleted."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/users": {
             "get": {
                 "tags": [
@@ -3746,6 +5032,107 @@
                     }
                 },
                 "type": "object"
+            },
+            "ServiceCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Home Maintenance"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Plumbing, electrical and painting services.",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "enabled",
+                        "enum": [
+                            "enabled",
+                            "disabled"
+                        ]
+                    },
+                    "subcategories_count": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "subcategories": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceSubcategory"
+                        },
+                        "nullable": true
+                    },
+                    "created_by": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "System Administrator"
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-08-12T08:00:00+00:00"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-08-12T08:00:00+00:00"
+                    }
+                },
+                "type": "object"
+            },
+            "ServiceSubcategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "category_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Plumbing"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Pipe installation, repair and maintenance.",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "enabled",
+                        "enum": [
+                            "enabled",
+                            "disabled"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-08-12T08:00:00+00:00"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-08-12T08:00:00+00:00"
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -3773,6 +5160,10 @@
         {
             "name": "Authentication",
             "description": "Admin login, session and password management"
+        },
+        {
+            "name": "Service Categories",
+            "description": "Manage service categories and their subcategories (view, create, edit, delete, enable/disable)"
         },
         {
             "name": "Users",
