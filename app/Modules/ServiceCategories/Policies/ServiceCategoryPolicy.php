@@ -15,33 +15,38 @@ use App\Shared\Policies\BasePolicy;
  */
 class ServiceCategoryPolicy extends BasePolicy
 {
+    private function allows(User $user, string $permission): bool
+    {
+        return $user->hasPermissionTo('manage service categories') || $user->hasPermissionTo($permission);
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'view service categories');
     }
 
     public function view(User $user, ServiceCategory $category): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'view service categories');
     }
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'create service categories');
     }
 
     public function update(User $user, ServiceCategory $category): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'edit service categories');
     }
 
     public function updateStatus(User $user, ServiceCategory $category): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'edit service categories');
     }
 
     public function delete(User $user, ServiceCategory $category): bool
     {
-        return $user->hasPermissionTo('manage service categories');
+        return $this->allows($user, 'delete service categories');
     }
 }

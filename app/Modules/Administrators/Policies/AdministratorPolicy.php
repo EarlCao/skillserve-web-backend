@@ -15,29 +15,34 @@ use App\Shared\Policies\BasePolicy;
  */
 class AdministratorPolicy extends BasePolicy
 {
+    private function allows(User $user, string $permission): bool
+    {
+        return $user->hasPermissionTo('manage administrators') || $user->hasPermissionTo($permission);
+    }
+
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'view administrators');
     }
 
     public function view(User $user, User $administrator): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'view administrators');
     }
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'create administrators');
     }
 
     public function update(User $user, User $administrator): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'edit administrators');
     }
 
     public function updateStatus(User $user, User $administrator): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'edit administrators');
     }
 
     public function resetPassword(User $user, User $administrator): bool
@@ -56,6 +61,6 @@ class AdministratorPolicy extends BasePolicy
             return false;
         }
 
-        return $user->hasPermissionTo('manage administrators');
+        return $this->allows($user, 'edit administrators');
     }
 }

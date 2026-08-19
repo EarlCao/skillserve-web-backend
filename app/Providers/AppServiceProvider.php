@@ -19,15 +19,6 @@ use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
-use App\Modules\Users\Events\UserActivated;
-use App\Modules\Users\Events\UserBanned;
-use App\Modules\Users\Events\UserDeleted;
-use App\Modules\Users\Events\UserSuspended;
-use App\Modules\Users\Events\UserUnbanned;
-use App\Modules\Users\Events\UserUpdated;
-use App\Modules\Users\Listeners\LogUserActivity;
-use App\Modules\Users\Listeners\SendUserModerationMail;
-use App\Modules\Users\Policies\UserManagementPolicy;
 use App\Modules\ServiceCategories\Events\ServiceCategoryCreated;
 use App\Modules\ServiceCategories\Events\ServiceCategoryDeleted;
 use App\Modules\ServiceCategories\Events\ServiceCategoryStatusChanged;
@@ -38,6 +29,15 @@ use App\Modules\ServiceCategories\Events\ServiceSubcategoryUpdated;
 use App\Modules\ServiceCategories\Listeners\LogServiceCategoryActivity;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Policies\ServiceCategoryPolicy;
+use App\Modules\Users\Events\UserActivated;
+use App\Modules\Users\Events\UserBanned;
+use App\Modules\Users\Events\UserDeleted;
+use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserUnbanned;
+use App\Modules\Users\Events\UserUpdated;
+use App\Modules\Users\Listeners\LogUserActivity;
+use App\Modules\Users\Listeners\SendUserModerationMail;
+use App\Modules\Users\Policies\UserManagementPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -125,6 +125,12 @@ class AppServiceProvider extends ServiceProvider
         // Administrators module, so this module exposes a single named ability
         // backed by its own policy class.
         Gate::define('manage users', [UserManagementPolicy::class, 'manage']);
+        Gate::define('view users', [UserManagementPolicy::class, 'view']);
+        Gate::define('edit users', [UserManagementPolicy::class, 'edit']);
+        Gate::define('delete users', [UserManagementPolicy::class, 'delete']);
+        Gate::define('suspend users', [UserManagementPolicy::class, 'suspend']);
+        Gate::define('activate users', [UserManagementPolicy::class, 'activate']);
+        Gate::define('ban users', [UserManagementPolicy::class, 'ban']);
 
         // Service Category Management module policies.
         Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);

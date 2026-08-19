@@ -112,7 +112,7 @@ class UserController extends Controller
     )]
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('view users', User::class);
 
         $paginator = $this->userManagementService->index($request->only([
             'search', 'user_type', 'status', 'verification', 'sort', 'direction', 'per_page',
@@ -210,7 +210,7 @@ class UserController extends Controller
     )]
     public function show(User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('view users', User::class);
 
         $user = $this->userManagementService->show($user);
 
@@ -341,7 +341,7 @@ class UserController extends Controller
     )]
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('edit users', User::class);
 
         $user = $this->userManagementService->update(
             $user,
@@ -463,7 +463,7 @@ class UserController extends Controller
     )]
     public function suspend(SuspendUserRequest $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('suspend users', User::class);
 
         $user = $this->userManagementService->suspend(
             $user,
@@ -575,7 +575,7 @@ class UserController extends Controller
     )]
     public function activate(Request $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('activate users', User::class);
 
         $user = $this->userManagementService->activate($user, $request->user());
 
@@ -700,7 +700,7 @@ class UserController extends Controller
     )]
     public function ban(BanUserRequest $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('ban users', User::class);
 
         $user = $this->userManagementService->ban(
             $user,
@@ -824,7 +824,7 @@ class UserController extends Controller
     )]
     public function unban(UnbanUserRequest $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('ban users', User::class);
 
         $user = $this->userManagementService->unban(
             $user,
@@ -922,7 +922,7 @@ class UserController extends Controller
     )]
     public function moderationHistory(Request $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('view users', User::class);
 
         return $this->success(
             $this->userManagementService->moderationHistory($user),
@@ -1016,7 +1016,7 @@ class UserController extends Controller
     )]
     public function destroy(Request $request, User $user): JsonResponse
     {
-        $this->authorize('manage users', User::class);
+        $this->authorize('delete users', User::class);
 
         $this->userManagementService->destroy($user, $request->user());
 
