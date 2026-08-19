@@ -24,10 +24,23 @@ class RolePermissionSeeder extends Seeder
 
         $permissions = [
             'manage administrators',
+            'view administrators',
+            'create administrators',
+            'edit administrators',
             'manage users',
+            'view users',
+            'edit users',
+            'delete users',
+            'suspend users',
+            'activate users',
+            'ban users',
             'manage providers',
             'manage services',
             'manage service categories',
+            'view service categories',
+            'create service categories',
+            'edit service categories',
+            'delete service categories',
             'manage bookings',
             'view reports',
         ];

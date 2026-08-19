@@ -16,7 +16,7 @@ class PermissionResource extends BaseResource
      * Prefixes that introduce the module part of a permission name.
      */
     private const VERB_PREFIXES = [
-        'manage ', 'view ', 'create ', 'update ', 'delete ', 'export ',
+        'manage ', 'view ', 'create ', 'edit ', 'update ', 'delete ', 'export ',
         'approve ', 'reject ', 'suspend ', 'activate ',
     ];
 
