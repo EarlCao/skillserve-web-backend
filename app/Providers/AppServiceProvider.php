@@ -38,6 +38,16 @@ use App\Modules\ServiceCategories\Events\ServiceSubcategoryUpdated;
 use App\Modules\ServiceCategories\Listeners\LogServiceCategoryActivity;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Policies\ServiceCategoryPolicy;
+use App\Modules\Services\Events\ServiceApproved;
+use App\Modules\Services\Events\ServiceCreated;
+use App\Modules\Services\Events\ServiceDeleted;
+use App\Modules\Services\Events\ServiceFeatured;
+use App\Modules\Services\Events\ServiceHidden;
+use App\Modules\Services\Events\ServiceRejected;
+use App\Modules\Services\Events\ServiceUpdated;
+use App\Modules\Services\Listeners\LogServiceActivity;
+use App\Modules\Services\Models\Service;
+use App\Modules\Services\Policies\ServicePolicy;
 use App\Modules\Users\Events\UserActivated;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserDeleted;
@@ -151,6 +161,18 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ProviderSuspended::class, LogProviderActivity::class);
         Event::listen(ProviderActivated::class, LogProviderActivity::class);
         Event::listen(ProviderVerificationRemoved::class, LogProviderActivity::class);
+
+        // Service Management module events.
+        Event::listen(ServiceCreated::class, LogServiceActivity::class);
+        Event::listen(ServiceUpdated::class, LogServiceActivity::class);
+        Event::listen(ServiceApproved::class, LogServiceActivity::class);
+        Event::listen(ServiceRejected::class, LogServiceActivity::class);
+        Event::listen(ServiceHidden::class, LogServiceActivity::class);
+        Event::listen(ServiceFeatured::class, LogServiceActivity::class);
+        Event::listen(ServiceDeleted::class, LogServiceActivity::class);
+
+        // Service Management module policies.
+        Gate::policy(Service::class, ServicePolicy::class);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);
