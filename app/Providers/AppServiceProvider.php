@@ -19,6 +19,15 @@ use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
+use App\Modules\Providers\Events\ProviderActivated;
+use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
+use App\Modules\Providers\Events\ProviderSuspended;
+use App\Modules\Providers\Events\ProviderVerificationApproved;
+use App\Modules\Providers\Events\ProviderVerificationRejected;
+use App\Modules\Providers\Events\ProviderVerificationRemoved;
+use App\Modules\Providers\Listeners\LogProviderActivity;
+use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Providers\Policies\ProviderPolicy;
 use App\Modules\ServiceCategories\Events\ServiceCategoryCreated;
 use App\Modules\ServiceCategories\Events\ServiceCategoryDeleted;
 use App\Modules\ServiceCategories\Events\ServiceCategoryStatusChanged;
@@ -134,5 +143,26 @@ class AppServiceProvider extends ServiceProvider
 
         // Service Category Management module policies.
         Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);
+
+        // Provider Management module events.
+        Event::listen(ProviderVerificationApproved::class, LogProviderActivity::class);
+        Event::listen(ProviderVerificationRejected::class, LogProviderActivity::class);
+        Event::listen(ProviderAdditionalInfoRequested::class, LogProviderActivity::class);
+        Event::listen(ProviderSuspended::class, LogProviderActivity::class);
+        Event::listen(ProviderActivated::class, LogProviderActivity::class);
+        Event::listen(ProviderVerificationRemoved::class, LogProviderActivity::class);
+
+        // Provider Management module policies.
+        Gate::policy(ProviderProfile::class, ProviderPolicy::class);
+
+        // Provider Management — named gates for non-model policy actions.
+        Gate::define('manage providers', [ProviderPolicy::class, 'manage']);
+        Gate::define('view providers', [ProviderPolicy::class, 'view']);
+        Gate::define('edit providers', [ProviderPolicy::class, 'update']);
+        Gate::define('delete providers', [ProviderPolicy::class, 'delete']);
+        Gate::define('suspend providers', [ProviderPolicy::class, 'suspend']);
+        Gate::define('activate providers', [ProviderPolicy::class, 'activate']);
+        Gate::define('verify providers', [ProviderPolicy::class, 'verify']);
+        Gate::define('reject providers', [ProviderPolicy::class, 'reject']);
     }
 }
