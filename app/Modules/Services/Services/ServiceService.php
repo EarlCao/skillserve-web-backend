@@ -51,7 +51,7 @@ class ServiceService extends BaseService
     public function index(array $filters): LengthAwarePaginator
     {
         $query = Service::query()
-            ->with(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            ->with(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
         if ($search = trim((string) ($filters['search'] ?? ''))) {
             $term = '%'.mb_strtolower($search).'%';
@@ -111,7 +111,7 @@ class ServiceService extends BaseService
         return $service->load([
             'category:id,name',
             'subcategory:id,name',
-            'provider:id,business_name',
+            'provider:id,user_id,business_name',
             'provider.user:id,name,email',
             'createdBy:id,name',
             'updatedBy:id,name',
@@ -129,7 +129,7 @@ class ServiceService extends BaseService
         return $this->transaction(function () use ($validated, $actor): Service {
             $service = $this->createServiceAction->handle($validated, $actor);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
             event(new ServiceCreated(service: $service, actor: $actor, data: $validated));
 
@@ -149,7 +149,7 @@ class ServiceService extends BaseService
 
             $this->updateServiceAction->handle($service, $validated);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
             event(new ServiceUpdated(
                 service: $service,
@@ -170,7 +170,7 @@ class ServiceService extends BaseService
         return $this->transaction(function () use ($service, $actor, $notes): Service {
             $this->approveServiceAction->handle($service, $actor, $notes);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name', 'approvedBy:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name', 'approvedBy:id,name']);
 
             event(new ServiceApproved(service: $service, actor: $actor, notes: $notes));
 
@@ -186,7 +186,7 @@ class ServiceService extends BaseService
         return $this->transaction(function () use ($service, $actor, $reason): Service {
             $this->rejectServiceAction->handle($service, $actor, $reason);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
             event(new ServiceRejected(service: $service, actor: $actor, reason: $reason));
 
@@ -202,7 +202,7 @@ class ServiceService extends BaseService
         return $this->transaction(function () use ($service, $isHidden, $actor): Service {
             $this->hideServiceAction->handle($service, $isHidden);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
             event(new ServiceHidden(service: $service, actor: $actor, isHidden: $isHidden));
 
@@ -218,7 +218,7 @@ class ServiceService extends BaseService
         return $this->transaction(function () use ($service, $isFeatured, $actor): Service {
             $this->featureServiceAction->handle($service, $isFeatured);
 
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,business_name', 'provider.user:id,name']);
+            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
             event(new ServiceFeatured(service: $service, actor: $actor, isFeatured: $isFeatured));
 

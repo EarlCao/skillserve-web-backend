@@ -42,11 +42,11 @@ class ServiceResource extends BaseResource
             'provider' => $this->whenLoaded('provider', fn () => [
                 'id' => $this->provider->id,
                 'business_name' => $this->provider->business_name,
-                'user' => [
+                'user' => $this->provider->user ? [
                     'id' => $this->provider->user->id,
                     'name' => $this->provider->user->name,
                     'email' => $this->provider->user->email,
-                ],
+                ] : null,
             ]),
             'category' => $this->whenLoaded('category', fn () => [
                 'id' => $this->category->id,
