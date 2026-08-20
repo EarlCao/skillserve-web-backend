@@ -58,10 +58,74 @@ class ServiceController extends Controller
                 description: 'Paginated list of services',
                 content: new OA\JsonContent(
                     ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Services retrieved.',
+                        'data' => [
+                            [
+                                'id' => 1,
+                                'title' => 'Emergency Pipe Repair',
+                                'description' => 'Fast, reliable emergency pipe repair.',
+                                'price' => 150.00,
+                                'price_type' => 'fixed',
+                                'currency' => 'USD',
+                                'duration' => '1-2 hours',
+                                'location' => 'Austin, TX',
+                                'status' => 'published',
+                                'approval_status' => 'approved',
+                                'rejection_reason' => null,
+                                'is_featured' => true,
+                                'is_hidden' => false,
+                                'total_bookings' => 310,
+                                'completed_bookings' => 298,
+                                'average_rating' => 4.80,
+                                'total_reviews' => 92,
+                                'provider' => [
+                                    'id' => 1,
+                                    'business_name' => 'Garcia Plumbing Solutions',
+                                    'user' => ['id' => 1, 'name' => 'Maria Garcia', 'email' => 'maria.garcia@example.com'],
+                                ],
+                                'category' => ['id' => 1, 'name' => 'Home Maintenance'],
+                                'subcategory' => ['id' => 1, 'name' => 'Plumbing'],
+                                'approved_by' => ['id' => 1, 'name' => 'System Administrator'],
+                                'approved_at' => '2026-08-15T10:00:00+00:00',
+                                'created_at' => '2026-08-10T08:00:00+00:00',
+                                'updated_at' => '2026-08-15T10:00:00+00:00',
+                            ],
+                        ],
+                        'errors' => null,
+                        'meta' => ['pagination' => ['total' => 40, 'per_page' => 15, 'current_page' => 1, 'last_page' => 3, 'from' => 1, 'to' => 15]],
+                    ],
                 ),
             ),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the view services permission'),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the view services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function index(Request $request): JsonResponse
@@ -88,6 +152,17 @@ class ServiceController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['title', 'category_id'],
+                example: [
+                    'title' => 'Plumbing Repair',
+                    'description' => 'Expert plumbing repair service.',
+                    'category_id' => 1,
+                    'subcategory_id' => 1,
+                    'price' => 150.00,
+                    'price_type' => 'fixed',
+                    'currency' => 'USD',
+                    'duration' => '1-2 hours',
+                    'location' => 'Austin, TX',
+                ],
                 properties: [
                     new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Plumbing Repair'),
                     new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
@@ -102,10 +177,88 @@ class ServiceController extends Controller
             ),
         ),
         responses: [
-            new OA\Response(response: 201, description: 'Service created'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the create services permission'),
-            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(
+                response: 201,
+                description: 'Service created',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service created.',
+                        'data' => [
+                            'id' => 41,
+                            'title' => 'Plumbing Repair',
+                            'description' => 'Expert plumbing repair service.',
+                            'price' => 150.00,
+                            'price_type' => 'fixed',
+                            'currency' => 'USD',
+                            'duration' => '1-2 hours',
+                            'location' => 'Austin, TX',
+                            'status' => 'draft',
+                            'approval_status' => 'pending',
+                            'rejection_reason' => null,
+                            'is_featured' => false,
+                            'is_hidden' => false,
+                            'total_bookings' => 0,
+                            'completed_bookings' => 0,
+                            'average_rating' => 0,
+                            'total_reviews' => 0,
+                            'provider' => ['id' => 1, 'business_name' => 'Garcia Plumbing Solutions', 'user' => ['id' => 1, 'name' => 'Maria Garcia', 'email' => 'maria.garcia@example.com']],
+                            'category' => ['id' => 1, 'name' => 'Home Maintenance'],
+                            'subcategory' => ['id' => 1, 'name' => 'Plumbing'],
+                            'created_at' => '2026-08-20T12:00:00+00:00',
+                            'updated_at' => '2026-08-20T12:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the create services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation failed.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'title' => ['The title field is required.'],
+                            'category_id' => ['The category id field is required.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function store(StoreServiceRequest $request): JsonResponse
@@ -129,10 +282,89 @@ class ServiceController extends Controller
             new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Service details'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the view services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
+            new OA\Response(
+                response: 200,
+                description: 'Service details',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Request successful.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Emergency Pipe Repair',
+                            'description' => 'Fast, reliable emergency pipe repair.',
+                            'price' => 150.00,
+                            'price_type' => 'fixed',
+                            'currency' => 'USD',
+                            'duration' => '1-2 hours',
+                            'location' => 'Austin, TX',
+                            'status' => 'published',
+                            'approval_status' => 'approved',
+                            'rejection_reason' => null,
+                            'is_featured' => true,
+                            'is_hidden' => false,
+                            'total_bookings' => 310,
+                            'completed_bookings' => 298,
+                            'average_rating' => 4.80,
+                            'total_reviews' => 92,
+                            'provider' => ['id' => 1, 'business_name' => 'Garcia Plumbing Solutions', 'user' => ['id' => 1, 'name' => 'Maria Garcia', 'email' => 'maria.garcia@example.com']],
+                            'category' => ['id' => 1, 'name' => 'Home Maintenance'],
+                            'subcategory' => ['id' => 1, 'name' => 'Plumbing'],
+                            'created_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'updated_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'approved_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'approved_at' => '2026-08-15T10:00:00+00:00',
+                            'created_at' => '2026-08-10T08:00:00+00:00',
+                            'updated_at' => '2026-08-15T10:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the view services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function show(Service $service): JsonResponse
@@ -158,6 +390,13 @@ class ServiceController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
+                example: [
+                    'title' => 'Updated Service Title',
+                    'description' => 'Updated description.',
+                    'category_id' => 1,
+                    'price' => 200.00,
+                    'status' => 'published',
+                ],
                 properties: [
                     new OA\Property(property: 'title', type: 'string', maxLength: 255),
                     new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
@@ -175,11 +414,91 @@ class ServiceController extends Controller
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Service updated'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the edit services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
-            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(
+                response: 200,
+                description: 'Service updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service updated.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Updated Service Title',
+                            'description' => 'Updated description.',
+                            'price' => 200.00,
+                            'price_type' => 'fixed',
+                            'currency' => 'USD',
+                            'status' => 'published',
+                            'approval_status' => 'approved',
+                            'is_featured' => true,
+                            'is_hidden' => false,
+                            'created_at' => '2026-08-10T08:00:00+00:00',
+                            'updated_at' => '2026-08-20T12:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the edit services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation failed.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'title' => ['The title must not be greater than 255 characters.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function update(UpdateServiceRequest $request, Service $service): JsonResponse
@@ -205,16 +524,78 @@ class ServiceController extends Controller
         requestBody: new OA\RequestBody(
             required: false,
             content: new OA\JsonContent(
+                example: [
+                    'notes' => 'Service meets all quality standards.',
+                ],
                 properties: [
                     new OA\Property(property: 'notes', type: 'string', maxLength: 1000, nullable: true),
                 ],
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Service approved'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the approve services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
+            new OA\Response(
+                response: 200,
+                description: 'Service approved',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service approved.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Emergency Pipe Repair',
+                            'approval_status' => 'approved',
+                            'status' => 'published',
+                            'approved_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'approved_at' => '2026-08-20T12:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the approve services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function approve(ApproveServiceRequest $request, Service $service): JsonResponse
@@ -241,17 +622,93 @@ class ServiceController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['reason'],
+                example: [
+                    'reason' => 'Service description is incomplete.',
+                ],
                 properties: [
                     new OA\Property(property: 'reason', type: 'string', maxLength: 1000, example: 'Service description is incomplete.'),
                 ],
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Service rejected'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the reject services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
-            new OA\Response(response: 422, description: 'Validation error (reason required)'),
+            new OA\Response(
+                response: 200,
+                description: 'Service rejected',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service rejected.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Emergency Pipe Repair',
+                            'approval_status' => 'rejected',
+                            'status' => 'draft',
+                            'rejection_reason' => 'Service description is incomplete.',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the reject services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error (reason required)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation failed.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'reason' => ['The reason field is required.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function reject(RejectServiceRequest $request, Service $service): JsonResponse
@@ -278,16 +735,75 @@ class ServiceController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['is_hidden'],
+                example: [
+                    'is_hidden' => true,
+                ],
                 properties: [
                     new OA\Property(property: 'is_hidden', type: 'boolean', example: true),
                 ],
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Service visibility updated'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the edit services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
+            new OA\Response(
+                response: 200,
+                description: 'Service visibility updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service hidden.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Emergency Pipe Repair',
+                            'is_hidden' => true,
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the edit services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function hide(Request $request, Service $service): JsonResponse
@@ -318,16 +834,75 @@ class ServiceController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['is_featured'],
+                example: [
+                    'is_featured' => true,
+                ],
                 properties: [
                     new OA\Property(property: 'is_featured', type: 'boolean', example: true),
                 ],
             ),
         ),
         responses: [
-            new OA\Response(response: 200, description: 'Service featured status updated'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the feature services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
+            new OA\Response(
+                response: 200,
+                description: 'Service featured status updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service featured.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Emergency Pipe Repair',
+                            'is_featured' => true,
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the feature services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function feature(Request $request, Service $service): JsonResponse
@@ -356,10 +931,62 @@ class ServiceController extends Controller
             new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Service deleted (soft delete)'),
-            new OA\Response(response: 401, description: 'Unauthenticated / expired token'),
-            new OA\Response(response: 403, description: 'Missing the delete services permission'),
-            new OA\Response(response: 404, description: 'Service not found'),
+            new OA\Response(
+                response: 200,
+                description: 'Service deleted (soft delete)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service deleted.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the delete services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
         ],
     )]
     public function destroy(Request $request, Service $service): JsonResponse
