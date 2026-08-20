@@ -2189,6 +2189,1634 @@
                 ]
             }
         },
+        "/api/providers": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "List service providers",
+                "description": "GET /api/providers — paginated, searchable, filterable list of providers.",
+                "operationId": "91736ffd1c33e1b75f3a47f9ebae0087",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by business name, user name, or email",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by account status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "suspended"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "verification",
+                        "in": "query",
+                        "description": "Filter by verification status",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unverified",
+                                "pending",
+                                "verified",
+                                "rejected",
+                                "additional_info_required"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "description": "Sort column",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "created_at",
+                                "average_rating",
+                                "total_bookings",
+                                "business_name"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "description": "Sort direction",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated list of providers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Providers retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 1,
+                                            "user_id": 2,
+                                            "user": {
+                                                "id": 2,
+                                                "name": "John Smith",
+                                                "email": "john@example.com",
+                                                "phone": "+1234567890",
+                                                "created_at": "2026-08-01T08:00:00+00:00"
+                                            },
+                                            "business_name": "Smith Plumbing Co.",
+                                            "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                            "specialization": "Plumbing",
+                                            "experience_years": 10,
+                                            "hourly_rate": "65.00",
+                                            "location": "New York, NY",
+                                            "website": "https://smithplumbing.example.com",
+                                            "social_links": {
+                                                "linkedin": "https://linkedin.com/in/johnsmith"
+                                            },
+                                            "portfolio": [],
+                                            "skills": [
+                                                "Pipe Repair",
+                                                "Water Heater Installation",
+                                                "Drain Cleaning"
+                                            ],
+                                            "certifications": [
+                                                "Licensed Plumber - NY"
+                                            ],
+                                            "languages": [
+                                                "English",
+                                                "Spanish"
+                                            ],
+                                            "average_rating": "4.80",
+                                            "total_reviews": 45,
+                                            "total_bookings": 120,
+                                            "completed_bookings": 115,
+                                            "verification_status": "verified",
+                                            "verified_at": "2026-08-05T10:00:00+00:00",
+                                            "verified_by": {
+                                                "id": 1,
+                                                "name": "Admin User"
+                                            },
+                                            "rejection_reason": null,
+                                            "is_suspended": false,
+                                            "suspended_at": null,
+                                            "suspended_by": null,
+                                            "suspension_reason": null,
+                                            "latest_verification_request": null,
+                                            "created_at": "2026-08-01T08:00:00+00:00",
+                                            "updated_at": "2026-08-12T09:00:00+00:00"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": {
+                                        "pagination": {
+                                            "total": 1,
+                                            "per_page": 15,
+                                            "current_page": 1,
+                                            "last_page": 1,
+                                            "from": 1,
+                                            "to": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Get a provider profile",
+                "description": "GET /api/providers/{provider} — detailed provider profile.",
+                "operationId": "d62eb8016254f976355bef75032c9954",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider profile details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Request successful.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "verified",
+                                        "verified_at": "2026-08-05T10:00:00+00:00",
+                                        "verified_by": {
+                                            "id": 1,
+                                            "name": "Admin User"
+                                        },
+                                        "rejection_reason": null,
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": {
+                                            "id": 5,
+                                            "provider_profile_id": 1,
+                                            "status": "approved",
+                                            "notes": null,
+                                            "admin_notes": null,
+                                            "rejection_reason": null,
+                                            "additional_info_request": null,
+                                            "submitted_at": "2026-08-04T09:00:00+00:00",
+                                            "reviewed_at": "2026-08-05T10:00:00+00:00",
+                                            "reviewed_by": {
+                                                "id": 1,
+                                                "name": "Admin User"
+                                            },
+                                            "documents": [
+                                                {
+                                                    "id": 10,
+                                                    "verification_request_id": 5,
+                                                    "document_type": "government_id",
+                                                    "file_name": "drivers_license.pdf",
+                                                    "file_path": "verification/1/driver_license.pdf",
+                                                    "file_url": "https://storage.example.com/verification/1/driver_license.pdf",
+                                                    "file_mime_type": "application/pdf",
+                                                    "file_size": 1048576,
+                                                    "formatted_file_size": "1 MB",
+                                                    "description": "Government-issued driver license",
+                                                    "created_at": "2026-08-04T09:00:00+00:00"
+                                                }
+                                            ],
+                                            "documents_count": 1,
+                                            "created_at": "2026-08-04T09:00:00+00:00",
+                                            "updated_at": "2026-08-05T10:00:00+00:00"
+                                        },
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification/approve": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Approve provider verification",
+                "description": "PATCH /api/providers/{provider}/verification/approve — approve verification.",
+                "operationId": "df51e64c7d5797c9cac2d45324d14f4e",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "type": "string",
+                                        "example": "All documents verified successfully.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "notes": "All documents verified successfully."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Provider verification approved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider verification approved.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "verified",
+                                        "verified_at": "2026-08-12T10:00:00+00:00",
+                                        "verified_by": {
+                                            "id": 1,
+                                            "name": "Admin User"
+                                        },
+                                        "rejection_reason": null,
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found or no pending verification request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "No pending verification request found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or invalid state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "notes": [
+                                            "The notes field must not exceed 1000 characters."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification/reject": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Reject provider verification",
+                "description": "PATCH /api/providers/{provider}/verification/reject — reject verification.",
+                "operationId": "4e44b928b25bcc9f814f4798afb27be1",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Documents are unclear and illegible.",
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "reason": "Documents are unclear and illegible."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Provider verification rejected",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider verification rejected.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "rejected",
+                                        "verified_at": null,
+                                        "verified_by": null,
+                                        "rejection_reason": "Documents are unclear and illegible.",
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found or no pending verification request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "No pending verification request found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or invalid state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "reason": [
+                                            "The reason field is required."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification/request-info": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Request additional information from provider",
+                "description": "PATCH /api/providers/{provider}/verification/request-info — request additional info.",
+                "operationId": "80092d2ecd71ac86f7806e83a16a0f79",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "message"
+                                ],
+                                "properties": {
+                                    "message": {
+                                        "type": "string",
+                                        "example": "Please provide a clearer copy of your government ID.",
+                                        "maxLength": 2000
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "message": "Please provide a clearer copy of your government ID."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Additional information requested",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Additional information requested.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "additional_info_required",
+                                        "verified_at": null,
+                                        "verified_by": null,
+                                        "rejection_reason": null,
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found or no pending verification request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "No pending verification request found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or invalid state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "message": [
+                                            "The message field is required."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/suspend": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Suspend a provider",
+                "description": "PATCH /api/providers/{provider}/suspend — suspend a provider.",
+                "operationId": "c9612689333004e47fab1469396fd7bb",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Violation of platform terms.",
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "reason": "Violation of platform terms."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Provider suspended",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider suspended.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "verified",
+                                        "verified_at": "2026-08-05T10:00:00+00:00",
+                                        "verified_by": {
+                                            "id": 1,
+                                            "name": "Admin User"
+                                        },
+                                        "rejection_reason": null,
+                                        "is_suspended": true,
+                                        "suspended_at": "2026-08-12T10:00:00+00:00",
+                                        "suspended_by": {
+                                            "id": 1,
+                                            "name": "Admin User"
+                                        },
+                                        "suspension_reason": "Violation of platform terms.",
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or already suspended",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "reason": [
+                                            "The reason field is required."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/activate": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Activate a suspended provider",
+                "description": "PATCH /api/providers/{provider}/activate — activate a suspended provider.",
+                "operationId": "55e66f57dbb29b5de226200afa11e8d8",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider activated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider activated.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "verified",
+                                        "verified_at": "2026-08-05T10:00:00+00:00",
+                                        "verified_by": {
+                                            "id": 1,
+                                            "name": "Admin User"
+                                        },
+                                        "rejection_reason": null,
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Not currently suspended",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Provider is not currently suspended.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification/remove": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Remove provider verification",
+                "description": "PATCH /api/providers/{provider}/verification/remove — remove verified status.",
+                "operationId": "6a8cf734864c4870cc65a8dd148f3497",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider verification removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider verification removed.",
+                                    "data": {
+                                        "id": 1,
+                                        "user_id": 2,
+                                        "user": {
+                                            "id": 2,
+                                            "name": "John Smith",
+                                            "email": "john@example.com",
+                                            "phone": "+1234567890",
+                                            "created_at": "2026-08-01T08:00:00+00:00"
+                                        },
+                                        "business_name": "Smith Plumbing Co.",
+                                        "bio": "Experienced plumber with 10 years in residential and commercial work.",
+                                        "specialization": "Plumbing",
+                                        "experience_years": 10,
+                                        "hourly_rate": "65.00",
+                                        "location": "New York, NY",
+                                        "website": "https://smithplumbing.example.com",
+                                        "social_links": {
+                                            "linkedin": "https://linkedin.com/in/johnsmith"
+                                        },
+                                        "portfolio": [],
+                                        "skills": [
+                                            "Pipe Repair",
+                                            "Water Heater Installation",
+                                            "Drain Cleaning"
+                                        ],
+                                        "certifications": [
+                                            "Licensed Plumber - NY"
+                                        ],
+                                        "languages": [
+                                            "English",
+                                            "Spanish"
+                                        ],
+                                        "average_rating": "4.80",
+                                        "total_reviews": 45,
+                                        "total_bookings": 120,
+                                        "completed_bookings": 115,
+                                        "verification_status": "unverified",
+                                        "verified_at": null,
+                                        "verified_by": null,
+                                        "rejection_reason": null,
+                                        "is_suspended": false,
+                                        "suspended_at": null,
+                                        "suspended_by": null,
+                                        "suspension_reason": null,
+                                        "latest_verification_request": null,
+                                        "created_at": "2026-08-01T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Not currently verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Provider is not currently verified.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification-history": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Get provider verification history",
+                "description": "GET /api/providers/{provider}/verification-history — verification request history.",
+                "operationId": "52715665956be9623060c02ee1524da0",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification history (newest first)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Verification history retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 5,
+                                            "provider_profile_id": 1,
+                                            "status": "approved",
+                                            "notes": null,
+                                            "admin_notes": "All documents verified.",
+                                            "rejection_reason": null,
+                                            "additional_info_request": null,
+                                            "submitted_at": "2026-08-04T09:00:00+00:00",
+                                            "reviewed_at": "2026-08-05T10:00:00+00:00",
+                                            "reviewed_by": {
+                                                "id": 1,
+                                                "name": "Admin User"
+                                            },
+                                            "documents": [
+                                                {
+                                                    "id": 10,
+                                                    "verification_request_id": 5,
+                                                    "document_type": "government_id",
+                                                    "file_name": "drivers_license.pdf",
+                                                    "file_path": "verification/1/driver_license.pdf",
+                                                    "file_url": "https://storage.example.com/verification/1/driver_license.pdf",
+                                                    "file_mime_type": "application/pdf",
+                                                    "file_size": 1048576,
+                                                    "formatted_file_size": "1 MB",
+                                                    "description": "Government-issued driver license",
+                                                    "created_at": "2026-08-04T09:00:00+00:00"
+                                                }
+                                            ],
+                                            "documents_count": 1,
+                                            "created_at": "2026-08-04T09:00:00+00:00",
+                                            "updated_at": "2026-08-05T10:00:00+00:00"
+                                        },
+                                        {
+                                            "id": 3,
+                                            "provider_profile_id": 1,
+                                            "status": "rejected",
+                                            "notes": null,
+                                            "admin_notes": null,
+                                            "rejection_reason": "Documents are unclear and illegible.",
+                                            "additional_info_request": null,
+                                            "submitted_at": "2026-07-15T09:00:00+00:00",
+                                            "reviewed_at": "2026-07-16T14:00:00+00:00",
+                                            "reviewed_by": {
+                                                "id": 1,
+                                                "name": "Admin User"
+                                            },
+                                            "documents": [
+                                                {
+                                                    "id": 7,
+                                                    "verification_request_id": 3,
+                                                    "document_type": "government_id",
+                                                    "file_name": "blurry_id.jpg",
+                                                    "file_path": "verification/1/blurry_id.jpg",
+                                                    "file_url": "https://storage.example.com/verification/1/blurry_id.jpg",
+                                                    "file_mime_type": "image/jpeg",
+                                                    "file_size": 524288,
+                                                    "formatted_file_size": "512 KB",
+                                                    "description": "Blurred government ID photo",
+                                                    "created_at": "2026-07-15T09:00:00+00:00"
+                                                }
+                                            ],
+                                            "documents_count": 1,
+                                            "created_at": "2026-07-15T09:00:00+00:00",
+                                            "updated_at": "2026-07-16T14:00:00+00:00"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/service-categories": {
             "get": {
                 "tags": [
@@ -5160,6 +6788,10 @@
         {
             "name": "Authentication",
             "description": "Admin login, session and password management"
+        },
+        {
+            "name": "Providers",
+            "description": "Manage service provider accounts and verification workflows"
         },
         {
             "name": "Service Categories",
