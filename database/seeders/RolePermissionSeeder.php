@@ -49,6 +49,9 @@ class RolePermissionSeeder extends Seeder
             'edit service categories',
             'delete service categories',
             'manage bookings',
+            'view bookings',
+            'cancel bookings',
+            'manage booking disputes',
             'view reports',
         ];
 

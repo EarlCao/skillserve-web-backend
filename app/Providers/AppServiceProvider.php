@@ -19,6 +19,12 @@ use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
+use App\Modules\Bookings\Events\BookingCancelled;
+use App\Modules\Bookings\Events\BookingDisputeManaged;
+use App\Modules\Bookings\Events\BookingStatusChanged;
+use App\Modules\Bookings\Listeners\LogBookingActivity;
+use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
 use App\Modules\Providers\Events\ProviderSuspended;
@@ -170,6 +176,14 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ServiceHidden::class, LogServiceActivity::class);
         Event::listen(ServiceFeatured::class, LogServiceActivity::class);
         Event::listen(ServiceDeleted::class, LogServiceActivity::class);
+
+        // Booking Management module events.
+        Event::listen(BookingStatusChanged::class, LogBookingActivity::class);
+        Event::listen(BookingCancelled::class, LogBookingActivity::class);
+        Event::listen(BookingDisputeManaged::class, LogBookingActivity::class);
+
+        // Booking Management module policies.
+        Gate::policy(Booking::class, BookingPolicy::class);
 
         // Service Management module policies.
         Gate::policy(Service::class, ServicePolicy::class);
