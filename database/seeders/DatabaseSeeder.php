@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             ServiceCategorySeeder::class,
             ProviderSeeder::class,
             ServiceSeeder::class,
+            BookingSeeder::class,
         ]);
     }
 }
