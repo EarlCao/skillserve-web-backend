@@ -3,6 +3,7 @@
 namespace App\Modules\Authentication\Resources;
 
 use App\Shared\Resources\BaseResource;
+use Illuminate\Http\Request;
 
 /**
  * Shapes the login response: access token + the authenticated user.
@@ -14,7 +15,7 @@ use App\Shared\Resources\BaseResource;
 class AuthResource extends BaseResource
 {
     /**
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray($request): array

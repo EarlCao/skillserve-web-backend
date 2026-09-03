@@ -3,6 +3,7 @@
 namespace App\Modules\Authentication\Resources;
 
 use App\Shared\Resources\BaseResource;
+use Illuminate\Http\Request;
 
 /**
  * Shapes an administrator into the standard "data" payload.
@@ -13,7 +14,7 @@ use App\Shared\Resources\BaseResource;
 class UserResource extends BaseResource
 {
     /**
-     * @param  \Illuminate\Http\Request  $request
+     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray($request): array

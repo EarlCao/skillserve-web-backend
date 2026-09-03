@@ -20,6 +20,4 @@ namespace App\Shared\Actions;
  *
  *     app(CreateUserAction::class)->handle($data);
  */
-abstract class BaseAction
-{
-}
+abstract class BaseAction {}

@@ -1,6 +1,7 @@
 <?php
 
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Middleware\ForceJsonResponse;
 use App\Shared\Services\ApiResponder;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\QueryException;
@@ -9,6 +10,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -23,17 +27,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'force.json' => \App\Shared\Middleware\ForceJsonResponse::class,
+            'force.json' => ForceJsonResponse::class,
             // Spatie permission middleware — used by every future module.
-            'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
-            'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
-            'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
         ]);
 
         // Force JSON on every API request so errors always come back as the
         // standard envelope. appendToGroup keeps the framework's defaults
         // (throttle:api, SubstituteBindings, future Sanctum stateful API).
-        $middleware->appendToGroup('api', \App\Shared\Middleware\ForceJsonResponse::class);
+        $middleware->appendToGroup('api', ForceJsonResponse::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -34,6 +34,12 @@ use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Listeners\LogProviderActivity;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Policies\ProviderPolicy;
+use App\Modules\Reviews\Events\ReviewHidden;
+use App\Modules\Reviews\Events\ReviewRemoved;
+use App\Modules\Reviews\Events\ReviewRestored;
+use App\Modules\Reviews\Listeners\LogReviewActivity;
+use App\Modules\Reviews\Models\Review;
+use App\Modules\Reviews\Policies\ReviewPolicy;
 use App\Modules\ServiceCategories\Events\ServiceCategoryCreated;
 use App\Modules\ServiceCategories\Events\ServiceCategoryDeleted;
 use App\Modules\ServiceCategories\Events\ServiceCategoryStatusChanged;
@@ -187,6 +193,14 @@ class AppServiceProvider extends ServiceProvider
 
         // Service Management module policies.
         Gate::policy(Service::class, ServicePolicy::class);
+
+        // Reviews and Ratings Management module events.
+        Event::listen(ReviewHidden::class, LogReviewActivity::class);
+        Event::listen(ReviewRestored::class, LogReviewActivity::class);
+        Event::listen(ReviewRemoved::class, LogReviewActivity::class);
+
+        // Reviews and Ratings Management module policies.
+        Gate::policy(Review::class, ReviewPolicy::class);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);

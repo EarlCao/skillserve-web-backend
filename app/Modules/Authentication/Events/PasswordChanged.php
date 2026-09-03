@@ -13,6 +13,5 @@ class PasswordChanged
         public readonly User $user,
         public readonly ?string $ip = null,
         public readonly ?string $userAgent = null,
-    ) {
-    }
+    ) {}
 }

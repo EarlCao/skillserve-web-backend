@@ -14,6 +14,5 @@ class AdministratorLoggedIn
         public readonly string $token,
         public readonly ?string $ip = null,
         public readonly ?string $userAgent = null,
-    ) {
-    }
+    ) {}
 }

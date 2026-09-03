@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
-use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;

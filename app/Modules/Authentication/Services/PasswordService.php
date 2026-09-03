@@ -2,9 +2,9 @@
 
 namespace App\Modules\Authentication\Services;
 
+use App\Models\User;
 use App\Modules\Authentication\Actions\ChangePasswordAction;
 use App\Modules\Authentication\Events\PasswordChanged;
-use App\Models\User;
 
 /**
  * Handles password management for authenticated administrators.
@@ -13,8 +13,7 @@ class PasswordService
 {
     public function __construct(
         private readonly ChangePasswordAction $changePasswordAction,
-    ) {
-    }
+    ) {}
 
     /**
      * Verify the current password, store the new one, and notify the rest of

@@ -28,3 +28,5 @@ Route::group([], base_path('app/Modules/Providers/Routes/api.php'));
 Route::group([], base_path('app/Modules/Services/Routes/api.php'));
 
 Route::group([], base_path('app/Modules/Bookings/Routes/api.php'));
+
+Route::group([], base_path('app/Modules/Reviews/Routes/api.php'));

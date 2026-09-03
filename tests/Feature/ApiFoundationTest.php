@@ -24,9 +24,9 @@ class ApiFoundationTest extends TestCase
         Route::middleware('api')->get('/api/_foundation/success', fn () => ApiResponder::success(['name' => 'test']));
         Route::middleware('api')->get('/api/_foundation/error', fn () => throw new ApiException('Custom failure', 422, errors: ['name' => ['The name field is required.']]));
         Route::middleware('api')->get('/api/_foundation/validation', fn () => throw ValidationException::withMessages(['email' => ['The email field is required.']]));
-        Route::middleware('api')->get('/api/_foundation/auth', fn () => throw new AuthenticationException());
-        Route::middleware('api')->get('/api/_foundation/forbidden', fn () => throw new AuthorizationException());
-        Route::middleware('api')->get('/api/_foundation/not-found', fn () => throw new ModelNotFoundException());
+        Route::middleware('api')->get('/api/_foundation/auth', fn () => throw new AuthenticationException);
+        Route::middleware('api')->get('/api/_foundation/forbidden', fn () => throw new AuthorizationException);
+        Route::middleware('api')->get('/api/_foundation/not-found', fn () => throw new ModelNotFoundException);
     }
 
     public function test_success_uses_standard_envelope(): void

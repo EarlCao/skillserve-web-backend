@@ -417,7 +417,7 @@ class ProviderSeeder extends Seeder
             $this->createProvider($data, $actor);
         }
 
-        $this->command?->info("Seeded ".count($toCreate)." providers — total: ".ProviderProfile::count().'.');
+        $this->command?->info('Seeded '.count($toCreate).' providers — total: '.ProviderProfile::count().'.');
     }
 
     /**

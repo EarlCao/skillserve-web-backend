@@ -8,6 +8,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 
 /**
  * Sent when a platform user account is banned — either for a fixed number of
@@ -18,12 +19,12 @@ class UserBannedMail extends Mailable
     use Queueable, SerializesModels;
 
     /**
-     * @param  \Illuminate\Support\Carbon|null  $bannedUntil  null = permanent ban
+     * @param  Carbon|null  $bannedUntil  null = permanent ban
      */
     public function __construct(
         public readonly User $user,
         public readonly string $reason,
-        public readonly ?\Illuminate\Support\Carbon $bannedUntil = null,
+        public readonly ?Carbon $bannedUntil = null,
     ) {}
 
     public function envelope(): Envelope

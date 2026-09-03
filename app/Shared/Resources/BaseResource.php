@@ -15,6 +15,4 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * concrete implementation and PHP forbids making it abstract again. Concrete
  * resources simply override toArray($request) with their own shape.
  */
-abstract class BaseResource extends JsonResource
-{
-}
+abstract class BaseResource extends JsonResource {}
