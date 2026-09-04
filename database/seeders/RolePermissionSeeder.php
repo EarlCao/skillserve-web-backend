@@ -53,6 +53,10 @@ class RolePermissionSeeder extends Seeder
             'cancel bookings',
             'manage booking disputes',
             'view reports',
+            'manage reports',
+            'investigate reports',
+            'resolve reports',
+            'manage moderation',
         ];
 
         foreach ($permissions as $permission) {

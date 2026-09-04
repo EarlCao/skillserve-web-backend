@@ -17,7 +17,7 @@ class PermissionResource extends BaseResource
      */
     private const VERB_PREFIXES = [
         'manage ', 'view ', 'create ', 'edit ', 'update ', 'delete ', 'export ',
-        'approve ', 'reject ', 'suspend ', 'activate ',
+        'approve ', 'reject ', 'suspend ', 'activate ', 'investigate ', 'resolve ',
     ];
 
     /**

@@ -34,6 +34,14 @@ use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Listeners\LogProviderActivity;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Policies\ProviderPolicy;
+use App\Modules\ReportsAndModeration\Events\ReportActionTaken;
+use App\Modules\ReportsAndModeration\Events\ReportInvestigated;
+use App\Modules\ReportsAndModeration\Events\ReportNoteAdded;
+use App\Modules\ReportsAndModeration\Events\ReportRejected;
+use App\Modules\ReportsAndModeration\Events\ReportResolved;
+use App\Modules\ReportsAndModeration\Listeners\LogReportActivity;
+use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Policies\ReportPolicy;
 use App\Modules\Reviews\Events\ReviewHidden;
 use App\Modules\Reviews\Events\ReviewRemoved;
 use App\Modules\Reviews\Events\ReviewRestored;
@@ -201,6 +209,16 @@ class AppServiceProvider extends ServiceProvider
 
         // Reviews and Ratings Management module policies.
         Gate::policy(Review::class, ReviewPolicy::class);
+
+        // Reports and Moderation module events.
+        Event::listen(ReportInvestigated::class, LogReportActivity::class);
+        Event::listen(ReportNoteAdded::class, LogReportActivity::class);
+        Event::listen(ReportResolved::class, LogReportActivity::class);
+        Event::listen(ReportRejected::class, LogReportActivity::class);
+        Event::listen(ReportActionTaken::class, LogReportActivity::class);
+
+        // Reports and Moderation module policies.
+        Gate::policy(Report::class, ReportPolicy::class);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);
