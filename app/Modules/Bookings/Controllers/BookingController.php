@@ -37,7 +37,7 @@ class BookingController extends Controller
             new OA\Parameter(name: 'provider_id', in: 'query', description: 'Filter by provider profile ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'client_id', in: 'query', description: 'Filter by client user ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'service_id', in: 'query', description: 'Filter by service ID', required: false, schema: new OA\Schema(type: 'integer')),
-            new OA\Parameter(name: 'dispute_status', in: 'query', description: 'Filter by dispute status', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'investigated', 'resolved', 'rejected'])),
+            new OA\Parameter(name: 'dispute_status', in: 'query', description: 'Filter by dispute status', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'investigated', 'resolved', 'rejected', 'closed'])),
             new OA\Parameter(name: 'date_from', in: 'query', description: 'Filter bookings created from this date', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'date_to', in: 'query', description: 'Filter bookings created up to this date', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
             new OA\Parameter(name: 'sort', in: 'query', description: 'Sort column', required: false, schema: new OA\Schema(type: 'string', enum: ['booking_number', 'created_at', 'total_price', 'status', 'scheduled_date'], default: 'created_at')),
@@ -285,6 +285,7 @@ class BookingController extends Controller
             $request->user(),
             $request->validated('action'),
             $request->validated('resolution'),
+            $request->validated('notes'),
         );
 
         $message = match ($request->validated('action')) {

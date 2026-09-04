@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'cancellation_reason', 'scheduled_date', 'scheduled_end_date',
     'confirmed_at', 'started_at', 'completed_at', 'cancelled_at',
     'dispute_reason', 'disputed_at', 'dispute_status', 'dispute_resolution',
+    'dispute_evidence', 'dispute_notes', 'dispute_closed_at', 'dispute_closed_by',
     'is_reviewed', 'cancelled_by', 'deleted_by',
 ])]
 class Booking extends Model
@@ -46,6 +47,11 @@ class Booking extends Model
     public function deletedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
+    }
+
+    public function disputeClosedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dispute_closed_by');
     }
 
     public function isPending(): bool
@@ -97,6 +103,9 @@ class Booking extends Model
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'disputed_at' => 'datetime',
+            'dispute_evidence' => 'array',
+            'dispute_notes' => 'array',
+            'dispute_closed_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }

@@ -37,6 +37,13 @@ class BookingResource extends BaseResource
             'disputed_at' => $this->disputed_at?->toIso8601String(),
             'dispute_status' => $this->dispute_status,
             'dispute_resolution' => $this->dispute_resolution,
+            'dispute_evidence' => $this->dispute_evidence ?? [],
+            'dispute_notes' => $this->dispute_notes ?? [],
+            'dispute_closed_at' => $this->dispute_closed_at?->toIso8601String(),
+            'dispute_closed_by' => $this->whenLoaded('disputeClosedBy', fn () => $this->disputeClosedBy ? [
+                'id' => $this->disputeClosedBy->id,
+                'name' => $this->disputeClosedBy->name,
+            ] : null),
             'is_reviewed' => $this->is_reviewed,
             'service' => $this->whenLoaded('service', fn () => [
                 'id' => $this->service->id,

@@ -8,6 +8,7 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
+use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -171,13 +172,29 @@ class BookingService extends BaseService
         User $actor,
         string $action,
         ?string $resolution = null,
+        ?string $notes = null,
     ): Booking {
-        return $this->transaction(function () use ($booking, $actor, $action, $resolution): Booking {
+        return $this->transaction(function () use ($booking, $actor, $action, $resolution, $notes): Booking {
+            $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
+
+            if (! $booking->dispute_reason) {
+                throw new ApiException('This booking has no dispute.', 422, errors: ['dispute' => ['The booking does not have a dispute to manage.']]);
+            }
+
+            if (in_array($booking->dispute_status, ['resolved', 'rejected', 'closed'], true)) {
+                throw new ApiException('This dispute is no longer open.', 422, errors: ['dispute_status' => ['A resolved, rejected, or closed dispute cannot be changed.']]);
+            }
             $updates = ['dispute_status' => $action === 'investigate' ? 'investigated' : $action];
 
             if ($action === 'resolve' && $resolution) {
                 $updates['dispute_resolution'] = $resolution;
                 $updates['status'] = 'completed';
+            }
+
+            if ($notes) {
+                $disputeNotes = $booking->dispute_notes ?? [];
+                $disputeNotes[] = ['note' => trim($notes), 'created_at' => now()->toIso8601String(), 'created_by' => $actor->id];
+                $updates['dispute_notes'] = $disputeNotes;
             }
 
             $booking->update($updates);
@@ -195,6 +212,10 @@ class BookingService extends BaseService
                 action: $action,
                 resolution: $resolution,
             ));
+
+            if ($action === 'resolve' && $booking->status === 'completed') {
+                event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: 'disputed', newStatus: 'completed'));
+            }
 
             return $booking;
         });

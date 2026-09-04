@@ -14,8 +14,8 @@ class ManageDisputeRequest extends BaseFormRequest
     {
         return [
             'action' => ['required', 'string', Rule::in(['investigate', 'resolve', 'reject'])],
-            'resolution' => ['required_if:action,resolve', 'sometimes', 'nullable', 'string', 'max:2000'],
-            'notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'resolution' => ['required_if:action,resolve', 'nullable', 'string', 'max:2000'],
+            'notes' => ['sometimes', 'nullable', 'string', 'regex:/\S/', 'max:2000'],
         ];
     }
 

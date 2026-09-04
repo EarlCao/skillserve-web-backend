@@ -97,6 +97,7 @@ class BookingSeeder extends Seeder
         $clients = User::query()->where('user_type', 'customer')->doesntHave('roles')->get();
         $services = Service::query()->where('approval_status', 'approved')->get()->keyBy('title');
         $providers = ProviderProfile::query()->get()->keyBy('id');
+        $actor = User::query()->whereHas('roles')->first();
 
         $toCreate = array_slice(self::BOOKINGS, 0, $missing);
         $created = 0;
@@ -148,6 +149,15 @@ class BookingSeeder extends Seeder
                 'disputed_at' => ($data['dr'] ?? null) ? $scheduledDate->copy()->addDays(1) : null,
                 'dispute_status' => $data['ds'] ?? null,
                 'dispute_resolution' => $data['dr2'] ?? null,
+                'dispute_evidence' => ($data['dr'] ?? null) ? [[
+                    'label' => 'Submitted dispute statement',
+                    'content' => $data['dr'],
+                ]] : null,
+                'dispute_notes' => ($data['ds'] ?? null) === 'investigated' ? [[
+                    'note' => 'Initial evidence review completed.',
+                    'created_at' => now()->subDays(1)->toIso8601String(),
+                    'created_by' => $actor?->id,
+                ]] : null,
                 'is_reviewed' => $data['st'] === 'completed' && fake()->boolean(60),
                 'created_at' => $createdAt,
                 'updated_at' => $createdAt->copy()->addDays(5),

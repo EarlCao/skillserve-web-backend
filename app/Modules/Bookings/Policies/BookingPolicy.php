@@ -32,4 +32,9 @@ class BookingPolicy extends BasePolicy
     {
         return $this->allows($user, 'manage booking disputes');
     }
+
+    public function viewDisputes(User $user): bool
+    {
+        return $this->allows($user, 'view bookings');
+    }
 }
