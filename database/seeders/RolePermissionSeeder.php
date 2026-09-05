@@ -65,6 +65,7 @@ class RolePermissionSeeder extends Seeder
             'send announcements',
             'target notifications',
             'schedule announcements',
+            'view dashboard',
         ];
 
         foreach ($permissions as $permission) {
@@ -75,7 +76,7 @@ class RolePermissionSeeder extends Seeder
         $superAdmin->syncPermissions($permissions);
 
         $admin = Role::firstOrCreate(['name' => 'admin']);
-        $admin->syncPermissions(['view reports']);
+        $admin->syncPermissions(['view reports', 'view dashboard']);
 
         // Bootstrap account (override via ADMIN_EMAIL / ADMIN_PASSWORD in .env).
         $adminUser = User::query()->firstOrCreate(

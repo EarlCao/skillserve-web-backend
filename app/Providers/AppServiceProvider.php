@@ -25,6 +25,7 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
+use App\Modules\Dashboard\Policies\DashboardPolicy;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
@@ -224,6 +225,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Notifications and Announcements module policies.
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
+        Gate::define('view dashboard', [DashboardPolicy::class, 'viewAny']);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);
