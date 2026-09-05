@@ -3720,6 +3720,251 @@
                 ]
             }
         },
+        "/api/provider-recognition/badges": {
+            "get": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "List provider badges",
+                "operationId": "8b1081d3833e44475795bbf2f72223ff",
+                "responses": {
+                    "200": {
+                        "description": "Badges",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Create a provider badge",
+                "operationId": "04eeb2677f2ec46b84305cb60f6b25cf",
+                "responses": {
+                    "201": {
+                        "description": "Badge created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/badges/{badge}": {
+            "put": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Update a provider badge",
+                "operationId": "b2a5efb6c9afded95681db3838c9c1dd",
+                "responses": {
+                    "200": {
+                        "description": "Badge updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Delete a provider badge",
+                "operationId": "af60497f855bfcfa59ed9e187ebf96e0",
+                "responses": {
+                    "200": {
+                        "description": "Badge deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/providers": {
+            "get": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "List recognition providers",
+                "operationId": "9864acc922a4cc5eb19ea9dc22c88ca7",
+                "responses": {
+                    "200": {
+                        "description": "Providers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/top-rated": {
+            "get": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "List top-rated providers",
+                "operationId": "f3c8fa61b659f092479581fe2ef728e3",
+                "responses": {
+                    "200": {
+                        "description": "Top-rated providers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/providers/{provider}/badges": {
+            "post": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Assign a badge to a provider",
+                "operationId": "51ecdb7731af918ade4e8dcf3af881f9",
+                "responses": {
+                    "200": {
+                        "description": "Badge assigned",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/providers/{provider}/badges/{badge}": {
+            "delete": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Remove a badge from a provider",
+                "operationId": "8c982ad2be719dd1c398f6bb9c5abb25",
+                "responses": {
+                    "200": {
+                        "description": "Badge removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/provider-recognition/providers/{provider}/featured": {
+            "patch": {
+                "tags": [
+                    "Provider Recognition"
+                ],
+                "summary": "Feature or unfeature a provider",
+                "operationId": "6b1b09a5ba0eeddbd047fbd1a31324c5",
+                "responses": {
+                    "200": {
+                        "description": "Featured status updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/providers": {
             "get": {
                 "tags": [
@@ -10583,6 +10828,10 @@
         {
             "name": "Notifications",
             "description": "View notification history and send targeted announcements"
+        },
+        {
+            "name": "Provider Recognition",
+            "description": "Manage provider badges, featured providers, and top-rated providers"
         },
         {
             "name": "Providers",

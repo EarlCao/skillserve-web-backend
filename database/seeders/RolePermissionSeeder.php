@@ -68,6 +68,11 @@ class RolePermissionSeeder extends Seeder
             'view dashboard',
             'view analytics',
             'export analytics',
+            'view provider recognition',
+            'manage provider badges',
+            'assign provider badges',
+            'manage featured providers',
+            'view top rated providers',
         ];
 
         foreach ($permissions as $permission) {
@@ -78,7 +83,11 @@ class RolePermissionSeeder extends Seeder
         $superAdmin->syncPermissions($permissions);
 
         $admin = Role::firstOrCreate(['name' => 'admin']);
-        $admin->syncPermissions(['view reports', 'view dashboard']);
+        $admin->syncPermissions([
+            'view reports', 'view dashboard',
+            'view provider recognition', 'manage provider badges',
+            'assign provider badges', 'manage featured providers', 'view top rated providers',
+        ]);
 
         // Bootstrap account (override via ADMIN_EMAIL / ADMIN_PASSWORD in .env).
         $adminUser = User::query()->firstOrCreate(

@@ -29,6 +29,7 @@ use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\Dashboard\Policies\DashboardPolicy;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
+use App\Modules\ProviderRecognition\Policies\ProviderRecognitionPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
 use App\Modules\Providers\Events\ProviderSuspended;
@@ -231,6 +232,13 @@ class AppServiceProvider extends ServiceProvider
         // Reports and Analytics module gates (read-only aggregates).
         Gate::define('view analytics', [AnalyticsPolicy::class, 'viewAny']);
         Gate::define('export analytics', [AnalyticsPolicy::class, 'export']);
+
+        // Provider Recognition module gates.
+        Gate::define('view provider recognition', [ProviderRecognitionPolicy::class, 'view']);
+        Gate::define('manage provider badges', [ProviderRecognitionPolicy::class, 'manageBadges']);
+        Gate::define('assign provider badges', [ProviderRecognitionPolicy::class, 'assignBadges']);
+        Gate::define('manage featured providers', [ProviderRecognitionPolicy::class, 'featured']);
+        Gate::define('view top rated providers', [ProviderRecognitionPolicy::class, 'topRated']);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);

@@ -3,9 +3,11 @@
 namespace App\Modules\Providers\Models;
 
 use App\Models\User;
+use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -35,7 +37,7 @@ class ProviderProfile extends Model
         'verified_at',
         'verified_by',
         'rejection_reason',
-        'suspension_reason',
+        'suspension_reason', 'is_featured',
         'suspended_at',
         'suspended_by',
     ];
@@ -50,6 +52,7 @@ class ProviderProfile extends Model
         'average_rating' => 'decimal:2',
         'verified_at' => 'datetime',
         'suspended_at' => 'datetime',
+        'is_featured' => 'boolean',
     ];
 
     /**
@@ -90,6 +93,16 @@ class ProviderProfile extends Model
     public function services(): HasMany
     {
         return $this->hasMany(Service::class, 'provider_id');
+    }
+
+    public function badges(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ProviderBadge::class,
+            'provider_badge_assignments',
+            'provider_profile_id',
+            'provider_badge_id',
+        )->withPivot(['assigned_by', 'assigned_at'])->withTimestamps();
     }
 
     /**
