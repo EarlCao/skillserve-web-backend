@@ -66,6 +66,8 @@ class RolePermissionSeeder extends Seeder
             'target notifications',
             'schedule announcements',
             'view dashboard',
+            'view analytics',
+            'export analytics',
         ];
 
         foreach ($permissions as $permission) {

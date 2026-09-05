@@ -15,6 +15,7 @@ use App\Modules\Administrators\Listeners\LogAdministratorActivity;
 use App\Modules\Administrators\Policies\AdministratorPolicy;
 use App\Modules\Administrators\Policies\PermissionPolicy;
 use App\Modules\Administrators\Policies\RolePolicy;
+use App\Modules\Analytics\Policies\AnalyticsPolicy;
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Events\PasswordChanged;
@@ -226,6 +227,10 @@ class AppServiceProvider extends ServiceProvider
         // Notifications and Announcements module policies.
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::define('view dashboard', [DashboardPolicy::class, 'viewAny']);
+
+        // Reports and Analytics module gates (read-only aggregates).
+        Gate::define('view analytics', [AnalyticsPolicy::class, 'viewAny']);
+        Gate::define('export analytics', [AnalyticsPolicy::class, 'export']);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);

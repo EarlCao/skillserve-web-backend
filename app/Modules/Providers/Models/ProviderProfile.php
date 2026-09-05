@@ -3,6 +3,7 @@
 namespace App\Modules\Providers\Models;
 
 use App\Models\User;
+use App\Modules\Services\Models\Service;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -81,6 +82,14 @@ class ProviderProfile extends Model
     public function verificationRequests(): HasMany
     {
         return $this->hasMany(VerificationRequest::class);
+    }
+
+    /**
+     * Services offered by this provider.
+     */
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class, 'provider_id');
     }
 
     /**
