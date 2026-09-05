@@ -16,8 +16,10 @@ use App\Modules\Administrators\Policies\AdministratorPolicy;
 use App\Modules\Administrators\Policies\PermissionPolicy;
 use App\Modules\Administrators\Policies\RolePolicy;
 use App\Modules\Analytics\Policies\AnalyticsPolicy;
+use App\Modules\Audit\Policies\AuditLogPolicy;
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
+use App\Modules\Authentication\Events\AdministratorLoginFailed;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
 use App\Modules\Bookings\Events\BookingCancelled;
@@ -127,6 +129,7 @@ class AppServiceProvider extends ServiceProvider
         // auto-discovery.
         Event::listen(AdministratorLoggedIn::class, LogAuthenticationActivity::class);
         Event::listen(AdministratorLoggedOut::class, LogAuthenticationActivity::class);
+        Event::listen(AdministratorLoginFailed::class, LogAuthenticationActivity::class);
         Event::listen(PasswordChanged::class, LogAuthenticationActivity::class);
 
         // Administrator Management module events.
@@ -239,6 +242,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('assign provider badges', [ProviderRecognitionPolicy::class, 'assignBadges']);
         Gate::define('manage featured providers', [ProviderRecognitionPolicy::class, 'featured']);
         Gate::define('view top rated providers', [ProviderRecognitionPolicy::class, 'topRated']);
+
+        // Security and Audit Log module gates.
+        Gate::define('view audit logs', [AuditLogPolicy::class, 'view']);
+        Gate::define('view login activity', [AuditLogPolicy::class, 'login']);
+        Gate::define('monitor security events', [AuditLogPolicy::class, 'security']);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);

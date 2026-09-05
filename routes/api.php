@@ -40,3 +40,5 @@ Route::group([], base_path('app/Modules/Notifications/Routes/api.php'));
 Route::group([], base_path('app/Modules/Analytics/Routes/api.php'));
 
 Route::group([], base_path('app/Modules/ProviderRecognition/Routes/api.php'));
+
+Route::group([], base_path('app/Modules/Audit/Routes/api.php'));

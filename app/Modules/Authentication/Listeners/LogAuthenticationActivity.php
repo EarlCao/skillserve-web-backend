@@ -4,6 +4,7 @@ namespace App\Modules\Authentication\Listeners;
 
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
+use App\Modules\Authentication\Events\AdministratorLoginFailed;
 use App\Modules\Authentication\Events\PasswordChanged;
 
 /**
@@ -19,8 +20,20 @@ class LogAuthenticationActivity
      * AppServiceProvider because the module lives outside app/Listeners).
      */
     public function handle(
-        AdministratorLoggedIn|AdministratorLoggedOut|PasswordChanged $event,
+        AdministratorLoggedIn|AdministratorLoggedOut|AdministratorLoginFailed|PasswordChanged $event,
     ): void {
+        if ($event instanceof AdministratorLoginFailed) {
+            activity('authentication')
+                ->withProperties(array_filter([
+                    'email' => $event->email,
+                    'ip' => $event->ip,
+                    'user_agent' => $event->userAgent,
+                ]))
+                ->log('administrator_login_failed');
+
+            return;
+        }
+
         $properties = array_filter([
             'ip' => $event->ip,
             'user_agent' => $event->userAgent,

@@ -73,6 +73,9 @@ class RolePermissionSeeder extends Seeder
             'assign provider badges',
             'manage featured providers',
             'view top rated providers',
+            'view audit logs',
+            'view login activity',
+            'monitor security events',
         ];
 
         foreach ($permissions as $permission) {
@@ -87,6 +90,7 @@ class RolePermissionSeeder extends Seeder
             'view reports', 'view dashboard',
             'view provider recognition', 'manage provider badges',
             'assign provider badges', 'manage featured providers', 'view top rated providers',
+            'view audit logs', 'view login activity', 'monitor security events',
         ]);
 
         // Bootstrap account (override via ADMIN_EMAIL / ADMIN_PASSWORD in .env).

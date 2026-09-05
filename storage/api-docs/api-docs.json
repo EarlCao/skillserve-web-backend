@@ -2063,6 +2063,64 @@
                 ]
             }
         },
+        "/api/audit-logs": {
+            "get": {
+                "tags": [
+                    "Security and Audit"
+                ],
+                "summary": "List audit logs",
+                "operationId": "2320b6b10612ed567aa462fb3f9d77dc",
+                "responses": {
+                    "200": {
+                        "description": "Paginated audit logs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/audit-logs/administrators": {
+            "get": {
+                "tags": [
+                    "Security and Audit"
+                ],
+                "summary": "List audit log administrators",
+                "operationId": "e840b812645c458686b628aa00813904",
+                "responses": {
+                    "200": {
+                        "description": "Administrators",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/auth/login": {
             "post": {
                 "tags": [
@@ -10808,6 +10866,10 @@
         {
             "name": "Reports and Analytics",
             "description": "Generate and export user, provider, service, booking, review, and system activity reports"
+        },
+        {
+            "name": "Security and Audit",
+            "description": "Search and monitor administrator audit activity"
         },
         {
             "name": "Authentication",

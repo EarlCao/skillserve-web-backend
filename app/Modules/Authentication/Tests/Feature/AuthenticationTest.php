@@ -33,7 +33,9 @@ class AuthenticationTest extends TestCase
 
     public function test_successful_login_returns_standard_envelope_with_token(): void
     {
+        Role::findOrCreate('admin');
         $user = $this->createUser(['email' => 'admin@skillserve.test']);
+        $user->assignRole('admin');
 
         $response = $this->postJson('/api/auth/login', [
             'email' => 'admin@skillserve.test',
@@ -57,6 +59,23 @@ class AuthenticationTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.token_type', 'Bearer')
             ->assertJsonPath('data.user.email', $user->email);
+    }
+
+    public function test_platform_users_cannot_login_to_the_admin_system(): void
+    {
+        $this->createUser(['email' => 'customer@skillserve.test']);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'customer@skillserve.test',
+            'password' => 'password123',
+        ])
+            ->assertStatus(401)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseHas('activity_log', [
+            'description' => 'administrator_login_failed',
+            'log_name' => 'authentication',
+        ]);
     }
 
     public function test_login_with_invalid_credentials_returns_401(): void
@@ -130,7 +149,9 @@ class AuthenticationTest extends TestCase
 
     public function test_change_password_updates_the_password(): void
     {
+        Role::findOrCreate('admin');
         $user = $this->createUser();
+        $user->assignRole('admin');
         $token = $user->createToken('test')->plainTextToken;
 
         $this->withToken($token)

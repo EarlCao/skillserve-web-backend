@@ -3,6 +3,7 @@
 namespace App\Modules\Authentication\Actions;
 
 use App\Models\User;
+use App\Modules\Authentication\Events\AdministratorLoginFailed;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
@@ -22,6 +23,12 @@ final class LoginAction extends BaseAction
         $user = User::query()->where('email', $email)->first();
 
         if (! $user || ! Hash::check($password, $user->password)) {
+            event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
+            throw new ApiException('Invalid email or password.', 401);
+        }
+
+        if (! $user->roles()->exists()) {
+            event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
             throw new ApiException('Invalid email or password.', 401);
         }
 
@@ -46,6 +53,7 @@ final class LoginAction extends BaseAction
         // Deactivated accounts must not be able to sign in (Administrator
         // Management module).
         if (! $user->isActive()) {
+            event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
             throw new ApiException('Your account has been deactivated. Contact an administrator.', 403);
         }
 
