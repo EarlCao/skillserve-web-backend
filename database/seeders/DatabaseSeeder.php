@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             ServiceSeeder::class,
             BookingSeeder::class,
             ReportSeeder::class,
+            NotificationSeeder::class,
         ]);
     }
 }

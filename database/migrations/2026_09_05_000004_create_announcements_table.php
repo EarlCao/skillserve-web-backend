@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -23,9 +24,10 @@ return new class extends Migration
 
             $table->index(['status', 'scheduled_at']);
             $table->index('created_by');
-            $table->check("target in ('all', 'customers', 'providers', 'selected')");
-            $table->check("status in ('pending', 'scheduled', 'sent', 'failed')");
         });
+
+        DB::statement("alter table announcements add constraint announcements_target_check check (target in ('all', 'customers', 'providers', 'selected'))");
+        DB::statement("alter table announcements add constraint announcements_status_check check (status in ('pending', 'scheduled', 'sent', 'failed'))");
     }
 
     public function down(): void
