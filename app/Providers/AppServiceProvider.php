@@ -25,6 +25,8 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
+use App\Modules\Notifications\Models\Announcement;
+use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
 use App\Modules\Providers\Events\ProviderSuspended;
@@ -219,6 +221,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Reports and Moderation module policies.
         Gate::policy(Report::class, ReportPolicy::class);
+
+        // Notifications and Announcements module policies.
+        Gate::policy(Announcement::class, AnnouncementPolicy::class);
 
         // Provider Management module policies.
         Gate::policy(ProviderProfile::class, ProviderPolicy::class);

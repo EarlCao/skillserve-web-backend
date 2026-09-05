@@ -61,6 +61,10 @@ class RolePermissionSeeder extends Seeder
             'investigate reports',
             'resolve reports',
             'manage moderation',
+            'view notifications',
+            'send announcements',
+            'target notifications',
+            'schedule announcements',
         ];
 
         foreach ($permissions as $permission) {
