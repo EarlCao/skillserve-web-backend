@@ -77,6 +77,12 @@ class RolePermissionSeeder extends Seeder
             'view login activity',
             'monitor security events',
             'manage settings',
+            'manage data',
+            'export system data',
+            'archive records',
+            'restore archived records',
+            'restore deleted records',
+            'manage deleted records',
         ];
 
         foreach ($permissions as $permission) {

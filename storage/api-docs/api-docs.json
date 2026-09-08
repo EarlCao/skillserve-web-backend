@@ -3531,6 +3531,159 @@
                 ]
             }
         },
+        "/api/data-management/archives": {
+            "get": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "List archived records",
+                "operationId": "7d6dce4e63fb9b41083d8d94c5d88d8b",
+                "responses": {
+                    "200": {
+                        "description": "Archived records"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "Archive a record",
+                "operationId": "c5d74537797fb8294129061ed7dcc4f3",
+                "responses": {
+                    "201": {
+                        "description": "Record archived"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/data-management/archives/{archive}/restore": {
+            "post": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "Restore an archived record",
+                "operationId": "613335321a1769b0d0b3dd9eb60e76eb",
+                "parameters": [
+                    {
+                        "name": "archive",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Record restored"
+                    },
+                    "404": {
+                        "description": "Archive not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/data-management/deleted": {
+            "get": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "List deleted records",
+                "operationId": "a69d534f4c275def4e2a9ce369899511",
+                "responses": {
+                    "200": {
+                        "description": "Deleted records"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/data-management/deleted/{type}/{id}/restore": {
+            "post": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "Restore a deleted record",
+                "operationId": "da70e407de4a8c2aa4c7d5a8b76342e7",
+                "responses": {
+                    "200": {
+                        "description": "Record restored"
+                    },
+                    "404": {
+                        "description": "Record not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/data-management/deleted/{type}/{id}": {
+            "delete": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "Permanently delete a record",
+                "operationId": "23cabc6cda195c5e7b609c08d2180c8f",
+                "responses": {
+                    "204": {
+                        "description": "Record permanently deleted"
+                    },
+                    "422": {
+                        "description": "Record type cannot be permanently deleted"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/data-management/export": {
+            "get": {
+                "tags": [
+                    "Data Management"
+                ],
+                "summary": "Export system data as CSV",
+                "operationId": "bb3ef1e2e99ef715a67e8e8a10c45378",
+                "responses": {
+                    "200": {
+                        "description": "CSV export"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -10964,6 +11117,10 @@
         {
             "name": "Dashboard",
             "description": "Administrative dashboard summaries, activity, and analytics"
+        },
+        {
+            "name": "Data Management",
+            "description": "Export, archive, restore, and manage removed system records"
         },
         {
             "name": "Notifications",
