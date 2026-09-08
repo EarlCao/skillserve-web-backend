@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\Notifications\Jobs\SendAnnouncementJob;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Notifications\AnnouncementNotification;
+use App\Modules\Settings\Services\SettingsService;
+use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -14,6 +16,8 @@ use Illuminate\Support\Facades\Notification;
 class AnnouncementService extends BaseService
 {
     private const SORTABLE = ['created_at', 'scheduled_at', 'status'];
+
+    public function __construct(private readonly SettingsService $settingsService) {}
 
     public function index(array $filters): LengthAwarePaginator
     {
@@ -65,6 +69,10 @@ class AnnouncementService extends BaseService
      */
     public function store(array $data, User $actor): Announcement
     {
+        if (! $this->settingsService->value('notifications', 'announcement_notifications_enabled')) {
+            throw new ApiException('Announcements are currently disabled.', 422);
+        }
+
         $announcement = $this->transaction(function () use ($data, $actor): Announcement {
             $recipientIds = $this->recipientQuery($data['target'], $data['recipient_ids'] ?? null)
                 ->pluck('id')
@@ -95,6 +103,12 @@ class AnnouncementService extends BaseService
 
     public function deliver(Announcement $announcement): void
     {
+        if (! $this->settingsService->value('notifications', 'announcement_notifications_enabled')) {
+            $announcement->update(['status' => 'failed']);
+
+            return;
+        }
+
         $this->transaction(function () use ($announcement): void {
             $locked = Announcement::query()->lockForUpdate()->find($announcement->id);
 

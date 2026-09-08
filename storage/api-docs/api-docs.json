@@ -9181,6 +9181,84 @@
                 ]
             }
         },
+        "/api/settings": {
+            "get": {
+                "tags": [
+                    "System Settings"
+                ],
+                "summary": "Get system settings",
+                "operationId": "20bd9bc8619c690488a3f4f467ac0136",
+                "responses": {
+                    "200": {
+                        "description": "Grouped system settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "System Settings"
+                ],
+                "summary": "Update system settings",
+                "operationId": "bcf3402fd4a95827f635906000e9ac7c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            },
+                            "example": {
+                                "general": {
+                                    "platform_name": "SkillServe",
+                                    "support_email": "support@skillserve.test"
+                                },
+                                "booking": {
+                                    "booking_enabled": true
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Settings updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/users": {
             "get": {
                 "tags": [
@@ -10914,6 +10992,10 @@
         {
             "name": "Services",
             "description": "Manage services (view, create, edit, approve, reject, hide, feature, delete)"
+        },
+        {
+            "name": "System Settings",
+            "description": "Manage general, marketplace, booking, notification, policy, and technical platform settings"
         },
         {
             "name": "Users",

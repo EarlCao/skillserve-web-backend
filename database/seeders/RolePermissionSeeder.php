@@ -76,6 +76,7 @@ class RolePermissionSeeder extends Seeder
             'view audit logs',
             'view login activity',
             'monitor security events',
+            'manage settings',
         ];
 
         foreach ($permissions as $permission) {
