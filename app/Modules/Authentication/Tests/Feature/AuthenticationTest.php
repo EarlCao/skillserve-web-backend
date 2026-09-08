@@ -175,6 +175,35 @@ class AuthenticationTest extends TestCase
         ])->assertOk();
     }
 
+    public function test_change_password_revokes_other_sessions_but_keeps_the_current_session(): void
+    {
+        Role::findOrCreate('admin');
+        $user = $this->createUser();
+        $user->assignRole('admin');
+        $currentToken = $user->createToken('current')->plainTextToken;
+        $secondaryToken = $user->createToken('secondary')->plainTextToken;
+
+        $this->withToken($currentToken)
+            ->postJson('/api/auth/change-password', [
+                'current_password' => 'password123',
+                'password' => 'newpassword456',
+                'password_confirmation' => 'newpassword456',
+            ])
+            ->assertOk();
+
+        Auth::forgetGuards();
+
+        $this->withToken($currentToken)
+            ->getJson('/api/auth/me')
+            ->assertOk();
+
+        Auth::forgetGuards();
+
+        $this->withToken($secondaryToken)
+            ->getJson('/api/auth/me')
+            ->assertStatus(401);
+    }
+
     public function test_change_password_with_wrong_current_password_returns_422(): void
     {
         $user = $this->createUser();

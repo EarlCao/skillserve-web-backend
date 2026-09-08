@@ -75,6 +75,12 @@ use App\Modules\Services\Events\ServiceUpdated;
 use App\Modules\Services\Listeners\LogServiceActivity;
 use App\Modules\Services\Models\Service;
 use App\Modules\Services\Policies\ServicePolicy;
+use App\Modules\Support\Events\SupportTicketAssigned;
+use App\Modules\Support\Events\SupportTicketResolved;
+use App\Modules\Support\Events\SupportTicketResponseAdded;
+use App\Modules\Support\Listeners\LogSupportTicketActivity;
+use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Policies\SupportTicketPolicy;
 use App\Modules\Users\Events\UserActivated;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserDeleted;
@@ -227,6 +233,12 @@ class AppServiceProvider extends ServiceProvider
 
         // Reports and Moderation module policies.
         Gate::policy(Report::class, ReportPolicy::class);
+
+        // Support Management module events and policy.
+        Event::listen(SupportTicketAssigned::class, LogSupportTicketActivity::class);
+        Event::listen(SupportTicketResponseAdded::class, LogSupportTicketActivity::class);
+        Event::listen(SupportTicketResolved::class, LogSupportTicketActivity::class);
+        Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
 
         // Notifications and Announcements module policies.
         Gate::policy(Announcement::class, AnnouncementPolicy::class);

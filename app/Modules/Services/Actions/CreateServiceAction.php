@@ -19,6 +19,7 @@ final class CreateServiceAction extends BaseAction
         return Service::create([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
+            'provider_id' => $validated['provider_id'],
             'category_id' => $validated['category_id'],
             'subcategory_id' => $validated['subcategory_id'] ?? null,
             'price' => $validated['price'] ?? null,

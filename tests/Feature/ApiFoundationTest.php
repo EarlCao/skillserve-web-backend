@@ -84,4 +84,13 @@ class ApiFoundationTest extends TestCase
             ->assertStatus(404)
             ->assertJson(['success' => false, 'message' => 'Resource not found.']);
     }
+
+    public function test_api_routes_use_the_named_api_throttle(): void
+    {
+        for ($attempt = 0; $attempt < 60; $attempt++) {
+            $this->getJson('/api/_foundation/success')->assertOk();
+        }
+
+        $this->getJson('/api/_foundation/success')->assertStatus(429);
+    }
 }

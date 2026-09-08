@@ -27,6 +27,7 @@ class PasswordService
             $user,
             $validated['current_password'],
             $validated['password'],
+            $user->currentAccessToken()?->id,
         );
 
         event(new PasswordChanged(

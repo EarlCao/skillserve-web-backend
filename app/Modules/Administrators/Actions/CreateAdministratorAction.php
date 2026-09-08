@@ -3,7 +3,9 @@
 namespace App\Modules\Administrators\Actions;
 
 use App\Models\User;
+use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Actions\BaseAction;
+use App\Shared\Exceptions\ApiException;
 
 /**
  * Single unit of work: persist a new administrator account and assign its role.
@@ -18,6 +20,14 @@ final class CreateAdministratorAction extends BaseAction
      */
     public function handle(array $validated, User $actor): User
     {
+        if ($validated['role'] === SystemRole::SUPER_ADMIN && ! $actor->hasRole(SystemRole::SUPER_ADMIN)) {
+            throw new ApiException(
+                'Only a super administrator may grant the super-admin role.',
+                403,
+                errors: ['role' => ['Only a super administrator may grant the super-admin role.']],
+            );
+        }
+
         $administrator = User::create([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],

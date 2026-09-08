@@ -200,6 +200,55 @@ class AdministratorManagementTest extends TestCase
             ->assertJsonStructure(['errors' => ['role']]);
     }
 
+    public function test_regular_administrator_cannot_create_a_super_administrator(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Role::findOrCreate('super-admin');
+
+        $this->withToken($token)
+            ->postJson('/api/administrators', [
+                'first_name' => 'Escalated',
+                'last_name' => 'Admin',
+                'email' => 'escalated@skillserve.test',
+                'password' => 'Secret#2026',
+                'password_confirmation' => 'Secret#2026',
+                'role' => 'super-admin',
+            ])
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        $this->assertDatabaseMissing('users', ['email' => 'escalated@skillserve.test']);
+    }
+
+    public function test_regular_administrator_cannot_promote_an_existing_administrator(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Role::findOrCreate('super-admin');
+        $target = $this->createAdministrator(['email' => 'promotion.target@skillserve.test']);
+        $target->assignRole('admin');
+
+        $this->withToken($token)
+            ->putJson("/api/administrators/{$target->id}", ['role' => 'super-admin'])
+            ->assertStatus(403)
+            ->assertJsonPath('success', false);
+
+        $this->assertTrue($target->fresh()->hasRole('admin'));
+        $this->assertFalse($target->fresh()->hasRole('super-admin'));
+    }
+
+    public function test_super_administrator_can_grant_the_super_administrator_role(): void
+    {
+        [, $token] = $this->actingSuperAdministrator();
+        Role::findOrCreate('admin');
+        Role::findOrCreate('super-admin');
+        $target = $this->createAdministrator(['email' => 'promotion.allowed@skillserve.test']);
+
+        $this->withToken($token)
+            ->putJson("/api/administrators/{$target->id}", ['role' => 'super-admin'])
+            ->assertOk()
+            ->assertJsonPath('data.roles', ['super-admin']);
+    }
+
     public function test_show_returns_a_single_administrator(): void
     {
         [, $token] = $this->actingAdministrator();
@@ -323,6 +372,7 @@ class AdministratorManagementTest extends TestCase
     {
         [, $token] = $this->actingAdministrator();
         $target = $this->createAdministrator(['email' => 'target@skillserve.test']);
+        $target->assignRole('admin');
 
         $this->withToken($token)
             ->patchJson("/api/administrators/{$target->id}/status", ['status' => 'inactive'])

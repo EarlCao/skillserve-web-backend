@@ -26,6 +26,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->throttleApi('api');
+
         $middleware->alias([
             'force.json' => ForceJsonResponse::class,
             // Spatie permission middleware — used by every future module.

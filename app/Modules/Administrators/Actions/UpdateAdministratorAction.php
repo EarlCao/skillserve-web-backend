@@ -40,6 +40,14 @@ final class UpdateAdministratorAction extends BaseAction
             );
         }
 
+        if (($validated['role'] ?? null) === SystemRole::SUPER_ADMIN && ! $actor->hasRole(SystemRole::SUPER_ADMIN)) {
+            throw new ApiException(
+                'Only a super administrator may grant the super-admin role.',
+                403,
+                errors: ['role' => ['Only a super administrator may grant the super-admin role.']],
+            );
+        }
+
         if (array_key_exists('status', $validated)) {
             $this->setAdministratorStatusAction->handle($administrator, $actor, $validated['status']);
         }

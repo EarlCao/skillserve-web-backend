@@ -23,6 +23,9 @@ class ServiceResource extends BaseResource
     {
         return [
             'id' => $this->id,
+            'provider_id' => $this->provider_id,
+            'category_id' => $this->category_id,
+            'subcategory_id' => $this->subcategory_id,
             'title' => $this->title,
             'description' => $this->description,
             'price' => $this->price,

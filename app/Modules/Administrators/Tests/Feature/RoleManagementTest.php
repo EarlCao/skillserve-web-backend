@@ -195,15 +195,18 @@ class RoleManagementTest extends TestCase
         Permission::findOrCreate('view reports');
         Permission::findOrCreate('manage providers');
 
-        $this->withToken($token)
+        $response = $this->withToken($token)
             ->getJson('/api/permissions')
-            ->assertOk()
-            ->assertJsonPath('data.0.module', 'Administrators')
-            ->assertJsonPath('data.0.permissions.0.name', 'manage administrators')
-            ->assertJsonPath('data.1.module', 'Providers')
-            ->assertJsonPath('data.1.permissions.0.name', 'manage providers')
-            ->assertJsonPath('data.2.module', 'Reports')
-            ->assertJsonPath('data.2.permissions.0.name', 'view reports')
+            ->assertOk();
+
+        $modules = collect($response->json('data'))->keyBy('module');
+
+        $this->assertContains('manage administrators', collect($modules->get('Administrators')['permissions'])->pluck('name')->all());
+        $this->assertContains('manage providers', collect($modules->get('Providers')['permissions'])->pluck('name')->all());
+        $this->assertContains('view reports', collect($modules->get('Reports')['permissions'])->pluck('name')->all());
+        $this->assertNotNull($modules->get('Support'));
+
+        $response
             ->assertJsonStructure([
                 'data' => [['module', 'permissions' => [['id', 'name', 'module', 'guard_name']]]],
             ]);

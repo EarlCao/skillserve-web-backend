@@ -10,6 +10,7 @@ use App\Modules\Administrators\Requests\StoreAdministratorRequest;
 use App\Modules\Administrators\Requests\UpdateAdministratorRequest;
 use App\Modules\Administrators\Resources\AdministratorResource;
 use App\Modules\Administrators\Services\AdministratorService;
+use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -226,6 +227,10 @@ class AdministratorController extends Controller
     public function store(StoreAdministratorRequest $request): JsonResponse
     {
         $this->authorize('create', User::class);
+
+        if ($request->validated('role') === SystemRole::SUPER_ADMIN) {
+            $this->authorize('assignSuperAdmin', User::class);
+        }
 
         $administrator = $this->administratorService->store(
             $request->validated(),
@@ -446,6 +451,10 @@ class AdministratorController extends Controller
     public function update(UpdateAdministratorRequest $request, User $administrator): JsonResponse
     {
         $this->authorize('update', $administrator);
+
+        if ($request->validated('role') === SystemRole::SUPER_ADMIN) {
+            $this->authorize('assignSuperAdmin', User::class);
+        }
 
         $administrator = $this->administratorService->update(
             $administrator,

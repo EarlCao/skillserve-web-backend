@@ -15,7 +15,7 @@ final class ChangePasswordAction extends BaseAction
     /**
      * @throws ApiException when the current password does not match.
      */
-    public function handle(User $user, string $currentPassword, string $newPassword): void
+    public function handle(User $user, string $currentPassword, string $newPassword, ?int $currentTokenId = null): void
     {
         if (! Hash::check($currentPassword, $user->password)) {
             throw new ApiException(
@@ -28,5 +28,13 @@ final class ChangePasswordAction extends BaseAction
         // The model's "hashed" cast takes care of secure hashing.
         $user->password = $newPassword;
         $user->save();
+
+        // Keep the current request alive while invalidating every other
+        // session that could have been stolen before the password changed.
+        if ($currentTokenId === null) {
+            $user->tokens()->delete();
+        } else {
+            $user->tokens()->where('id', '!=', $currentTokenId)->delete();
+        }
     }
 }

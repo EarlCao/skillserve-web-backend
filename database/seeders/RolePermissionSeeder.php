@@ -83,6 +83,11 @@ class RolePermissionSeeder extends Seeder
             'restore archived records',
             'restore deleted records',
             'manage deleted records',
+            'view support',
+            'manage support',
+            'assign support tickets',
+            'respond to support tickets',
+            'resolve support tickets',
         ];
 
         foreach ($permissions as $permission) {

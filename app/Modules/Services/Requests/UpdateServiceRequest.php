@@ -2,6 +2,7 @@
 
 namespace App\Modules\Services\Requests;
 
+use App\Modules\Services\Models\Service;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,11 +16,19 @@ class UpdateServiceRequest extends BaseFormRequest
      */
     public function rules(): array
     {
+        $service = $this->route('service');
+        $categoryId = $this->input('category_id') ?? ($service instanceof Service ? $service->category_id : null);
+
         return [
             'title' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'category_id' => ['sometimes', 'exists:service_categories,id'],
-            'subcategory_id' => ['sometimes', 'nullable', 'exists:service_subcategories,id'],
+            'subcategory_id' => [
+                'sometimes',
+                'nullable',
+                Rule::exists('service_subcategories', 'id')
+                    ->where(fn ($query) => $query->where('category_id', $categoryId)),
+            ],
             'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'price_type' => ['sometimes', 'string', Rule::in(['fixed', 'hourly', 'custom'])],
             'currency' => ['sometimes', 'string', 'max:3'],

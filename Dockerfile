@@ -38,10 +38,11 @@ COPY --chown=app:app . .
 EXPOSE 8000
 
 # On start: sync dependencies, generate an app key only if missing,
-# run pending migrations, start the task scheduler in the background (drives
-# users:unban-expired etc.), then serve the app.
+# run pending migrations, start the scheduler and queue worker in the
+# background, then serve the app.
 CMD ["sh", "-c", "composer install --prefer-dist --no-progress --no-interaction \
     && (php artisan key:generate --no-interaction || true) \
     && php artisan migrate --force \
     && (php artisan schedule:work > /dev/null 2>&1 &) \
+    && (php artisan queue:work --queue=default --sleep=3 --tries=3 --timeout=90 > /dev/null 2>&1 &) \
     && php artisan serve --host=0.0.0.0 --port=8000"]

@@ -35,6 +35,14 @@ class AdministratorPolicy extends BasePolicy
         return $this->allows($user, 'create administrators');
     }
 
+    /**
+     * Only an existing super administrator may grant the bootstrap role.
+     */
+    public function assignSuperAdmin(User $user): bool
+    {
+        return $user->hasRole(SystemRole::SUPER_ADMIN);
+    }
+
     public function update(User $user, User $administrator): bool
     {
         return $this->allows($user, 'edit administrators');
