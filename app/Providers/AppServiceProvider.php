@@ -28,6 +28,7 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
+use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\Dashboard\Policies\DashboardPolicy;
 use App\Modules\Notifications\Models\Announcement;
@@ -96,6 +97,7 @@ use App\Modules\Users\Listeners\SendUserModerationMail;
 use App\Modules\Users\Policies\UserManagementPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -153,6 +155,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(AdministratorLoggedOut::class, LogAuthenticationActivity::class);
         Event::listen(AdministratorLoginFailed::class, LogAuthenticationActivity::class);
         Event::listen(PasswordChanged::class, LogAuthenticationActivity::class);
+        Event::listen(NotificationSent::class, BroadcastClientNotification::class);
 
         // Administrator Management module events.
         Event::listen(AdministratorCreated::class, LogAdministratorActivity::class);
