@@ -85,6 +85,21 @@ class RoleManagementTest extends TestCase
             ->assertJsonPath('data.description', 'Manages operational reports.');
     }
 
+    public function test_non_super_administrator_cannot_create_a_role_with_protected_permissions(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Permission::findOrCreate('manage administrators');
+
+        $this->withToken($token)
+            ->postJson('/api/roles', [
+                'name' => 'privilege-escalator',
+                'permissions' => ['manage administrators'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('roles', ['name' => 'privilege-escalator']);
+    }
+
     public function test_store_rejects_duplicate_role_names(): void
     {
         [, $token] = $this->actingAdministrator();
@@ -172,6 +187,24 @@ class RoleManagementTest extends TestCase
         $user = User::factory()->create();
         $user->assignRole('reporter');
         $this->assertTrue($user->hasPermissionTo('view reports'));
+    }
+
+    public function test_non_super_administrator_cannot_sync_protected_permissions(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        Permission::findOrCreate('manage administrators');
+        $role = Role::findOrCreate('protected-permission-target');
+
+        $this->withToken($token)
+            ->putJson("/api/roles/{$role->id}/permissions", [
+                'permissions' => ['manage administrators'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('role_has_permissions', [
+            'role_id' => $role->id,
+            'permission_id' => Permission::where('name', 'manage administrators')->value('id'),
+        ]);
     }
 
     public function test_super_administrator_permissions_cannot_be_modified(): void

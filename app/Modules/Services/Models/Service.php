@@ -3,12 +3,15 @@
 namespace App\Modules\Services\Models;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -28,6 +31,16 @@ class Service extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ProviderProfile::class, 'provider_id');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'service_id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'service_id');
     }
 
     /**

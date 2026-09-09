@@ -3,6 +3,7 @@
 namespace App\Modules\ProviderRecognition\Services;
 
 use App\Models\User;
+use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
@@ -33,32 +34,46 @@ class ProviderRecognitionService extends BaseService
         return $query->latest()->paginate($this->perPage($filters));
     }
 
-    public function createBadge(array $data): ProviderBadge
+    public function createBadge(array $data, User $actor): ProviderBadge
     {
-        return ProviderBadge::query()->create($data);
+        return $this->transaction(function () use ($data, $actor): ProviderBadge {
+            $badge = ProviderBadge::query()->create($data);
+            event(new ProviderRecognitionChanged($badge, $actor, 'provider_badge_created', ['name' => $badge->name]));
+
+            return $badge;
+        });
     }
 
-    public function updateBadge(ProviderBadge $badge, array $data): ProviderBadge
+    public function updateBadge(ProviderBadge $badge, array $data, User $actor): ProviderBadge
     {
-        $badge->update($data);
+        return $this->transaction(function () use ($badge, $data, $actor): ProviderBadge {
+            $badge->update($data);
+            $badge = $badge->refresh()->loadCount('providers');
+            event(new ProviderRecognitionChanged($badge, $actor, 'provider_badge_updated', ['changed' => array_keys($data)]));
 
-        return $badge->refresh()->loadCount('providers');
+            return $badge;
+        });
     }
 
-    public function deleteBadge(ProviderBadge $badge): void
+    public function deleteBadge(ProviderBadge $badge, User $actor): void
     {
-        $badge->delete();
+        $this->transaction(function () use ($badge, $actor): void {
+            $name = $badge->name;
+            $badge->delete();
+            event(new ProviderRecognitionChanged($badge, $actor, 'provider_badge_deleted', ['name' => $name]));
+        });
     }
 
     public function providers(array $filters): LengthAwarePaginator
     {
-        $query = ProviderProfile::query()
+        $query = $this->withAggregates(ProviderProfile::query())
             ->with(['user:id,name,email', 'badges'])
             ->whereNull('suspended_at')
             ->whereHas('user', fn ($user) => $user->where('user_type', 'provider')->where('status', 'active'));
         $this->applyProviderFilters($query, $filters);
 
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true) ? $filters['sort'] : 'created_at';
+        $sort = $this->aggregateSortColumn($sort);
         $direction = ($filters['direction'] ?? null) === 'asc' ? 'asc' : 'desc';
 
         return $query->orderBy($sort, $direction)->paginate($this->perPage($filters));
@@ -69,19 +84,22 @@ class ProviderRecognitionService extends BaseService
         $filters['sort'] = 'average_rating';
         $filters['direction'] = 'desc';
 
-        $query = ProviderProfile::query()
+        $query = $this->withAggregates(ProviderProfile::query())
             ->with(['user:id,name,email', 'badges'])
             ->where('verification_status', 'verified')
-            ->where('total_reviews', '>', 0)
+            ->whereHas('reviews', fn ($reviewQuery) => $reviewQuery->where('status', 'active'))
             ->whereNull('suspended_at')
             ->whereHas('user', fn ($user) => $user->where('user_type', 'provider')->where('status', 'active'));
         $this->applyProviderFilters($query, $filters);
 
         if (! empty($filters['min_rating'])) {
-            $query->where('average_rating', '>=', (float) $filters['min_rating']);
+            $query->whereRaw(
+                '(SELECT COALESCE(AVG(reviews.rating), 0) FROM reviews WHERE reviews.provider_id = provider_profiles.id AND reviews.status = ?) >= ?',
+                ['active', (float) $filters['min_rating']],
+            );
         }
 
-        return $query->orderByDesc('average_rating')->orderByDesc('total_reviews')->paginate($this->perPage($filters));
+        return $query->orderByDesc('average_rating_avg')->orderByDesc('total_reviews_count')->paginate($this->perPage($filters));
     }
 
     public function assignBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor): ProviderProfile
@@ -95,7 +113,7 @@ class ProviderRecognitionService extends BaseService
                 throw new ApiException('Only active badges can be assigned.', 422);
             }
 
-            DB::table('provider_badge_assignments')->insertOrIgnore([
+            $inserted = DB::table('provider_badge_assignments')->insertOrIgnore([
                 'provider_profile_id' => $provider->id,
                 'provider_badge_id' => $badge->id,
                 'assigned_by' => $actor->id,
@@ -103,26 +121,39 @@ class ProviderRecognitionService extends BaseService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+            if ($inserted) {
+                event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_assigned', ['badge_id' => $badge->id]));
+            }
 
             return $provider->load(['user:id,name,email', 'badges']);
         });
     }
 
-    public function removeBadge(ProviderProfile $provider, ProviderBadge $badge): ProviderProfile
+    public function removeBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor): ProviderProfile
     {
-        return $this->transaction(function () use ($provider, $badge): ProviderProfile {
+        return $this->transaction(function () use ($provider, $badge, $actor): ProviderProfile {
             $provider->badges()->detach($badge->id);
+            event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_removed', ['badge_id' => $badge->id]));
 
             return $provider->load(['user:id,name,email', 'badges']);
         });
     }
 
-    public function toggleFeatured(ProviderProfile $provider, bool $featured): ProviderProfile
+    public function toggleFeatured(ProviderProfile $provider, bool $featured, User $actor): ProviderProfile
     {
         $this->assertEligibleProvider($provider, requireVerified: $featured);
-        $provider->update(['is_featured' => $featured]);
 
-        return $provider->load(['user:id,name,email', 'badges']);
+        return $this->transaction(function () use ($provider, $featured, $actor): ProviderProfile {
+            $provider->update(['is_featured' => $featured]);
+            event(new ProviderRecognitionChanged(
+                $provider,
+                $actor,
+                $featured ? 'provider_featured' : 'provider_unfeatured',
+                ['is_featured' => $featured],
+            ));
+
+            return $provider->load(['user:id,name,email', 'badges']);
+        });
     }
 
     private function perPage(array $filters): int
@@ -149,6 +180,29 @@ class ProviderRecognitionService extends BaseService
         if (isset($filters['is_featured']) && $filters['is_featured'] !== '') {
             $query->where('is_featured', (bool) $filters['is_featured']);
         }
+    }
+
+    private function withAggregates(Builder $query): Builder
+    {
+        return $query
+            ->withCount([
+                'bookings as total_bookings_count',
+                'bookings as completed_bookings_count' => fn ($bookingQuery) => $bookingQuery->where('status', 'completed'),
+                'reviews as total_reviews_count' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
+            ])
+            ->withAvg([
+                'reviews as average_rating_avg' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
+            ], 'rating');
+    }
+
+    private function aggregateSortColumn(string $sort): string
+    {
+        return match ($sort) {
+            'average_rating' => 'average_rating_avg',
+            'total_bookings' => 'total_bookings_count',
+            'total_reviews' => 'total_reviews_count',
+            default => $sort,
+        };
     }
 
     private function assertEligibleProvider(ProviderProfile $provider, bool $requireVerified = false): void

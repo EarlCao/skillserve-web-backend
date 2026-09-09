@@ -28,9 +28,12 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
+use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\Dashboard\Policies\DashboardPolicy;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
+use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
+use App\Modules\ProviderRecognition\Listeners\LogProviderRecognitionActivity;
 use App\Modules\ProviderRecognition\Policies\ProviderRecognitionPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
@@ -75,6 +78,7 @@ use App\Modules\Services\Events\ServiceUpdated;
 use App\Modules\Services\Listeners\LogServiceActivity;
 use App\Modules\Services\Models\Service;
 use App\Modules\Services\Policies\ServicePolicy;
+use App\Modules\Settings\Services\SettingsService;
 use App\Modules\Support\Events\SupportTicketAssigned;
 use App\Modules\Support\Events\SupportTicketResolved;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
@@ -96,6 +100,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -114,6 +119,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Sanctum::authenticateAccessTokensUsing(function ($accessToken, bool $isValid): bool {
+            if (! $isValid || $accessToken->name === 'client-access') {
+                return $isValid;
+            }
+
+            $timeout = (int) app(SettingsService::class)->value('system', 'session_timeout_minutes');
+
+            return $timeout > 0
+                && $accessToken->created_at->gt(now()->subMinutes($timeout));
+        });
+
         // Rate limiter used by the shared "api" middleware group.
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
@@ -195,6 +211,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ProviderSuspended::class, LogProviderActivity::class);
         Event::listen(ProviderActivated::class, LogProviderActivity::class);
         Event::listen(ProviderVerificationRemoved::class, LogProviderActivity::class);
+        Event::listen(ProviderRecognitionChanged::class, LogProviderRecognitionActivity::class);
 
         // Service Management module events.
         Event::listen(ServiceCreated::class, LogServiceActivity::class);
@@ -238,6 +255,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(SupportTicketAssigned::class, LogSupportTicketActivity::class);
         Event::listen(SupportTicketResponseAdded::class, LogSupportTicketActivity::class);
         Event::listen(SupportTicketResolved::class, LogSupportTicketActivity::class);
+        Event::listen(SupportTicketResponseAdded::class, NotifyClientSupportTicket::class);
+        Event::listen(SupportTicketResolved::class, NotifyClientSupportTicket::class);
         Gate::policy(SupportTicket::class, SupportTicketPolicy::class);
 
         // Notifications and Announcements module policies.

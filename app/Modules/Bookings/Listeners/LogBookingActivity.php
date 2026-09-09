@@ -20,7 +20,11 @@ class LogBookingActivity
             ),
             $event instanceof BookingCancelled => $this->log(
                 'bookings', $event->actor, $event->booking,
-                ['reason' => $event->reason],
+                [
+                    'reason' => $event->reason,
+                    'payment_status' => $event->booking->payment_status,
+                    'refund_processing' => 'not_processed',
+                ],
                 'booking_cancelled',
             ),
             $event instanceof BookingDisputeManaged => $this->log(

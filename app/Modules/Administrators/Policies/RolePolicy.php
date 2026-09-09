@@ -3,6 +3,7 @@
 namespace App\Modules\Administrators\Policies;
 
 use App\Models\User;
+use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Policies\BasePolicy;
 use Spatie\Permission\Models\Role;
 
@@ -21,9 +22,14 @@ class RolePolicy extends BasePolicy
         return $user->hasPermissionTo('manage administrators');
     }
 
-    public function create(User $user): bool
+    /**
+     * @param  array<int, string>  $permissions
+     */
+    public function create(User $user, array $permissions = []): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $user->hasPermissionTo('manage administrators')
+            && (SystemRole::mayGrantProtectedPermissions($user)
+                || ! SystemRole::containsProtectedPermissions($permissions));
     }
 
     public function update(User $user, Role $role): bool
@@ -36,8 +42,13 @@ class RolePolicy extends BasePolicy
         return $user->hasPermissionTo('manage administrators');
     }
 
-    public function syncPermissions(User $user, Role $role): bool
+    /**
+     * @param  array<int, string>  $permissions
+     */
+    public function syncPermissions(User $user, Role $role, array $permissions = []): bool
     {
-        return $user->hasPermissionTo('manage administrators');
+        return $user->hasPermissionTo('manage administrators')
+            && (SystemRole::mayGrantProtectedPermissions($user)
+                || ! SystemRole::containsProtectedPermissions($permissions));
     }
 }

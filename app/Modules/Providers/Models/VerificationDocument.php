@@ -26,14 +26,6 @@ class VerificationDocument extends Model
     }
 
     /**
-     * Get the full URL for the document file.
-     */
-    public function getFileUrlAttribute(): string
-    {
-        return asset('storage/'.$this->file_path);
-    }
-
-    /**
      * Get a human-readable file size.
      */
     public function getFormattedFileSizeAttribute(): string

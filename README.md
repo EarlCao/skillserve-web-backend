@@ -21,6 +21,10 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
+## Client Account Policy
+
+Client registration creates an active account with an unverified email and sends a signed verification link. The client may use the authenticated account endpoints to view its status and resend the link, but login and refresh require a verified email. Marketplace, booking, messaging, support, review, and notification-inbox endpoints require both an active account and a verified email. Existing database notifications are used for client support replies and resolutions; no duplicate inbox API is created.
+
 ## Learning Laravel
 
 Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.

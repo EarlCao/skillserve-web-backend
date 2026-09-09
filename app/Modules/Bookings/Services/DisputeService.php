@@ -71,9 +71,9 @@ class DisputeService extends BaseService
     /**
      * Return the audit history specifically related to the dispute.
      *
-     * @return array<int, array<string, mixed>>
+     * @param  array{page?: int, per_page?: int}  $filters
      */
-    public function history(Booking $booking): array
+    public function history(Booking $booking, array $filters): LengthAwarePaginator
     {
         $this->assertDispute($booking);
 
@@ -90,16 +90,14 @@ class DisputeService extends BaseService
             })
             ->with('causer:id,name')
             ->latest()
-            ->get()
-            ->map(fn ($log): array => [
+            ->paginate($this->perPage($filters))
+            ->through(fn ($log): array => [
                 'id' => $log->id,
                 'event' => $log->description,
                 'logged_at' => $log->created_at?->toIso8601String(),
                 'actor' => $log->causer ? ['id' => $log->causer->id, 'name' => $log->causer->name] : null,
                 'properties' => $log->properties->toArray(),
-            ])
-            ->values()
-            ->all();
+            ]);
     }
 
     public function investigate(Booking $booking, User $actor): Booking

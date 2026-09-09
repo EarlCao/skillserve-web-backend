@@ -22,6 +22,6 @@ final class ResolveSupportTicketAction extends BaseAction
             'resolution_note' => trim($resolutionNote),
         ]);
 
-        return $ticket->fresh(['requester:id,name,email', 'assignedTo:id,name,email', 'assignedBy:id,name,email', 'resolvedBy:id,name,email', 'messages.author:id,name,email']);
+        return $ticket->fresh(['requester:id,name,email,user_type', 'assignedTo:id,name,email', 'assignedBy:id,name,email', 'resolvedBy:id,name,email', 'messages.author:id,name,email']);
     }
 }

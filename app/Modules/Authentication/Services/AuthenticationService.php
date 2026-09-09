@@ -8,6 +8,7 @@ use App\Modules\Authentication\Actions\LogoutAction;
 use App\Modules\Authentication\Events\AdministratorLoggedIn;
 use App\Modules\Authentication\Events\AdministratorLoggedOut;
 use App\Modules\Authentication\Resources\AuthResource;
+use App\Modules\Settings\Services\SettingsService;
 
 /**
  * Orchestrates authentication: credential validation, token issuance and
@@ -18,6 +19,7 @@ class AuthenticationService
     public function __construct(
         private readonly LoginAction $loginAction,
         private readonly LogoutAction $logoutAction,
+        private readonly SettingsService $settingsService,
     ) {}
 
     /**
@@ -33,7 +35,7 @@ class AuthenticationService
         // Management module).
         $user->fill(['last_login_at' => now()])->save();
 
-        $expiration = config('sanctum.expiration');
+        $expiration = (int) $this->settingsService->value('system', 'session_timeout_minutes');
 
         $token = $user->createToken(
             'admin-session',

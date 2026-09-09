@@ -3,8 +3,12 @@
 namespace App\Modules\ProviderRecognition\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
+use App\Modules\ServiceCategories\Models\ServiceCategory;
+use App\Modules\Services\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
@@ -70,6 +74,10 @@ class ProviderRecognitionTest extends TestCase
             ->postJson("/api/provider-recognition/providers/{$provider->id}/badges", ['badge_id' => $badge->id])
             ->assertOk()
             ->assertJsonCount(1, 'data.badges');
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'provider_recognition',
+            'description' => 'provider_badge_assigned',
+        ]);
         $this->assertDatabaseHas('provider_badge_assignments', [
             'provider_profile_id' => $provider->id,
             'provider_badge_id' => $badge->id,
@@ -96,12 +104,39 @@ class ProviderRecognitionTest extends TestCase
     {
         [, $token] = $this->actingRecognitionAdmin(['view top rated providers']);
         $user = User::factory()->create(['status' => 'active', 'user_type' => 'provider']);
-        ProviderProfile::create([
+        $provider = ProviderProfile::create([
             'user_id' => $user->id,
             'business_name' => 'Top Provider',
             'verification_status' => 'verified',
-            'average_rating' => 5,
-            'total_reviews' => 4,
+        ]);
+        $client = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+        $category = ServiceCategory::create(['name' => 'Recognition '.uniqid(), 'status' => 'enabled']);
+        $service = Service::create([
+            'provider_id' => $provider->id,
+            'category_id' => $category->id,
+            'title' => 'Recognition Service',
+            'status' => 'published',
+            'approval_status' => 'approved',
+        ]);
+        $booking = Booking::create([
+            'service_id' => $service->id,
+            'client_id' => $client->id,
+            'provider_id' => $provider->id,
+            'booking_number' => 'BK-RECOGNITION-'.uniqid(),
+            'status' => 'completed',
+            'payment_status' => 'paid',
+            'total_price' => 100,
+            'service_price' => 100,
+            'platform_fee' => 0,
+            'currency' => 'USD',
+        ]);
+        Review::create([
+            'booking_id' => $booking->id,
+            'reviewer_id' => $client->id,
+            'provider_id' => $provider->id,
+            'service_id' => $service->id,
+            'rating' => 5,
+            'status' => 'active',
         ]);
 
         $this->withToken($token)

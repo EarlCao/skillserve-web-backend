@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use LogicException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -20,6 +21,17 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $adminPassword = (string) env('ADMIN_PASSWORD', '');
+            $systemPassword = (string) env('SYSTEM_ADMIN_PASSWORD', '');
+
+            if ($adminPassword === '' || $systemPassword === ''
+                || $adminPassword === 'SkillServe#2026'
+                || $systemPassword === 'SkillServe#2026') {
+                throw new LogicException('Production seeding requires non-default ADMIN_PASSWORD and SYSTEM_ADMIN_PASSWORD values.');
+            }
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissions = [

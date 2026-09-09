@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // Verification files are never exposed through the public storage link.
+        'verification' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

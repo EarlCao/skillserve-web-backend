@@ -123,6 +123,8 @@ class ReviewService extends BaseService
 
     public function destroy(Review $review, User $actor): void
     {
+        // Removal is a reversible soft-delete; Data Management can restore the
+        // retained audit record without exposing it in normal review queries.
         $this->transaction(function () use ($review, $actor): void {
             $this->removeReviewAction->handle($review, $actor);
 

@@ -26,8 +26,12 @@ return new class extends Migration
             $table->index('created_by');
         });
 
-        DB::statement("alter table announcements add constraint announcements_target_check check (target in ('all', 'customers', 'providers', 'selected'))");
-        DB::statement("alter table announcements add constraint announcements_status_check check (status in ('pending', 'scheduled', 'sent', 'failed'))");
+        // SQLite does not support ALTER TABLE ... ADD CONSTRAINT. Keep the
+        // named PostgreSQL constraints while allowing SQLite test migrations.
+        if (Schema::getConnection()->getDriverName() === 'pgsql') {
+            DB::statement("alter table announcements add constraint announcements_target_check check (target in ('all', 'customers', 'providers', 'selected'))");
+            DB::statement("alter table announcements add constraint announcements_status_check check (status in ('pending', 'scheduled', 'sent', 'failed'))");
+        }
     }
 
     public function down(): void

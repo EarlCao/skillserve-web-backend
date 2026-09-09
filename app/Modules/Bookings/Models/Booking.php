@@ -4,10 +4,12 @@ namespace App\Modules\Bookings\Models;
 
 use App\Models\User;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -18,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'confirmed_at', 'started_at', 'completed_at', 'cancelled_at',
     'dispute_reason', 'disputed_at', 'dispute_status', 'dispute_resolution',
     'dispute_evidence', 'dispute_notes', 'dispute_closed_at', 'dispute_closed_by',
-    'is_reviewed', 'cancelled_by', 'deleted_by',
+    'is_reviewed', 'client_idempotency_key', 'cancelled_by', 'deleted_by',
 ])]
 class Booking extends Model
 {
@@ -37,6 +39,11 @@ class Booking extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ProviderProfile::class, 'provider_id');
+    }
+
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class, 'booking_id');
     }
 
     public function cancelledByUser(): BelongsTo
@@ -87,6 +94,15 @@ class Booking extends Model
     public function isCancellable(): bool
     {
         return in_array($this->status, ['pending', 'confirmed'], true);
+    }
+
+    public function cancellationPaymentPolicy(): string
+    {
+        return match ($this->payment_status) {
+            'unpaid' => 'unpaid_no_refund_due',
+            'refunded' => 'already_refunded',
+            default => 'payment_unchanged_refund_not_processed',
+        };
     }
 
     protected function casts(): array

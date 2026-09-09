@@ -94,7 +94,12 @@ class DisputeManagementTest extends TestCase
         $this->withToken($token)->patchJson("/api/disputes/{$booking->id}/resolve", ['resolution' => 'Partial refund approved.'])->assertOk()->assertJsonPath('data.dispute_status', 'resolved');
         $this->withToken($token)->patchJson("/api/disputes/{$booking->id}/close", ['note' => 'Case archived.'])->assertOk()->assertJsonPath('data.dispute_status', 'closed');
 
-        $this->withToken($token)->getJson("/api/disputes/{$booking->id}/history")->assertOk()->assertJsonCount(5, 'data');
+        $this->withToken($token)
+            ->getJson("/api/disputes/{$booking->id}/history?per_page=2")
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.pagination.total', 5)
+            ->assertJsonPath('meta.pagination.per_page', 2);
     }
 
     public function test_close_requires_a_resolved_dispute(): void

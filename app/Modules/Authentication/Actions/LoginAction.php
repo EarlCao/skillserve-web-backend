@@ -27,13 +27,8 @@ final class LoginAction extends BaseAction
             throw new ApiException('Invalid email or password.', 401);
         }
 
-        if (! $user->roles()->exists()) {
-            event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
-            throw new ApiException('Invalid email or password.', 401);
-        }
-
         // A temporary ban whose timer has expired is lifted automatically —
-        // the account returns to "active" and the user can sign in again.
+        // the account returns to "active" before the account type is checked.
         // (The users:unban-expired scheduler also runs this as a batch.)
         if ($user->banExpired()) {
             $user->update([
@@ -55,6 +50,11 @@ final class LoginAction extends BaseAction
         if (! $user->isActive()) {
             event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
             throw new ApiException('Your account has been deactivated. Contact an administrator.', 403);
+        }
+
+        if (! $user->roles()->exists()) {
+            event(new AdministratorLoginFailed($email, request()->ip(), request()->userAgent()));
+            throw new ApiException('Invalid email or password.', 401);
         }
 
         return $user;

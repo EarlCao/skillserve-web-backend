@@ -16,7 +16,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('bookings', function (Blueprint $table): void {
-            $table->dropIndex(['disputed_at']);
+            $table->dropIndex('bookings_disputed_at_index');
         });
     }
 };

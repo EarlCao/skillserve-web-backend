@@ -11,6 +11,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Spatie\Activitylog\Models\Activity;
 
 class BookingService extends BaseService
 {
@@ -114,23 +115,24 @@ class BookingService extends BaseService
     /**
      * Load the booking status history from the activity log.
      *
-     * @return array<int, array{id: int, event: string, logged_at: string, actor: array{id: int, name: string}|null, properties: array<string, mixed>}>
+     * @param  array{page?: int, per_page?: int}  $filters
      */
-    public function history(Booking $booking): array
+    public function history(Booking $booking, array $filters): LengthAwarePaginator
     {
-        return activity('bookings')
+        return Activity::query()
+            ->where('log_name', 'bookings')
             ->where('subject_type', Booking::class)
             ->where('subject_id', $booking->id)
+            ->with('causer:id,name')
             ->latest()
-            ->get()
-            ->map(fn ($log) => [
+            ->paginate($this->perPage($filters))
+            ->through(fn (Activity $log): array => [
                 'id' => $log->id,
-                'event' => $log->event,
+                'event' => $log->description,
                 'logged_at' => $log->created_at?->toIso8601String(),
                 'actor' => $log->causer ? ['id' => $log->causer->id, 'name' => $log->causer->name] : null,
                 'properties' => $log->properties->toArray(),
-            ])
-            ->toArray();
+            ]);
     }
 
     /**
@@ -139,6 +141,14 @@ class BookingService extends BaseService
     public function cancel(Booking $booking, User $actor, ?string $reason = null): Booking
     {
         return $this->transaction(function () use ($booking, $actor, $reason): Booking {
+            $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
+            if (! $booking->isCancellable()) {
+                throw new ApiException(
+                    'This booking cannot be cancelled in its current status.',
+                    422,
+                    errors: ['status' => ['The booking was changed by another request and is no longer cancellable.']],
+                );
+            }
             $oldStatus = $booking->status;
 
             $this->cancelBookingAction->handle($booking, $actor, $reason);

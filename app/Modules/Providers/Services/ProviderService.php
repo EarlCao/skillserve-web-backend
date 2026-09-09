@@ -18,6 +18,7 @@ use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Models\VerificationRequest;
 use App\Shared\Services\BaseService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 /**
@@ -50,7 +51,7 @@ class ProviderService extends BaseService
      */
     public function index(array $filters): LengthAwarePaginator
     {
-        $query = ProviderProfile::query()
+        $query = $this->withAggregates(ProviderProfile::query())
             ->with(['user:id,name,email,phone,created_at', 'verifiedBy:id,name', 'suspendedBy:id,name']);
 
         if ($search = trim((string) ($filters['search'] ?? ''))) {
@@ -84,6 +85,11 @@ class ProviderService extends BaseService
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true)
             ? $filters['sort']
             : 'created_at';
+        $sort = match ($sort) {
+            'average_rating' => 'average_rating_avg',
+            'total_bookings' => 'total_bookings_count',
+            default => $sort,
+        };
 
         $direction = ($filters['direction'] ?? null) === 'asc' ? 'asc' : 'desc';
 
@@ -97,19 +103,22 @@ class ProviderService extends BaseService
      */
     public function show(ProviderProfile $profile): ProviderProfile
     {
-        return $profile->load([
-            'user:id,name,email,phone,address,birthday,created_at',
-            'verifiedBy:id,name',
-            'suspendedBy:id,name',
-            'latestVerificationRequest' => function ($query) {
-                $query->with(['documents', 'reviewedBy:id,name']);
-            },
-            'verificationRequests' => function ($query) {
-                $query->with(['documents', 'reviewedBy:id,name'])
-                    ->latest()
-                    ->limit(10);
-            },
-        ]);
+        return $this->withAggregates(ProviderProfile::query())
+            ->whereKey($profile->id)
+            ->with([
+                'user:id,name,email,phone,address,birthday,created_at',
+                'verifiedBy:id,name',
+                'suspendedBy:id,name',
+                'latestVerificationRequest' => function ($query) {
+                    $query->with(['documents', 'reviewedBy:id,name']);
+                },
+                'verificationRequests' => function ($query) {
+                    $query->with(['documents', 'reviewedBy:id,name'])
+                        ->latest()
+                        ->limit(10);
+                },
+            ])
+            ->firstOrFail();
     }
 
     /**
@@ -258,5 +267,19 @@ class ProviderService extends BaseService
     private function perPage(array $filters): int
     {
         return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+    }
+
+    private function withAggregates(Builder $query): Builder
+    {
+        return $query
+            ->withCount([
+                'services',
+                'bookings as total_bookings_count',
+                'bookings as completed_bookings_count' => fn ($bookingQuery) => $bookingQuery->where('status', 'completed'),
+                'reviews as total_reviews_count' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
+            ])
+            ->withAvg([
+                'reviews as average_rating_avg' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
+            ], 'rating');
     }
 }

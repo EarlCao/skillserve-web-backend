@@ -18,6 +18,8 @@ class StoreRoleRequest extends BaseFormRequest
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')],
             'description' => ['nullable', 'string', 'max:500'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ];
     }
 
@@ -28,6 +30,7 @@ class StoreRoleRequest extends BaseFormRequest
     {
         return [
             'name.unique' => 'A role with this name already exists.',
+            'permissions.*.exists' => 'One or more selected permissions do not exist.',
         ];
     }
 }

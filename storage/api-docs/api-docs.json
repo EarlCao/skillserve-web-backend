@@ -1218,6 +1218,16 @@
                                     "description": {
                                         "type": "string",
                                         "example": "Manages operational reports."
+                                    },
+                                    "permissions": {
+                                        "description": "Optional permission names. Protected permissions require a super administrator.",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "example": [
+                                            "view reports"
+                                        ]
                                     }
                                 },
                                 "type": "object"
@@ -2070,6 +2080,109 @@
                 ],
                 "summary": "List audit logs",
                 "operationId": "2320b6b10612ed567aa462fb3f9d77dc",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "administrator_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "action",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "module",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "view",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "all",
+                                "login",
+                                "security"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "created_at",
+                                "id"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Paginated audit logs",
@@ -2081,8 +2194,14 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
                     "403": {
                         "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -2109,6 +2228,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     },
                     "403": {
                         "description": "Unauthorized"
@@ -2743,7 +2865,7 @@
                 "tags": [
                     "Bookings"
                 ],
-                "summary": "Get booking history",
+                "summary": "Get paginated booking history",
                 "description": "GET /api/bookings/{booking}/history — booking status change history.",
                 "operationId": "ece906ef9418e52bc87366ea0180bdd8",
                 "parameters": [
@@ -2754,11 +2876,31 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Booking history",
+                        "description": "Paginated booking history",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2789,7 +2931,7 @@
                 "tags": [
                     "Bookings"
                 ],
-                "summary": "Cancel a booking",
+                "summary": "Cancel a booking without processing an external refund",
                 "description": "PATCH /api/bookings/{booking}/cancel — cancel a booking.",
                 "operationId": "ba3ff12597c71ba8717ef492cbba24b3",
                 "parameters": [
@@ -2824,7 +2966,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Booking cancelled",
+                        "description": "Booking cancelled. Unpaid bookings remain unpaid. Paid or partially paid bookings retain their payment status; no external refund is processed by this endpoint.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3160,7 +3302,7 @@
                 "tags": [
                     "Disputes"
                 ],
-                "summary": "View dispute history",
+                "summary": "View paginated dispute history",
                 "operationId": "31b06018df9fc678a0c2fefd234bdd27",
                 "parameters": [
                     {
@@ -3170,11 +3312,31 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Dispute history",
+                        "description": "Paginated dispute history",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3455,6 +3617,1954 @@
                 ]
             }
         },
+        "/api/client/v1/auth/register": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Register a customer account",
+                "operationId": "b5faaf55a97e3dff551cccea48d0831e",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "first_name",
+                                    "last_name",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Alex",
+                                        "maxLength": 255
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Customer",
+                                        "maxLength": 255
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Registered and logged in; email verification is required before marketplace access",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Login as a customer",
+                "operationId": "45cd723a126558e99bacc10515ef2ad3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Logged in successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Inactive or unverified customer account",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Rotate a customer refresh token",
+                "operationId": "e7f42cb4507ca9cbe6421cd60b903419",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "refresh_token"
+                                ],
+                                "properties": {
+                                    "refresh_token": {
+                                        "type": "string",
+                                        "minLength": 32
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tokens rotated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid, expired, or reused refresh token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Inactive or unverified customer account",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/me": {
+            "get": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Get the current customer",
+                "operationId": "91862717ad3b72d8be4d79163ba519d6",
+                "responses": {
+                    "200": {
+                        "description": "Authenticated customer",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/verify-email/{user}/{hash}": {
+            "get": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Verify a customer email address from its signed link",
+                "operationId": "188eb33281198863a174ea6913a8b2d9",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "hash",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "expires",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Invalid or expired verification link",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Customer not found"
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/verification-notification": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Resend the customer email verification link",
+                "operationId": "d9a95d155d630e6ab46436b58088c5f1",
+                "responses": {
+                    "202": {
+                        "description": "Verification email sent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Email is already verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Inactive or non-client account",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Logout and revoke customer sessions",
+                "operationId": "a480501fcb43f9aee170d28b001161b4",
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/change-password": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Change the current customer's password",
+                "operationId": "10690ca508a6e444627e0159e1025ac8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_password",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "format": "password"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password changed and sessions revoked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or wrong current password",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Request a customer password reset email",
+                "operationId": "d0996f0efe7d31eeb7416f52cb4ca691",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Reset request accepted without account enumeration",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Complete a customer password reset",
+                "operationId": "ae288d4045cedf3063a94c42685b5344",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset and sessions revoked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired reset token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/bookings/{booking}/messages": {
+            "get": {
+                "tags": [
+                    "Booking Messages"
+                ],
+                "summary": "List messages for a booking participant",
+                "operationId": "b594a6b948dfb361c01e9816d7a7b844",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated booking messages",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Booking participant access required"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Booking Messages"
+                ],
+                "summary": "Send a message to the other booking participant",
+                "operationId": "21698d769b6eb79218d4ae16187e21ec",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "content"
+                                ],
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "maxLength": 5000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Message sent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Existing message returned for a repeated idempotency key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Booking participant access required"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Idempotency conflict"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications": {
+            "get": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "List the authenticated customer notification inbox",
+                "operationId": "044840da8bde957489012d40a216e45c",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated notification inbox",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientNotificationListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "422": {
+                        "description": "Invalid pagination"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/unread-count": {
+            "get": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Count unread customer notifications",
+                "operationId": "873424f977292f45dd29673177b906c0",
+                "responses": {
+                    "200": {
+                        "description": "Unread count",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUnreadCountEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/{notification}/read": {
+            "patch": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Mark one owned notification as read",
+                "operationId": "1c8e530dcaf400d5694b5edf0bb78f56",
+                "parameters": [
+                    {
+                        "name": "notification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientNotificationEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/read-all": {
+            "post": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Mark all owned notifications as read",
+                "operationId": "44f3a8368501dbf9730abf1fc647f3ae",
+                "responses": {
+                    "200": {
+                        "description": "Notifications marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReadAllEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/support/tickets": {
+            "get": {
+                "tags": [
+                    "Client Support"
+                ],
+                "summary": "List the authenticated customer support tickets",
+                "operationId": "a170f872fa967a3419b15b1fddcc7b56",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "open",
+                                "in_progress",
+                                "resolved"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated customer tickets",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientSupportTicketListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "422": {
+                        "description": "Invalid filter"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Client Support"
+                ],
+                "summary": "Create a support ticket for the authenticated customer",
+                "operationId": "111d45bdedbc95a634c281d8a8253958",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "subject",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "subject": {
+                                        "type": "string",
+                                        "maxLength": 160
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "maxLength": 10000
+                                    },
+                                    "category": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 40
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Support ticket created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientSupportTicketEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/support/tickets/{ticket}": {
+            "get": {
+                "tags": [
+                    "Client Support"
+                ],
+                "summary": "Get an owned customer support ticket",
+                "operationId": "1e5b5e804d93e6740b390ef153098007",
+                "parameters": [
+                    {
+                        "name": "ticket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Support ticket details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientSupportTicketEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "404": {
+                        "description": "Ticket not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/support/tickets/{ticket}/replies": {
+            "post": {
+                "tags": [
+                    "Client Support"
+                ],
+                "summary": "Reply to an owned customer support ticket",
+                "operationId": "bf72a8d1f5de4ecb4424ace803421d20",
+                "parameters": [
+                    {
+                        "name": "ticket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "body"
+                                ],
+                                "properties": {
+                                    "body": {
+                                        "type": "string",
+                                        "maxLength": 5000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Reply added",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientSupportTicketEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "404": {
+                        "description": "Ticket not found"
+                    },
+                    "422": {
+                        "description": "Validation error or resolved ticket"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings": {
+            "get": {
+                "tags": [
+                    "Client Bookings"
+                ],
+                "summary": "List the authenticated customer bookings",
+                "operationId": "413b78b8a15008bb6b21e83de4016087",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "confirmed",
+                                "active",
+                                "completed",
+                                "cancelled",
+                                "disputed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "scheduled_date",
+                                "status",
+                                "total_price"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Customer bookings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "422": {
+                        "description": "Invalid filter"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Client Bookings"
+                ],
+                "summary": "Create a booking from a published service",
+                "operationId": "f421d193ad9de361281e846ccf9ba5ea",
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "service_id",
+                                    "scheduled_date"
+                                ],
+                                "properties": {
+                                    "service_id": {
+                                        "type": "integer"
+                                    },
+                                    "scheduled_date": {
+                                        "description": "Booking start. The service duration is used when scheduled_end_date is omitted.",
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "scheduled_end_date": {
+                                        "description": "Optional explicit end; must be after scheduled_date.",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    },
+                                    "client_notes": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    },
+                                    "payment_method": {
+                                        "description": "Selection only; payment remains unpaid because no payment provider is called.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "enum": [
+                                            "cash",
+                                            "credit_card",
+                                            "debit_card",
+                                            "bank_transfer",
+                                            "gcash",
+                                            "paypal"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Booking created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Existing booking returned for a repeated idempotency key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "409": {
+                        "description": "Idempotency or provider schedule conflict"
+                    },
+                    "422": {
+                        "description": "Unavailable or unbookable service"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}": {
+            "get": {
+                "tags": [
+                    "Client Bookings"
+                ],
+                "summary": "Get an owned booking",
+                "operationId": "58ee626017f2cc6aa3f05bdb928d9091",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Booking details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not owned by the customer or email is unverified"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/cancel": {
+            "patch": {
+                "tags": [
+                    "Client Bookings"
+                ],
+                "summary": "Cancel an owned pending or confirmed booking without processing a refund",
+                "operationId": "c530f72bc5bba818c293979dd09048b1",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Booking cancelled. Unpaid remains unpaid; paid state is unchanged and no external refund is processed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not owned by the customer"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "422": {
+                        "description": "Booking cannot be cancelled"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/categories": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "List enabled service categories and subcategories",
+                "operationId": "91b61ba9fd18589676e32840bf9f1a2e",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Enabled categories",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientCategoryListEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/categories/{category}": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "Get an enabled category",
+                "operationId": "219d15128b5ee9da7176a6403ee88515",
+                "parameters": [
+                    {
+                        "name": "category",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientCategoryEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category not found or disabled"
+                    }
+                }
+            }
+        },
+        "/api/client/v1/services": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "List bookable published services",
+                "operationId": "f630198c57f94e740083186a30298714",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "subcategory_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "provider_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "title",
+                                "price",
+                                "average_rating"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Published services",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientServiceListEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/services/{service}": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "Get a bookable service",
+                "operationId": "51843c44202b458add030f2af789ba3b",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientServiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found or unavailable"
+                    }
+                }
+            }
+        },
+        "/api/client/v1/providers": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "List verified active providers",
+                "operationId": "1e11d1f7b94510889c241a28373e7bc9",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "category_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "subcategory_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "average_rating",
+                                "business_name"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verified providers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientProviderListEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/providers/{provider}": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "Get a verified active provider",
+                "operationId": "134da3130fcc5b65abcc9c4547dab771",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientProviderEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found or unavailable"
+                    }
+                }
+            }
+        },
+        "/api/client/v1/reviews": {
+            "get": {
+                "tags": [
+                    "Client Reviews"
+                ],
+                "summary": "List the authenticated customer reviews",
+                "operationId": "2ac1ac73c0b3c97058a53561a7fb2f8b",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Customer reviews",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReviewListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "422": {
+                        "description": "Invalid pagination"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Client Reviews"
+                ],
+                "summary": "Review a completed owned booking",
+                "operationId": "4de31320667daf236ddf8a386ccc66c5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "booking_id",
+                                    "rating"
+                                ],
+                                "properties": {
+                                    "booking_id": {
+                                        "type": "integer"
+                                    },
+                                    "rating": {
+                                        "type": "integer",
+                                        "maximum": 5,
+                                        "minimum": 1
+                                    },
+                                    "comment": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Review created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReviewEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified client access required"
+                    },
+                    "409": {
+                        "description": "Booking already reviewed"
+                    },
+                    "422": {
+                        "description": "Booking is not completed or validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/reviews/{review}": {
+            "put": {
+                "tags": [
+                    "Client Reviews"
+                ],
+                "summary": "Update an owned review",
+                "operationId": "3771bc59a5b98f4b29daad1383ede679",
+                "parameters": [
+                    {
+                        "name": "review",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "rating": {
+                                        "type": "integer",
+                                        "maximum": 5,
+                                        "minimum": 1
+                                    },
+                                    "comment": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReviewEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not owned by the customer"
+                    },
+                    "404": {
+                        "description": "Review not found"
+                    },
+                    "422": {
+                        "description": "Booking is not completed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/dashboard": {
             "get": {
                 "tags": [
@@ -3538,9 +5648,55 @@
                 ],
                 "summary": "List archived records",
                 "operationId": "7d6dce4e63fb9b41083d8d94c5d88d8b",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "services"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Archived records"
+                        "description": "Paginated archived records",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -3555,9 +5711,48 @@
                 ],
                 "summary": "Archive a record",
                 "operationId": "c5d74537797fb8294129061ed7dcc4f3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "resource_type",
+                                    "resource_id"
+                                ],
+                                "properties": {
+                                    "resource_type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "services"
+                                        ]
+                                    },
+                                    "resource_id": {
+                                        "type": "integer",
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "201": {
-                        "description": "Record archived"
+                        "description": "Record archived",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     },
                     "422": {
                         "description": "Validation error"
@@ -3589,7 +5784,20 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Record restored"
+                        "description": "Record restored",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "Archive not found"
@@ -3608,10 +5816,64 @@
                     "Data Management"
                 ],
                 "summary": "List deleted records",
+                "description": "Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection.",
                 "operationId": "a69d534f4c275def4e2a9ce369899511",
+                "parameters": [
+                    {
+                        "name": "resource_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "users",
+                                "services",
+                                "bookings",
+                                "reviews",
+                                "reports",
+                                "messages",
+                                "service_categories",
+                                "service_subcategories"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Deleted records"
+                        "description": "Paginated deleted records",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -3628,9 +5890,50 @@
                 ],
                 "summary": "Restore a deleted record",
                 "operationId": "da70e407de4a8c2aa4c7d5a8b76342e7",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "users",
+                                "services",
+                                "bookings",
+                                "reviews",
+                                "reports",
+                                "messages",
+                                "service_categories",
+                                "service_subcategories"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Record restored"
+                        "description": "Record restored",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     },
                     "404": {
                         "description": "Record not found"
@@ -3650,9 +5953,40 @@
                 ],
                 "summary": "Permanently delete a record",
                 "operationId": "23cabc6cda195c5e7b609c08d2180c8f",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "messages",
+                                "reports"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "204": {
                         "description": "Record permanently deleted"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Record not found"
                     },
                     "422": {
                         "description": "Record type cannot be permanently deleted"
@@ -3672,9 +6006,73 @@
                 ],
                 "summary": "Export system data as CSV",
                 "operationId": "bb3ef1e2e99ef715a67e8e8a10c45378",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "users",
+                                "providers",
+                                "services",
+                                "bookings",
+                                "reviews",
+                                "activity"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "CSV export"
+                        "description": "CSV export",
+                        "content": {
+                            "text/csv": {}
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -3938,9 +6336,47 @@
                 ],
                 "summary": "List provider badges",
                 "operationId": "8b1081d3833e44475795bbf2f72223ff",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Badges",
+                        "description": "Paginated badges",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3948,6 +6384,9 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     },
                     "403": {
                         "description": "Unauthorized"
@@ -3965,6 +6404,41 @@
                 ],
                 "summary": "Create a provider badge",
                 "operationId": "04eeb2677f2ec46b84305cb60f6b25cf",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "slug"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 100
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "maxLength": 120
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "color": {
+                                        "type": "string",
+                                        "maxLength": 30
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "201": {
                         "description": "Badge created",
@@ -3975,6 +6449,12 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     },
                     "422": {
                         "description": "Validation error"
@@ -3994,6 +6474,47 @@
                 ],
                 "summary": "Update a provider badge",
                 "operationId": "b2a5efb6c9afded95681db3838c9c1dd",
+                "parameters": [
+                    {
+                        "name": "badge",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 100
+                                    },
+                                    "slug": {
+                                        "type": "string",
+                                        "maxLength": 120
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true
+                                    },
+                                    "color": {
+                                        "type": "string",
+                                        "maxLength": 30
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Badge updated",
@@ -4004,6 +6525,15 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Badge not found"
                     },
                     "422": {
                         "description": "Validation error"
@@ -4021,6 +6551,16 @@
                 ],
                 "summary": "Delete a provider badge",
                 "operationId": "af60497f855bfcfa59ed9e187ebf96e0",
+                "parameters": [
+                    {
+                        "name": "badge",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Badge deleted",
@@ -4032,8 +6572,14 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
                     "403": {
                         "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Badge not found"
                     }
                 },
                 "security": [
@@ -4050,9 +6596,83 @@
                 ],
                 "summary": "List recognition providers",
                 "operationId": "9864acc922a4cc5eb19ea9dc22c88ca7",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "badge_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_featured",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "created_at",
+                                "average_rating",
+                                "total_bookings",
+                                "total_reviews"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Providers",
+                        "description": "Paginated recognition providers",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4060,6 +6680,12 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -4076,9 +6702,66 @@
                 ],
                 "summary": "List top-rated providers",
                 "operationId": "f3c8fa61b659f092479581fe2ef728e3",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "badge_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "is_featured",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "min_rating",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "maximum": 5,
+                            "minimum": 0
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "Top-rated providers",
+                        "description": "Paginated top-rated providers",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4086,6 +6769,12 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -4102,6 +6791,35 @@
                 ],
                 "summary": "Assign a badge to a provider",
                 "operationId": "51ecdb7731af918ade4e8dcf3af881f9",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "badge_id"
+                                ],
+                                "properties": {
+                                    "badge_id": {
+                                        "type": "integer",
+                                        "minimum": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Badge assigned",
@@ -4112,6 +6830,12 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
                     },
                     "422": {
                         "description": "Validation error"
@@ -4131,6 +6855,24 @@
                 ],
                 "summary": "Remove a badge from a provider",
                 "operationId": "8c982ad2be719dd1c398f6bb9c5abb25",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "badge",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "Badge removed",
@@ -4141,6 +6883,15 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Provider or badge not found"
                     }
                 },
                 "security": [
@@ -4157,6 +6908,34 @@
                 ],
                 "summary": "Feature or unfeature a provider",
                 "operationId": "6b1b09a5ba0eeddbd047fbd1a31324c5",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_featured"
+                                ],
+                                "properties": {
+                                    "is_featured": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Featured status updated",
@@ -4167,6 +6946,15 @@
                                 }
                             }
                         }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -4483,8 +7271,6 @@
                                                     "verification_request_id": 5,
                                                     "document_type": "government_id",
                                                     "file_name": "drivers_license.pdf",
-                                                    "file_path": "verification/1/driver_license.pdf",
-                                                    "file_url": "https://storage.example.com/verification/1/driver_license.pdf",
                                                     "file_mime_type": "application/pdf",
                                                     "file_size": 1048576,
                                                     "formatted_file_size": "1 MB",
@@ -5649,7 +8435,7 @@
                 ],
                 "summary": "Get provider verification history",
                 "description": "GET /api/providers/{provider}/verification-history — verification request history.",
-                "operationId": "52715665956be9623060c02ee1524da0",
+                "operationId": "140eeccf8ae177a591e5497386d69132",
                 "parameters": [
                     {
                         "name": "provider",
@@ -5692,8 +8478,6 @@
                                                     "verification_request_id": 5,
                                                     "document_type": "government_id",
                                                     "file_name": "drivers_license.pdf",
-                                                    "file_path": "verification/1/driver_license.pdf",
-                                                    "file_url": "https://storage.example.com/verification/1/driver_license.pdf",
                                                     "file_mime_type": "application/pdf",
                                                     "file_size": 1048576,
                                                     "formatted_file_size": "1 MB",
@@ -5725,8 +8509,6 @@
                                                     "verification_request_id": 3,
                                                     "document_type": "government_id",
                                                     "file_name": "blurry_id.jpg",
-                                                    "file_path": "verification/1/blurry_id.jpg",
-                                                    "file_url": "https://storage.example.com/verification/1/blurry_id.jpg",
                                                     "file_mime_type": "image/jpeg",
                                                     "file_size": 524288,
                                                     "formatted_file_size": "512 KB",
@@ -5795,6 +8577,53 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/verification-documents/{document}/download": {
+            "get": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Download a provider verification document",
+                "description": "Downloads a verification document only after checking the provider scope and the view-providers permission. The file is served from private storage.",
+                "operationId": "c8f5bd5f3097852251d170fb5967f098",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "document",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Private verification document download"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Provider, document, or private file not found"
                     }
                 },
                 "security": [
@@ -6551,7 +9380,7 @@
                 "tags": [
                     "Reviews"
                 ],
-                "summary": "Permanently remove a review",
+                "summary": "Soft-remove a review",
                 "operationId": "658bc50cbe0a463e2a9b05648d7f9a10",
                 "parameters": [
                     {
@@ -6565,7 +9394,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Review removed",
+                        "description": "Review soft-removed. The record remains retained for audit and can be restored through Data Management.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -9358,6 +12187,9 @@
                             }
                         }
                     },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
                     "403": {
                         "description": "Unauthorized"
                     }
@@ -9373,12 +12205,134 @@
                     "System Settings"
                 ],
                 "summary": "Update system settings",
+                "description": "Updates only known, unlocked settings. The system.session_timeout_minutes value controls new administrator token expiry and is enforced for existing administrator bearer tokens.",
                 "operationId": "bcf3402fd4a95827f635906000e9ac7c",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
+                                "properties": {
+                                    "general": {
+                                        "properties": {
+                                            "platform_name": {
+                                                "type": "string",
+                                                "maxLength": 120
+                                            },
+                                            "platform_description": {
+                                                "type": "string",
+                                                "nullable": true,
+                                                "maxLength": 1000
+                                            },
+                                            "support_email": {
+                                                "type": "string",
+                                                "format": "email",
+                                                "nullable": true
+                                            },
+                                            "timezone": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    },
+                                    "marketplace": {
+                                        "properties": {
+                                            "provider_registration_enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "service_approval_required": {
+                                                "type": "boolean"
+                                            },
+                                            "featured_services_enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "commission_rate": {
+                                                "type": "number",
+                                                "maximum": 100,
+                                                "minimum": 0
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    },
+                                    "booking": {
+                                        "properties": {
+                                            "booking_enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "cancellation_window_hours": {
+                                                "type": "integer",
+                                                "maximum": 720,
+                                                "minimum": 0
+                                            },
+                                            "client_cancellation_fee_percent": {
+                                                "type": "number",
+                                                "maximum": 100,
+                                                "minimum": 0
+                                            },
+                                            "provider_cancellation_fee_percent": {
+                                                "type": "number",
+                                                "maximum": 100,
+                                                "minimum": 0
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    },
+                                    "notifications": {
+                                        "properties": {
+                                            "email_notifications_enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "push_notifications_enabled": {
+                                                "type": "boolean"
+                                            },
+                                            "announcement_notifications_enabled": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    },
+                                    "policies": {
+                                        "properties": {
+                                            "terms_of_service": {
+                                                "type": "string",
+                                                "nullable": true
+                                            },
+                                            "privacy_policy": {
+                                                "type": "string",
+                                                "nullable": true
+                                            },
+                                            "community_guidelines": {
+                                                "type": "string",
+                                                "nullable": true
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    },
+                                    "system": {
+                                        "properties": {
+                                            "maintenance_mode": {
+                                                "type": "boolean"
+                                            },
+                                            "session_timeout_minutes": {
+                                                "type": "integer",
+                                                "maximum": 43200,
+                                                "minimum": 5
+                                            },
+                                            "default_page_size": {
+                                                "type": "integer",
+                                                "maximum": 100,
+                                                "minimum": 1
+                                            }
+                                        },
+                                        "type": "object",
+                                        "additionalProperties": false
+                                    }
+                                },
                                 "type": "object"
                             },
                             "example": {
@@ -9388,6 +12342,9 @@
                                 },
                                 "booking": {
                                     "booking_enabled": true
+                                },
+                                "system": {
+                                    "session_timeout_minutes": 1440
                                 }
                             }
                         }
@@ -9404,11 +12361,14 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "Validation error"
+                    "401": {
+                        "description": "Unauthenticated"
                     },
                     "403": {
                         "description": "Unauthorized"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -11213,6 +14173,1132 @@
                 },
                 "type": "object"
             },
+            "PaginationMeta": {
+                "properties": {
+                    "pagination": {
+                        "$ref": "#/components/schemas/Pagination"
+                    }
+                },
+                "type": "object"
+            },
+            "Pagination": {
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "from": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "to": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientUser": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 10
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "example": "Alex"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "example": "Customer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Alex Customer"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "alex@example.com"
+                    },
+                    "phone": {
+                        "type": "string",
+                        "example": "+639171234567",
+                        "nullable": true
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "birthday": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "active"
+                    },
+                    "email_verified": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "email_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientAuthPayload": {
+                "properties": {
+                    "token": {
+                        "description": "Sanctum plain-text access token",
+                        "type": "string"
+                    },
+                    "token_type": {
+                        "type": "string",
+                        "example": "Bearer"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "refresh_token": {
+                        "description": "Opaque refresh token; returned only once",
+                        "type": "string"
+                    },
+                    "refresh_expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/ClientUser"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientPerson": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientSubcategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "category_id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientCategory": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcategories": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClientSubcategory"
+                        },
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientService": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "price": {
+                        "type": "string",
+                        "example": "125.00",
+                        "nullable": true
+                    },
+                    "price_type": {
+                        "type": "string"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "PHP"
+                    },
+                    "duration": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "average_rating": {
+                        "type": "string",
+                        "example": "4.50"
+                    },
+                    "total_reviews": {
+                        "type": "integer"
+                    },
+                    "total_bookings": {
+                        "type": "integer"
+                    },
+                    "category": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "subcategory": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "provider": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientProviderSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "reviews": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClientReview"
+                        },
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientProviderSummary": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "business_name": {
+                        "type": "string"
+                    },
+                    "average_rating": {
+                        "type": "string",
+                        "example": "4.50"
+                    },
+                    "total_reviews": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "total_bookings": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientProvider": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "business_name": {
+                        "type": "string"
+                    },
+                    "bio": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "specialization": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "experience_years": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "hourly_rate": {
+                        "type": "string",
+                        "example": "500.00",
+                        "nullable": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "website": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "social_links": {
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": true
+                    },
+                    "portfolio": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "certifications": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "languages": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "nullable": true
+                    },
+                    "average_rating": {
+                        "type": "string",
+                        "example": "4.50"
+                    },
+                    "total_reviews": {
+                        "type": "integer"
+                    },
+                    "total_bookings": {
+                        "type": "integer"
+                    },
+                    "completed_bookings": {
+                        "type": "integer"
+                    },
+                    "services": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClientService"
+                        },
+                        "nullable": true
+                    },
+                    "reviews": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClientReview"
+                        },
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientReview": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "rating": {
+                        "type": "integer",
+                        "maximum": 5,
+                        "minimum": 1
+                    },
+                    "comment": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "booking": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientBookingSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "reviewer": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "provider": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientProviderSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "service": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientServiceSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientBookingSummary": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "booking_number": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientServiceSummary": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientBooking": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "booking_number": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "payment_status": {
+                        "type": "string"
+                    },
+                    "service_price": {
+                        "type": "string",
+                        "example": "125.00"
+                    },
+                    "total_price": {
+                        "type": "string",
+                        "example": "125.00"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "payment_method": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cancellation_payment_policy": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "client_notes": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cancellation_reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "scheduled_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "scheduled_end_date": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "confirmed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "is_reviewed": {
+                        "type": "boolean"
+                    },
+                    "service": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientService"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "provider": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientProviderSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "review": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientReview"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BookingMessage": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "booking_id": {
+                        "type": "integer"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "sender": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "receiver": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientSupportTicket": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "ticket_number": {
+                        "type": "string"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string"
+                    },
+                    "priority": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "resolution_note": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "requester": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPerson"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "messages": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer"
+                                },
+                                "body": {
+                                    "type": "string"
+                                },
+                                "author": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ClientPerson"
+                                        }
+                                    ],
+                                    "nullable": true
+                                },
+                                "created_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "nullable": true
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientNotificationData": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "body": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "announcement_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "booking_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "ticket_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "ticket_number": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientNotification": {
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ClientNotificationData"
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientAuthEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientAuthPayload"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientUserEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientUser"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientCategoryEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientCategory"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientCategoryListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientCategory"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientServiceEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientService"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientServiceListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientService"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientProviderEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientProvider"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientProviderListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientProvider"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientBookingEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientBooking"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientBookingListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientBooking"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientReviewEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientReview"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientReviewListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientReview"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "BookingMessageEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/BookingMessage"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "BookingMessageListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/BookingMessage"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientSupportTicketEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientSupportTicket"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientSupportTicketListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientSupportTicket"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientNotificationEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientNotification"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientNotificationListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientNotification"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientUnreadCountEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "properties": {
+                                    "unread_count": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientReadAllEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "properties": {
+                                    "updated_count": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "Administrator": {
                 "properties": {
                     "id": {
@@ -11503,6 +15589,34 @@
         {
             "name": "Disputes",
             "description": "Review and manage booking disputes"
+        },
+        {
+            "name": "Client Authentication",
+            "description": "Customer registration, sessions and password management"
+        },
+        {
+            "name": "Booking Messages",
+            "description": "Messages exchanged by the client and provider on a booking"
+        },
+        {
+            "name": "Client Notifications",
+            "description": "Customer notification inbox and read state"
+        },
+        {
+            "name": "Client Support",
+            "description": "Customer-owned support tickets and replies"
+        },
+        {
+            "name": "Client Bookings",
+            "description": "Customer-owned bookings"
+        },
+        {
+            "name": "Client Marketplace",
+            "description": "Public customer catalog discovery"
+        },
+        {
+            "name": "Client Reviews",
+            "description": "Customer reviews for completed bookings"
         },
         {
             "name": "Dashboard",

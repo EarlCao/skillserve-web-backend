@@ -57,7 +57,13 @@ class UserManagementService extends BaseService
             ->doesntHave('roles')
             // roles + permissions are read by the base UserResource — eager
             // loading them avoids an N+1 on every row of the listing.
-            ->with(['roles', 'roles.permissions', 'createdBy:id,name']);
+            ->with(['roles', 'roles.permissions', 'createdBy:id,name'])
+            ->withCount([
+                'services',
+                'clientBookings as bookings_count',
+                'reviews as reviews_count',
+                'reviews as ratings_count' => fn ($reviewQuery) => $reviewQuery->whereNotNull('rating'),
+            ]);
 
         if ($search = trim((string) ($filters['search'] ?? ''))) {
             $term = '%'.mb_strtolower($search).'%';
@@ -115,6 +121,11 @@ class UserManagementService extends BaseService
             'bannedBy:id,name',
             'deletedBy:id,name',
             'activities' => fn ($query) => $query->latest()->limit(20),
+        ])->loadCount([
+            'services',
+            'clientBookings as bookings_count',
+            'reviews as reviews_count',
+            'reviews as ratings_count' => fn ($reviewQuery) => $reviewQuery->whereNotNull('rating'),
         ]);
     }
 

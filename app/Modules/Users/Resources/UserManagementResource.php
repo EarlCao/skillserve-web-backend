@@ -65,13 +65,10 @@ class UserManagementResource extends UserResource
                 'name' => $this->deletedBy->name,
             ] : null),
             'summary' => [
-                // Placeholder counters — the Services / Bookings / Ratings /
-                // Reviews modules land in later phases; these stay at zero
-                // until those relations exist.
-                'services_count' => 0,
-                'bookings_count' => 0,
-                'ratings_count' => 0,
-                'reviews_count' => 0,
+                'services_count' => (int) ($this->services_count ?? 0),
+                'bookings_count' => (int) ($this->bookings_count ?? 0),
+                'ratings_count' => (int) ($this->ratings_count ?? 0),
+                'reviews_count' => (int) ($this->reviews_count ?? 0),
                 'recent_activity' => $this->whenLoaded('activities', fn () => $this->activities->map(
                     fn (Activity $activity) => [
                         'id' => $activity->id,

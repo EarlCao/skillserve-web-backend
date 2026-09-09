@@ -3,6 +3,7 @@
 namespace App\Modules\Users\Actions;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Services\ClientSessionService;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
 
@@ -16,6 +17,10 @@ use App\Shared\Exceptions\ApiException;
  */
 final class BanUserAction extends BaseAction
 {
+    public function __construct(
+        private readonly ClientSessionService $clientSessionService,
+    ) {}
+
     /**
      * @throws ApiException when the account is already banned.
      */
@@ -52,6 +57,7 @@ final class BanUserAction extends BaseAction
 
         // Existing sessions are invalidated too — not just future logins.
         $user->tokens()->delete();
+        $this->clientSessionService->revokeRefreshTokens($user);
 
         return $user;
     }

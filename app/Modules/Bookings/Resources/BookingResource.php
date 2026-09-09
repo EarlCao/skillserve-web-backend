@@ -24,6 +24,7 @@ class BookingResource extends BaseResource
             'currency' => $this->currency,
             'payment_method' => $this->payment_method,
             'payment_reference' => $this->payment_reference,
+            'cancellation_payment_policy' => $this->when($this->isCancelled(), fn () => $this->cancellationPaymentPolicy()),
             'client_notes' => $this->client_notes,
             'provider_notes' => $this->provider_notes,
             'cancellation_reason' => $this->cancellation_reason,

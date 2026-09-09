@@ -77,7 +77,7 @@ class RoleService extends BaseService
     public function store(array $validated, User $actor): Role
     {
         return $this->transaction(function () use ($validated, $actor): Role {
-            $role = $this->createRoleAction->handle($validated);
+            $role = $this->createRoleAction->handle($validated, $actor);
 
             event(new RoleCreated(role: $role, actor: $actor, data: $validated));
 
@@ -130,7 +130,7 @@ class RoleService extends BaseService
     public function syncPermissions(Role $role, array $permissions, User $actor): Role
     {
         return $this->transaction(function () use ($role, $permissions, $actor): Role {
-            $this->syncRolePermissionsAction->handle($role, $permissions);
+            $this->syncRolePermissionsAction->handle($role, $permissions, $actor);
 
             $role->load('permissions');
 

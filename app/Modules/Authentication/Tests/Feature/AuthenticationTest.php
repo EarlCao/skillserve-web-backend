@@ -3,6 +3,7 @@
 namespace App\Modules\Authentication\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -59,6 +60,35 @@ class AuthenticationTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.token_type', 'Bearer')
             ->assertJsonPath('data.user.email', $user->email);
+    }
+
+    public function test_system_session_timeout_is_used_for_issuance_and_existing_token_enforcement(): void
+    {
+        Role::findOrCreate('admin');
+        $user = $this->createUser(['email' => 'timeout-admin@skillserve.test']);
+        $user->assignRole('admin');
+        Setting::query()->updateOrCreate(
+            ['group' => 'system', 'name' => 'session_timeout_minutes'],
+            ['payload' => 1440],
+        );
+
+        $token = $this->postJson('/api/auth/login', [
+            'email' => 'timeout-admin@skillserve.test',
+            'password' => 'password123',
+        ])
+            ->assertOk()
+            ->json('data.token');
+
+        Setting::query()->updateOrCreate(
+            ['group' => 'system', 'name' => 'session_timeout_minutes'],
+            ['payload' => 5],
+        );
+
+        $this->travel(6)->minutes();
+        Auth::forgetGuards();
+
+        $this->withToken($token)->getJson('/api/auth/me')->assertStatus(401);
+        $this->travelBack();
     }
 
     public function test_platform_users_cannot_login_to_the_admin_system(): void

@@ -4,6 +4,7 @@ namespace App\Modules\Providers\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Providers\Models\VerificationDocument;
 use App\Modules\Providers\Requests\ApproveVerificationRequest;
 use App\Modules\Providers\Requests\RejectVerificationRequest;
 use App\Modules\Providers\Requests\RequestAdditionalInfoRequest;
@@ -13,7 +14,9 @@ use App\Modules\Providers\Services\ProviderService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Provider management endpoints — listing, profile viewing, verification
@@ -213,8 +216,6 @@ class ProviderController extends Controller
                                         'verification_request_id' => 5,
                                         'document_type' => 'government_id',
                                         'file_name' => 'drivers_license.pdf',
-                                        'file_path' => 'verification/1/driver_license.pdf',
-                                        'file_url' => 'https://storage.example.com/verification/1/driver_license.pdf',
                                         'file_mime_type' => 'application/pdf',
                                         'file_size' => 1048576,
                                         'formatted_file_size' => '1 MB',
@@ -436,7 +437,7 @@ class ProviderController extends Controller
         );
 
         return $this->success(
-            new ProviderResource($provider->fresh(['user', 'verifiedBy'])),
+            new ProviderResource($this->providerService->show($provider)),
             'Provider verification approved.',
         );
     }
@@ -591,7 +592,7 @@ class ProviderController extends Controller
         );
 
         return $this->success(
-            new ProviderResource($provider->fresh(['user'])),
+            new ProviderResource($this->providerService->show($provider)),
             'Provider verification rejected.',
         );
     }
@@ -746,7 +747,7 @@ class ProviderController extends Controller
         );
 
         return $this->success(
-            new ProviderResource($provider->fresh(['user'])),
+            new ProviderResource($this->providerService->show($provider)),
             'Additional information requested.',
         );
     }
@@ -894,7 +895,7 @@ class ProviderController extends Controller
             $request->validated('reason'),
         );
 
-        return $this->success(new ProviderResource($provider), 'Provider suspended.');
+        return $this->success(new ProviderResource($this->providerService->show($provider)), 'Provider suspended.');
     }
 
     /**
@@ -1027,7 +1028,7 @@ class ProviderController extends Controller
             $request->user(),
         );
 
-        return $this->success(new ProviderResource($provider), 'Provider activated.');
+        return $this->success(new ProviderResource($this->providerService->show($provider)), 'Provider activated.');
     }
 
     /**
@@ -1160,7 +1161,7 @@ class ProviderController extends Controller
             $request->user(),
         );
 
-        return $this->success(new ProviderResource($provider), 'Provider verification removed.');
+        return $this->success(new ProviderResource($this->providerService->show($provider)), 'Provider verification removed.');
     }
 
     /**
@@ -1201,8 +1202,6 @@ class ProviderController extends Controller
                                         'verification_request_id' => 5,
                                         'document_type' => 'government_id',
                                         'file_name' => 'drivers_license.pdf',
-                                        'file_path' => 'verification/1/driver_license.pdf',
-                                        'file_url' => 'https://storage.example.com/verification/1/driver_license.pdf',
                                         'file_mime_type' => 'application/pdf',
                                         'file_size' => 1048576,
                                         'formatted_file_size' => '1 MB',
@@ -1231,8 +1230,6 @@ class ProviderController extends Controller
                                         'verification_request_id' => 3,
                                         'document_type' => 'government_id',
                                         'file_name' => 'blurry_id.jpg',
-                                        'file_path' => 'verification/1/blurry_id.jpg',
-                                        'file_url' => 'https://storage.example.com/verification/1/blurry_id.jpg',
                                         'file_mime_type' => 'image/jpeg',
                                         'file_size' => 524288,
                                         'formatted_file_size' => '512 KB',
@@ -1294,6 +1291,38 @@ class ProviderController extends Controller
             ),
         ],
     )]
+    #[OA\Get(
+        path: '/api/providers/{provider}/verification-documents/{document}/download',
+        summary: 'Download a provider verification document',
+        description: 'Downloads a verification document only after checking the provider scope and the view-providers permission. The file is served from private storage.',
+        tags: ['Providers'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'document', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Private verification document download'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Provider, document, or private file not found'),
+        ],
+    )]
+    public function downloadVerificationDocument(ProviderProfile $provider, VerificationDocument $document): StreamedResponse
+    {
+        $this->authorize('view', $provider);
+
+        $document->loadMissing('verificationRequest');
+        abort_unless($document->verificationRequest?->provider_profile_id === $provider->id, 404);
+
+        $disk = Storage::disk('verification');
+        abort_unless($disk->exists($document->file_path), 404);
+
+        return $disk->download($document->file_path, $document->file_name, [
+            'Content-Type' => $document->file_mime_type,
+        ]);
+    }
+
     public function verificationHistory(ProviderProfile $provider): JsonResponse
     {
         $this->authorize('view', $provider);

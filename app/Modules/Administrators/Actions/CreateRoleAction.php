@@ -2,7 +2,10 @@
 
 namespace App\Modules\Administrators\Actions;
 
+use App\Models\User;
+use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Actions\BaseAction;
+use App\Shared\Exceptions\ApiException;
 use Spatie\Permission\Models\Role;
 
 /**
@@ -11,14 +14,31 @@ use Spatie\Permission\Models\Role;
 final class CreateRoleAction extends BaseAction
 {
     /**
-     * @param  array{name: string, description?: string|null}  $validated
+     * @param  array{name: string, description?: string|null, permissions?: array<int, string>}  $validated
      */
-    public function handle(array $validated): Role
+    public function handle(array $validated, User $actor): Role
     {
-        return Role::create([
+        $permissions = $validated['permissions'] ?? [];
+
+        if (! SystemRole::mayGrantProtectedPermissions($actor)
+            && SystemRole::containsProtectedPermissions($permissions)) {
+            throw new ApiException(
+                'Protected permissions may only be granted by a super administrator.',
+                403,
+                errors: ['permissions' => ['Protected permissions may only be granted by a super administrator.']],
+            );
+        }
+
+        $role = Role::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'guard_name' => 'web',
         ]);
+
+        if ($permissions !== []) {
+            $role->syncPermissions($permissions);
+        }
+
+        return $role;
     }
 }

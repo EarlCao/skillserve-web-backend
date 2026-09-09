@@ -7,6 +7,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Requests\AddDisputeNoteRequest;
 use App\Modules\Bookings\Requests\CloseDisputeRequest;
 use App\Modules\Bookings\Requests\DisputeIndexRequest;
+use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ResolveDisputeRequest;
 use App\Modules\Bookings\Resources\BookingResource;
 use App\Modules\Bookings\Services\DisputeService;
@@ -79,17 +80,21 @@ class DisputeController extends Controller
 
     #[OA\Get(
         path: '/api/disputes/{booking}/history',
-        summary: 'View dispute history',
+        summary: 'View paginated dispute history',
         tags: ['Disputes'],
         security: [['bearerAuth' => []]],
-        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
-        responses: [new OA\Response(response: 200, description: 'Dispute history', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'))],
+        parameters: [
+            new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15)),
+        ],
+        responses: [new OA\Response(response: 200, description: 'Paginated dispute history', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'))],
     )]
-    public function history(Booking $booking): JsonResponse
+    public function history(HistoryIndexRequest $request, Booking $booking): JsonResponse
     {
         $this->authorize('viewDisputes', Booking::class);
 
-        return $this->success($this->disputeService->history($booking), 'Dispute history retrieved.');
+        return $this->paginated($this->disputeService->history($booking, $request->validated()), null, 'Dispute history retrieved.');
     }
 
     #[OA\Patch(path: '/api/disputes/{booking}/investigate', summary: 'Investigate a dispute', tags: ['Disputes'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], responses: [new OA\Response(response: 200, description: 'Dispute under investigation', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'))])]

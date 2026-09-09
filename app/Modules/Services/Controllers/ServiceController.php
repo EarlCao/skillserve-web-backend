@@ -151,7 +151,7 @@ class ServiceController extends Controller
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                 required: ['title', 'provider_id', 'category_id'],
+                required: ['title', 'provider_id', 'category_id'],
                 example: [
                     'title' => 'Plumbing Repair',
                     'description' => 'Expert plumbing repair service.',
@@ -166,9 +166,9 @@ class ServiceController extends Controller
                 ],
                 properties: [
                     new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Plumbing Repair'),
-                     new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
-                     new OA\Property(property: 'provider_id', type: 'integer', example: 1),
-                     new OA\Property(property: 'category_id', type: 'integer', example: 1),
+                    new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
+                    new OA\Property(property: 'provider_id', type: 'integer', example: 1),
+                    new OA\Property(property: 'category_id', type: 'integer', example: 1),
                     new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true),
                     new OA\Property(property: 'price', type: 'number', format: 'float', nullable: true),
                     new OA\Property(property: 'price_type', type: 'string', enum: ['fixed', 'hourly', 'custom'], default: 'fixed'),

@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'sender_id', 'receiver_id', 'booking_id', 'content',
-    'status', 'removed_by', 'removed_at', 'deleted_by',
+    'status', 'removed_by', 'removed_at', 'deleted_by', 'read_at', 'client_idempotency_key',
 ])]
 class Message extends Model
 {
@@ -51,6 +51,7 @@ class Message extends Model
     {
         return [
             'removed_at' => 'datetime',
+            'read_at' => 'datetime',
             'deleted_at' => 'datetime',
         ];
     }

@@ -124,6 +124,7 @@ class RoleController extends Controller
                 properties: [
                     new OA\Property(property: 'name', type: 'string', example: 'reports-manager'),
                     new OA\Property(property: 'description', type: 'string', example: 'Manages operational reports.'),
+                    new OA\Property(property: 'permissions', type: 'array', items: new OA\Items(type: 'string'), description: 'Optional permission names. Protected permissions require a super administrator.', example: ['view reports']),
                 ],
             ),
         ),
@@ -197,7 +198,7 @@ class RoleController extends Controller
     )]
     public function store(StoreRoleRequest $request): JsonResponse
     {
-        $this->authorize('create', Role::class);
+        $this->authorize('create', [Role::class, $request->validated('permissions', [])]);
 
         $role = $this->roleService->store($request->validated(), $request->user());
 
@@ -612,7 +613,7 @@ class RoleController extends Controller
     )]
     public function syncPermissions(SyncRolePermissionsRequest $request, Role $role): JsonResponse
     {
-        $this->authorize('syncPermissions', $role);
+        $this->authorize('syncPermissions', [$role, $request->validated('permissions')]);
 
         $role = $this->roleService->syncPermissions(
             $role,

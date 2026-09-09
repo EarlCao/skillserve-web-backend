@@ -5,6 +5,7 @@ namespace App\Modules\Bookings\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Requests\CancelBookingRequest;
+use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ManageDisputeRequest;
 use App\Modules\Bookings\Resources\BookingResource;
 use App\Modules\Bookings\Services\BookingService;
@@ -136,16 +137,18 @@ class BookingController extends Controller
      */
     #[OA\Get(
         path: '/api/bookings/{booking}/history',
-        summary: 'Get booking history',
+        summary: 'Get paginated booking history',
         tags: ['Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15)),
         ],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Booking history',
+                description: 'Paginated booking history',
                 content: new OA\JsonContent(
                     ref: '#/components/schemas/ApiEnvelope',
                 ),
@@ -155,14 +158,11 @@ class BookingController extends Controller
             new OA\Response(response: 404, description: 'Booking not found'),
         ],
     )]
-    public function history(Booking $booking): JsonResponse
+    public function history(HistoryIndexRequest $request, Booking $booking): JsonResponse
     {
         $this->authorize('view', $booking);
 
-        return $this->success(
-            $this->bookingService->history($booking),
-            'Booking history retrieved.',
-        );
+        return $this->paginated($this->bookingService->history($booking, $request->validated()), null, 'Booking history retrieved.');
     }
 
     /**
@@ -170,7 +170,7 @@ class BookingController extends Controller
      */
     #[OA\Patch(
         path: '/api/bookings/{booking}/cancel',
-        summary: 'Cancel a booking',
+        summary: 'Cancel a booking without processing an external refund',
         tags: ['Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -188,7 +188,7 @@ class BookingController extends Controller
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Booking cancelled',
+                description: 'Booking cancelled. Unpaid bookings remain unpaid. Paid or partially paid bookings retain their payment status; no external refund is processed by this endpoint.',
                 content: new OA\JsonContent(
                     ref: '#/components/schemas/ApiEnvelope',
                     example: [

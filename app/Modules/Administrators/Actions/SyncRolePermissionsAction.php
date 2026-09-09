@@ -2,6 +2,7 @@
 
 namespace App\Modules\Administrators\Actions;
 
+use App\Models\User;
 use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
@@ -20,13 +21,22 @@ final class SyncRolePermissionsAction extends BaseAction
      *
      * @throws ApiException when modifying super administrator permissions.
      */
-    public function handle(Role $role, array $permissions): Role
+    public function handle(Role $role, array $permissions, User $actor): Role
     {
         if ($role->name === SystemRole::SUPER_ADMIN) {
             throw new ApiException(
                 'Super administrator permissions cannot be modified.',
                 422,
                 errors: ['permissions' => ['Super administrator permissions cannot be modified.']],
+            );
+        }
+
+        if (! SystemRole::mayGrantProtectedPermissions($actor)
+            && SystemRole::containsProtectedPermissions($permissions)) {
+            throw new ApiException(
+                'Protected permissions may only be granted by a super administrator.',
+                403,
+                errors: ['permissions' => ['Protected permissions may only be granted by a super administrator.']],
             );
         }
 

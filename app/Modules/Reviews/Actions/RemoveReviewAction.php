@@ -15,5 +15,6 @@ final class RemoveReviewAction extends BaseAction
             'removed_by' => $actor->id,
             'removed_at' => now(),
         ]);
+        $review->delete();
     }
 }

@@ -25,6 +25,7 @@ Route::prefix('providers')->middleware('auth:sanctum')->group(function (): void 
     Route::patch('/{provider}/verification/request-info', [ProviderController::class, 'requestAdditionalInfo']);
     Route::patch('/{provider}/verification/remove', [ProviderController::class, 'removeVerification']);
     Route::get('/{provider}/verification-history', [ProviderController::class, 'verificationHistory']);
+    Route::get('/{provider}/verification-documents/{document}/download', [ProviderController::class, 'downloadVerificationDocument']);
 
     // Provider status management
     Route::patch('/{provider}/suspend', [ProviderController::class, 'suspend']);

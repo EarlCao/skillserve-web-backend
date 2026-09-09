@@ -117,7 +117,7 @@ class SupportTicketService extends BaseService
     private function relations(): array
     {
         return [
-            'requester:id,name,email',
+            'requester:id,name,email,user_type',
             'assignedTo:id,name,email',
             'assignedBy:id,name,email',
             'resolvedBy:id,name,email',

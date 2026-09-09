@@ -3,11 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Modules\Bookings\Models\Booking;
+use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
+use App\Modules\Services\Models\Service;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -18,10 +27,10 @@ use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPasswordContract
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use CanResetPasswordTrait, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The administrator who created this account.
@@ -71,12 +80,48 @@ class User extends Authenticatable
         return $this->morphMany(Activity::class, 'subject');
     }
 
+    public function clientBookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'client_id');
+    }
+
+    public function providerProfile(): HasOne
+    {
+        return $this->hasOne(ProviderProfile::class);
+    }
+
+    public function services(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Service::class,
+            ProviderProfile::class,
+            'user_id',
+            'provider_id',
+            'id',
+            'id',
+        );
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'reviewer_id');
+    }
+
     /**
      * Whether the account is currently active (allowed to sign in).
      */
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * Client accounts are intentionally roleless; role-bearing accounts use
+     * the administrator authentication surface instead.
+     */
+    public function isClientAccount(): bool
+    {
+        return $this->user_type === 'customer' && ! $this->roles()->exists();
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Modules\Users\Actions;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Services\ClientSessionService;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
 
@@ -14,6 +15,10 @@ use App\Shared\Exceptions\ApiException;
  */
 final class SuspendUserAction extends BaseAction
 {
+    public function __construct(
+        private readonly ClientSessionService $clientSessionService,
+    ) {}
+
     /**
      * @throws ApiException when the current account state cannot be suspended.
      */
@@ -44,6 +49,7 @@ final class SuspendUserAction extends BaseAction
 
         // Existing sessions are invalidated too — not just future logins.
         $user->tokens()->delete();
+        $this->clientSessionService->revokeRefreshTokens($user);
 
         return $user;
     }

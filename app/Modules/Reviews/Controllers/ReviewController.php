@@ -136,7 +136,7 @@ class ReviewController extends Controller
 
     #[OA\Delete(
         path: '/api/reviews/{review}',
-        summary: 'Permanently remove a review',
+        summary: 'Soft-remove a review',
         tags: ['Reviews'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -145,7 +145,7 @@ class ReviewController extends Controller
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Review removed',
+                description: 'Review soft-removed. The record remains retained for audit and can be restored through Data Management.',
                 content: new OA\JsonContent(
                     ref: '#/components/schemas/ApiEnvelope',
                 ),
@@ -161,6 +161,6 @@ class ReviewController extends Controller
 
         $this->reviewService->destroy($review, $request->user());
 
-        return $this->success(null, 'Review removed.');
+        return $this->success(null, 'Review soft-removed.');
     }
 }

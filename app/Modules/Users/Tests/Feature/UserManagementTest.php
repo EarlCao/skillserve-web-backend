@@ -3,6 +3,11 @@
 namespace App\Modules\Users\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
+use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
+use App\Modules\ServiceCategories\Models\ServiceCategory;
+use App\Modules\Services\Models\Service;
 use App\Modules\Users\Mail\UserBannedMail;
 use App\Modules\Users\Mail\UserUnbannedMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -167,6 +172,50 @@ class UserManagementTest extends TestCase
                     'status', 'verification', 'summary' => ['services_count', 'bookings_count', 'ratings_count', 'reviews_count', 'recent_activity'],
                 ],
             ]);
+    }
+
+    public function test_profile_summary_uses_authoritative_relational_counts(): void
+    {
+        [, $token] = $this->actingManager();
+        $target = $this->createUser(['user_type' => 'provider']);
+        $provider = ProviderProfile::create(['user_id' => $target->id, 'business_name' => 'Counted Provider']);
+        $category = ServiceCategory::create(['name' => 'Counts '.uniqid(), 'status' => 'enabled']);
+        $service = Service::create([
+            'provider_id' => $provider->id,
+            'category_id' => $category->id,
+            'title' => 'Counted Service',
+            'status' => 'published',
+            'approval_status' => 'approved',
+        ]);
+        $client = $this->createUser();
+        $booking = Booking::create([
+            'service_id' => $service->id,
+            'client_id' => $target->id,
+            'provider_id' => $provider->id,
+            'booking_number' => 'BK-COUNTS-'.uniqid(),
+            'status' => 'completed',
+            'payment_status' => 'paid',
+            'total_price' => 100,
+            'service_price' => 100,
+            'platform_fee' => 0,
+            'currency' => 'USD',
+        ]);
+        Review::create([
+            'booking_id' => $booking->id,
+            'reviewer_id' => $client->id,
+            'provider_id' => $provider->id,
+            'service_id' => $service->id,
+            'rating' => 5,
+            'status' => 'active',
+        ]);
+
+        $this->withToken($token)
+            ->getJson("/api/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('data.summary.services_count', 1)
+            ->assertJsonPath('data.summary.bookings_count', 1)
+            ->assertJsonPath('data.summary.ratings_count', 0)
+            ->assertJsonPath('data.summary.reviews_count', 0);
     }
 
     public function test_show_returns_404_for_a_deleted_user(): void
@@ -429,14 +478,16 @@ class UserManagementTest extends TestCase
                 'password' => 'password123',
             ])->assertStatus(403)->assertJsonPath('success', false);
 
-            // Once the timer passes, the next login auto-lifts the ban.
+            // Once the timer passes, the next login attempt auto-lifts the ban
+            // in the authentication workflow, but this admin login endpoint
+            // still rejects roleless platform users by design.
             $target->update(['banned_until' => now()->subMinute()]);
             Auth::forgetGuards();
 
             $this->postJson('/api/auth/login', [
                 'email' => 'temp.ban@skillserve.test',
                 'password' => 'password123',
-            ])->assertOk()->assertJsonPath('success', true);
+            ])->assertStatus(401)->assertJsonPath('success', false);
 
             $this->assertSame('active', $target->fresh()->status);
             $this->assertSame('Temporary ban expired.', $target->fresh()->unban_reason);
@@ -483,13 +534,14 @@ class UserManagementTest extends TestCase
             ->assertJsonPath('data.banned_until', null)
             ->assertJsonPath('data.unban_reason', 'Appeal approved.');
 
-        // The account can sign in again.
+        // The account is active again. The admin login endpoint intentionally
+        // rejects roleless platform users; client login is tested separately.
         Auth::forgetGuards();
 
         $this->postJson('/api/auth/login', [
             'email' => 'unban.me@skillserve.test',
             'password' => 'password123',
-        ])->assertOk()->assertJsonPath('success', true);
+        ])->assertStatus(401)->assertJsonPath('success', false);
 
         $this->assertDatabaseHas('activity_log', ['description' => 'user_unbanned']);
     }

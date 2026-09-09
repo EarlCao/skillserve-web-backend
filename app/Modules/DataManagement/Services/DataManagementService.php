@@ -19,6 +19,17 @@ use Illuminate\Support\Facades\DB;
 
 class DataManagementService extends BaseService
 {
+    private const DELETED_LABEL_COLUMNS = [
+        'users' => 'name',
+        'services' => 'title',
+        'bookings' => 'booking_number',
+        'reviews' => 'comment',
+        'reports' => 'reason',
+        'messages' => 'content',
+        'service_categories' => 'name',
+        'service_subcategories' => 'name',
+    ];
+
     private const MODELS = [
         'users' => User::class,
         'services' => Service::class,
@@ -70,30 +81,49 @@ class DataManagementService extends BaseService
     {
         $type = $filters['resource_type'] ?? null;
         $types = $type ? [$type] : array_keys(self::MODELS);
-        $records = collect();
+        $union = null;
         foreach ($types as $resourceType) {
             $class = self::MODELS[$resourceType];
             if (! in_array('Illuminate\Database\Eloquent\SoftDeletes', class_uses_recursive($class), true)) {
                 continue;
             }
-            $records = $records->concat($class::onlyTrashed()->latest('deleted_at')->limit(1000)->get()->map(fn (Model $model) => [
-                'resource_type' => $resourceType, 'resource_id' => $model->getKey(),
-                'label' => $model->name ?? $model->title ?? $model->booking_number ?? $model->email ?? "Record {$model->getKey()}",
-                'deleted_at' => $model->deleted_at?->toIso8601String(),
-            ]));
+            $labelColumn = self::DELETED_LABEL_COLUMNS[$resourceType];
+            $query = $class::onlyTrashed()
+                ->selectRaw(
+                    "? AS resource_type, id AS resource_id, COALESCE({$labelColumn}, 'Record ' || CAST(id AS TEXT)) AS label, deleted_at",
+                    [$resourceType],
+                )
+                ->toBase();
+            $union = $union ? $union->unionAll($query) : $query;
         }
-        $records = $records->sortByDesc('deleted_at')->values();
-        $page = max(1, (int) ($filters['page'] ?? 1));
-        $perPage = $this->perPage($filters);
 
-        return new LengthAwarePaginator($records->forPage($page, $perPage)->values(), $records->count(), $perPage, $page, ['path' => request()->url()]);
+        if (! $union) {
+            return new LengthAwarePaginator([], 0, $this->perPage($filters), (int) ($filters['page'] ?? 1), ['path' => request()->url()]);
+        }
+
+        return DB::query()
+            ->fromSub($union, 'deleted_records')
+            ->orderByDesc('deleted_at')
+            ->orderByDesc('resource_id')
+            ->paginate($this->perPage($filters), ['*'], 'page', max(1, (int) ($filters['page'] ?? 1)));
     }
 
     public function restoreDeleted(string $type, int $id, User $actor): void
     {
         $model = $this->findModel($type, $id, true);
-        $model->restore();
-        activity('data_management')->causedBy($actor)->withProperties(['resource_type' => $type, 'resource_id' => $id])->log('Deleted record restored');
+        DB::transaction(function () use ($model, $type, $id, $actor): void {
+            $model->restore();
+
+            if ($model instanceof Review) {
+                $model->update([
+                    'status' => 'active',
+                    'removed_by' => null,
+                    'removed_at' => null,
+                ]);
+            }
+
+            activity('data_management')->causedBy($actor)->withProperties(['resource_type' => $type, 'resource_id' => $id])->log('Deleted record restored');
+        });
     }
 
     public function permanentlyDelete(string $type, int $id, User $actor): void

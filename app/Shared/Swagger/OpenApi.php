@@ -65,6 +65,329 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'PaginationMeta',
+    properties: [
+        new OA\Property(property: 'pagination', ref: '#/components/schemas/Pagination'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'Pagination',
+    properties: [
+        new OA\Property(property: 'total', type: 'integer', example: 2),
+        new OA\Property(property: 'per_page', type: 'integer', example: 15),
+        new OA\Property(property: 'current_page', type: 'integer', example: 1),
+        new OA\Property(property: 'last_page', type: 'integer', example: 1),
+        new OA\Property(property: 'from', type: 'integer', nullable: true, example: 1),
+        new OA\Property(property: 'to', type: 'integer', nullable: true, example: 2),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientUser',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 10),
+        new OA\Property(property: 'first_name', type: 'string', example: 'Alex'),
+        new OA\Property(property: 'last_name', type: 'string', example: 'Customer'),
+        new OA\Property(property: 'name', type: 'string', example: 'Alex Customer'),
+        new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+        new OA\Property(property: 'phone', type: 'string', nullable: true, example: '+639171234567'),
+        new OA\Property(property: 'address', type: 'string', nullable: true),
+        new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true),
+        new OA\Property(property: 'status', type: 'string', example: 'active'),
+        new OA\Property(property: 'email_verified', type: 'boolean', example: true),
+        new OA\Property(property: 'email_verified_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientAuthPayload',
+    properties: [
+        new OA\Property(property: 'token', type: 'string', description: 'Sanctum plain-text access token'),
+        new OA\Property(property: 'token_type', type: 'string', example: 'Bearer'),
+        new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'refresh_token', type: 'string', description: 'Opaque refresh token; returned only once'),
+        new OA\Property(property: 'refresh_expires_at', type: 'string', format: 'date-time'),
+        new OA\Property(property: 'user', ref: '#/components/schemas/ClientUser'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientPerson',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'name', type: 'string'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientSubcategory',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'category_id', type: 'integer'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientCategory',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'subcategories', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientSubcategory')),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientService',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'title', type: 'string'),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'price', type: 'string', nullable: true, example: '125.00'),
+        new OA\Property(property: 'price_type', type: 'string'),
+        new OA\Property(property: 'currency', type: 'string', example: 'PHP'),
+        new OA\Property(property: 'duration', type: 'string', nullable: true),
+        new OA\Property(property: 'location', type: 'string', nullable: true),
+        new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
+        new OA\Property(property: 'total_reviews', type: 'integer'),
+        new OA\Property(property: 'total_bookings', type: 'integer'),
+        new OA\Property(property: 'category', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'subcategory', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'provider', ref: '#/components/schemas/ClientProviderSummary', nullable: true),
+        new OA\Property(property: 'reviews', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientReview')),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientProviderSummary',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'business_name', type: 'string'),
+        new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
+        new OA\Property(property: 'total_reviews', type: 'integer', nullable: true),
+        new OA\Property(property: 'total_bookings', type: 'integer', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientProvider',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'business_name', type: 'string'),
+        new OA\Property(property: 'bio', type: 'string', nullable: true),
+        new OA\Property(property: 'specialization', type: 'string', nullable: true),
+        new OA\Property(property: 'experience_years', type: 'integer', nullable: true),
+        new OA\Property(property: 'hourly_rate', type: 'string', nullable: true, example: '500.00'),
+        new OA\Property(property: 'location', type: 'string', nullable: true),
+        new OA\Property(property: 'website', type: 'string', nullable: true),
+        new OA\Property(property: 'social_links', type: 'object', nullable: true, additionalProperties: true),
+        new OA\Property(property: 'portfolio', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        new OA\Property(property: 'skills', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        new OA\Property(property: 'certifications', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        new OA\Property(property: 'languages', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
+        new OA\Property(property: 'total_reviews', type: 'integer'),
+        new OA\Property(property: 'total_bookings', type: 'integer'),
+        new OA\Property(property: 'completed_bookings', type: 'integer'),
+        new OA\Property(property: 'services', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientService')),
+        new OA\Property(property: 'reviews', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientReview')),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientReview',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'rating', type: 'integer', minimum: 1, maximum: 5),
+        new OA\Property(property: 'comment', type: 'string', nullable: true),
+        new OA\Property(property: 'status', type: 'string'),
+        new OA\Property(property: 'booking', ref: '#/components/schemas/ClientBookingSummary', nullable: true),
+        new OA\Property(property: 'reviewer', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'provider', ref: '#/components/schemas/ClientProviderSummary', nullable: true),
+        new OA\Property(property: 'service', ref: '#/components/schemas/ClientServiceSummary', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientBookingSummary',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'booking_number', type: 'string'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientServiceSummary',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'title', type: 'string'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientBooking',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'booking_number', type: 'string'),
+        new OA\Property(property: 'status', type: 'string'),
+        new OA\Property(property: 'payment_status', type: 'string'),
+        new OA\Property(property: 'service_price', type: 'string', example: '125.00'),
+        new OA\Property(property: 'total_price', type: 'string', example: '125.00'),
+        new OA\Property(property: 'currency', type: 'string'),
+        new OA\Property(property: 'payment_method', type: 'string', nullable: true),
+        new OA\Property(property: 'cancellation_payment_policy', type: 'string', nullable: true),
+        new OA\Property(property: 'client_notes', type: 'string', nullable: true),
+        new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
+        new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'confirmed_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'started_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'completed_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'cancelled_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'is_reviewed', type: 'boolean'),
+        new OA\Property(property: 'service', ref: '#/components/schemas/ClientService', nullable: true),
+        new OA\Property(property: 'provider', ref: '#/components/schemas/ClientProviderSummary', nullable: true),
+        new OA\Property(property: 'review', ref: '#/components/schemas/ClientReview', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'BookingMessage',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'booking_id', type: 'integer'),
+        new OA\Property(property: 'content', type: 'string'),
+        new OA\Property(property: 'sender', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'receiver', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientSupportTicket',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'ticket_number', type: 'string'),
+        new OA\Property(property: 'subject', type: 'string'),
+        new OA\Property(property: 'description', type: 'string'),
+        new OA\Property(property: 'category', type: 'string'),
+        new OA\Property(property: 'priority', type: 'string'),
+        new OA\Property(property: 'status', type: 'string'),
+        new OA\Property(property: 'resolution_note', type: 'string', nullable: true),
+        new OA\Property(property: 'requester', ref: '#/components/schemas/ClientPerson', nullable: true),
+        new OA\Property(property: 'messages', type: 'array', nullable: true, items: new OA\Items(type: 'object', properties: [
+            new OA\Property(property: 'id', type: 'integer'),
+            new OA\Property(property: 'body', type: 'string'),
+            new OA\Property(property: 'author', ref: '#/components/schemas/ClientPerson', nullable: true),
+            new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        ])),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientNotificationData',
+    properties: [
+        new OA\Property(property: 'type', type: 'string', nullable: true),
+        new OA\Property(property: 'title', type: 'string', nullable: true),
+        new OA\Property(property: 'message', type: 'string', nullable: true),
+        new OA\Property(property: 'body', type: 'string', nullable: true),
+        new OA\Property(property: 'announcement_id', type: 'integer', nullable: true),
+        new OA\Property(property: 'booking_id', type: 'integer', nullable: true),
+        new OA\Property(property: 'ticket_id', type: 'integer', nullable: true),
+        new OA\Property(property: 'ticket_number', type: 'string', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientNotification',
+    properties: [
+        new OA\Property(property: 'id', type: 'string', format: 'uuid'),
+        new OA\Property(property: 'type', type: 'string'),
+        new OA\Property(property: 'title', type: 'string', nullable: true),
+        new OA\Property(property: 'message', type: 'string', nullable: true),
+        new OA\Property(property: 'data', ref: '#/components/schemas/ClientNotificationData'),
+        new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientAuthEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientAuthPayload')])],
+)]
+#[OA\Schema(
+    schema: 'ClientUserEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientUser')])],
+)]
+#[OA\Schema(
+    schema: 'ClientCategoryEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientCategory')])],
+)]
+#[OA\Schema(
+    schema: 'ClientCategoryListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientCategory')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientServiceEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientService')])],
+)]
+#[OA\Schema(
+    schema: 'ClientServiceListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientService')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientProviderEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientProvider')])],
+)]
+#[OA\Schema(
+    schema: 'ClientProviderListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientProvider')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientBookingEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientBooking')])],
+)]
+#[OA\Schema(
+    schema: 'ClientBookingListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientBooking')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientReviewEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientReview')])],
+)]
+#[OA\Schema(
+    schema: 'ClientReviewListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientReview')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'BookingMessageEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/BookingMessage')])],
+)]
+#[OA\Schema(
+    schema: 'BookingMessageListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/BookingMessage')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientSupportTicketEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientSupportTicket')])],
+)]
+#[OA\Schema(
+    schema: 'ClientSupportTicketListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientSupportTicket')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientNotificationEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientNotification')])],
+)]
+#[OA\Schema(
+    schema: 'ClientNotificationListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientNotification')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ClientUnreadCountEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'object', properties: [new OA\Property(property: 'unread_count', type: 'integer')])])],
+)]
+#[OA\Schema(
+    schema: 'ClientReadAllEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'object', properties: [new OA\Property(property: 'updated_count', type: 'integer')])])],
+)]
+#[OA\Schema(
     schema: 'Administrator',
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 2),

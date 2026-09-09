@@ -3,7 +3,9 @@
 namespace App\Modules\Providers\Models;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
+use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -93,6 +95,16 @@ class ProviderProfile extends Model
     public function services(): HasMany
     {
         return $this->hasMany(Service::class, 'provider_id');
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class, 'provider_id');
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class, 'provider_id');
     }
 
     public function badges(): BelongsToMany
