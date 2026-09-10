@@ -130,19 +130,22 @@ class RolePermissionSeeder extends Seeder
             $adminUser->assignRole('super-admin');
         }
 
-        // Exactly one ordinary administrator (override via SYSTEM_ADMIN_EMAIL /
-        // SYSTEM_ADMIN_PASSWORD in .env). Role-bearing accounts are managed in
-        // the Administrator Management module, never in User Management.
-        $systemAdmin = User::query()->firstOrCreate(
-            ['email' => env('SYSTEM_ADMIN_EMAIL', 'system@skillserve.test')],
-            [
-                'name' => 'System Admin',
-                'password' => Hash::make(env('SYSTEM_ADMIN_PASSWORD', 'SkillServe#2026')),
-            ],
-        );
+        // Skip the system admin in admin-only mode (SEED_MODE=admin-only).
+        if (env('SEED_MODE', 'demo') !== 'admin-only') {
+            // Exactly one ordinary administrator (override via SYSTEM_ADMIN_EMAIL /
+            // SYSTEM_ADMIN_PASSWORD in .env). Role-bearing accounts are managed in
+            // the Administrator Management module, never in User Management.
+            $systemAdmin = User::query()->firstOrCreate(
+                ['email' => env('SYSTEM_ADMIN_EMAIL', 'system@skillserve.test')],
+                [
+                    'name' => 'System Admin',
+                    'password' => Hash::make(env('SYSTEM_ADMIN_PASSWORD', 'SkillServe#2026')),
+                ],
+            );
 
-        if (! $systemAdmin->hasRole('admin')) {
-            $systemAdmin->assignRole('admin');
+            if (! $systemAdmin->hasRole('admin')) {
+                $systemAdmin->assignRole('admin');
+            }
         }
     }
 }
