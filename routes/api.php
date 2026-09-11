@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,6 +13,26 @@ use Illuminate\Support\Facades\Route;
 | force.json).
 |
 */
+
+Route::get('/health', function () {
+    $checks = [
+        'status' => 'ok',
+        'timestamp' => now()->toIso8601String(),
+        'services' => [],
+    ];
+
+    try {
+        DB::connection()->getPdo();
+        $checks['services']['database'] = ['status' => 'up'];
+    } catch (\Throwable $e) {
+        $checks['services']['database'] = ['status' => 'down', 'error' => $e->getMessage()];
+        $checks['status'] = 'degraded';
+    }
+
+    $status = $checks['status'] === 'ok' ? 200 : 503;
+
+    return response()->json($checks, $status);
+})->withoutMiddleware(['throttle:api']);
 
 Route::prefix('auth')->group(
     base_path('app/Modules/Authentication/Routes/api.php'),

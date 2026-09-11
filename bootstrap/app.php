@@ -1,6 +1,8 @@
 <?php
 
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Middleware\AddRateLimitHeaders;
+use App\Shared\Middleware\CacheApiResponse;
 use App\Shared\Middleware\ForceJsonResponse;
 use App\Shared\Services\ApiResponder;
 use Illuminate\Auth\AuthenticationException;
@@ -34,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'force.json' => ForceJsonResponse::class,
+            'cache.api' => CacheApiResponse::class,
+            'rate-limit.headers' => AddRateLimitHeaders::class,
             // Spatie permission middleware — used by every future module.
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
@@ -44,6 +48,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // standard envelope. appendToGroup keeps the framework's defaults
         // (throttle:api, SubstituteBindings, future Sanctum stateful API).
         $middleware->appendToGroup('api', ForceJsonResponse::class);
+        $middleware->appendToGroup('api', CacheApiResponse::class);
+        $middleware->appendToGroup('api', AddRateLimitHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
