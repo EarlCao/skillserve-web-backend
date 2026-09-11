@@ -3,6 +3,30 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+/*
+|--------------------------------------------------------------------------
+| Neon / pgBouncer direct endpoint
+|--------------------------------------------------------------------------
+|
+| Neon exposes two endpoints for the same database: a pooled host
+| ("ep-....-pooler.<region>.aws.neon.tech") that is safe for ordinary queries,
+| and a direct host that migrations need, because pgBouncer's transaction
+| pooling cannot execute schema changes.
+|
+| When DB_DIRECT_HOST is unset we derive it from DB_HOST by dropping the
+| "-pooler" marker. A DB_DIRECT_HOST that still points at the pooler is
+| ignored, so migrations can never silently run through it again.
+|
+*/
+$pooledHost = (string) env('DB_HOST');
+$directHost = (string) env('DB_DIRECT_HOST');
+
+if ($directHost === '' || str_contains($directHost, '-pooler')) {
+    $directHost = str_contains($pooledHost, '-pooler')
+        ? preg_replace('/-pooler(?=\.)/', '', $pooledHost, 1)
+        : '';
+}
+
 return [
 
     /*
@@ -99,17 +123,12 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
 
             /*
-             * Neon (and any pgBouncer-fronted Postgres) exposes two endpoints:
-             * a *pooled* host for normal queries and a *direct* host for
-             * migrations and DDL. Transaction pooling cannot support
-             * server-side prepared statements or schema changes, so when a
-             * direct endpoint is configured Laravel emulates prepares on the
-             * pooled connection and sends migrations through the direct one.
-             * Leaving DB_DIRECT_HOST unset keeps the old single-endpoint
-             * behaviour (migrations will then run through the pooler).
+             * When a direct endpoint is configured, Laravel emulates prepares
+             * on the pooled connection and sends migrations and DDL through the
+             * direct one. See the derivation at the top of this file.
              */
-            'direct' => env('DB_DIRECT_HOST') ? [
-                'host' => env('DB_DIRECT_HOST'),
+            'direct' => $directHost !== '' ? [
+                'host' => $directHost,
                 'port' => env('DB_DIRECT_PORT', env('DB_PORT', '5432')),
             ] : [],
         ],
