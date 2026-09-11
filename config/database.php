@@ -97,6 +97,21 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+
+            /*
+             * Neon (and any pgBouncer-fronted Postgres) exposes two endpoints:
+             * a *pooled* host for normal queries and a *direct* host for
+             * migrations and DDL. Transaction pooling cannot support
+             * server-side prepared statements or schema changes, so when a
+             * direct endpoint is configured Laravel emulates prepares on the
+             * pooled connection and sends migrations through the direct one.
+             * Leaving DB_DIRECT_HOST unset keeps the old single-endpoint
+             * behaviour (migrations will then run through the pooler).
+             */
+            'direct' => env('DB_DIRECT_HOST') ? [
+                'host' => env('DB_DIRECT_HOST'),
+                'port' => env('DB_DIRECT_PORT', env('DB_PORT', '5432')),
+            ] : [],
         ],
 
         'sqlsrv' => [
