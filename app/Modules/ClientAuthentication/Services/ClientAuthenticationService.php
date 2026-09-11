@@ -9,6 +9,7 @@ use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 
@@ -38,7 +39,15 @@ class ClientAuthenticationService
             return $this->sessionService->issue($user);
         });
 
-        $this->sendVerificationNotification($session['user']);
+        try {
+            $this->sendVerificationNotification($session['user']);
+        } catch (\Throwable $e) {
+            Log::error('Failed to send verification notification for client registration.', [
+                'user_id' => $session['user']->id,
+                'email' => $session['user']->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $session;
     }
