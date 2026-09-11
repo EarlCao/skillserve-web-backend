@@ -34,8 +34,9 @@ RUN composer install --prefer-dist --no-progress --no-interaction --no-scripts \
 
 COPY --chown=app:app . .
 
-# Copy production env if .env doesn't exist (Render sets env vars via dashboard)
-RUN cp -n .env.production .env 2>/dev/null || true
+# Seed .env from .env.example so artisan commands that read the file succeed.
+# Render injects real secrets as env vars at runtime, which override these values.
+RUN cp .env.example .env
 
 EXPOSE 8000
 
