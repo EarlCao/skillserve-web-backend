@@ -1,0 +1,49 @@
+# Laravel backend — PHP 8.3 + PostgreSQL (pdo_pgsql)
+# Render-compatible version (no --network=host)
+FROM php:8.3-cli-alpine
+
+# System dependencies and PHP extensions:
+#   pdo_pgsql        — PostgreSQL driver
+#   gd               — image processing (medialibrary, intervention/image, dompdf, phpspreadsheet)
+#   zip              — archive support (maatwebsite/excel, spatie/laravel-backup)
+#   exif             — image metadata (spatie/laravel-medialibrary)
+#   pcntl            — process signals (laravel/reverb WebSocket server)
+RUN apk add --no-cache \
+        libpq-dev \
+        libpng-dev \
+        libjpeg-turbo-dev \
+        freetype-dev \
+        libzip-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install pdo_pgsql gd zip exif pcntl
+
+# Composer (PHP package manager)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Run as a non-root user
+ARG UID=1000
+RUN addgroup -g ${UID} -S app && adduser -u ${UID} -S app -G app
+USER app
+
+WORKDIR /var/www/html
+
+# Install dependencies at build time
+COPY --chown=app:app composer.json composer.lock ./
+RUN composer install --prefer-dist --no-progress --no-interaction --no-scripts \
+    && composer dump-autoload --optimize --no-scripts
+
+COPY --chown=app:app . .
+
+# Copy production env if .env doesn't exist (Render sets env vars via dashboard)
+RUN cp -n .env.production .env 2>/dev/null || true
+
+EXPOSE 8000
+
+# On start: generate app key if missing, run migrations, seed, then serve.
+CMD ["sh", "-c", "php artisan key:generate --no-interaction --force \
+    && php artisan migrate --force \
+    && php artisan db:seed --force \
+    && php artisan config:cache \
+    && php artisan route:cache \
+    && php artisan view:cache \
+    && php artisan serve --host=0.0.0.0 --port=8000"]
