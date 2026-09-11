@@ -40,11 +40,15 @@ RUN cp .env.example .env
 
 EXPOSE 8000
 
-# On start: generate app key if missing, run migrations, seed, then serve.
-CMD ["sh", "-c", "php artisan key:generate --no-interaction --force \
-    && php artisan migrate --force \
-    && php artisan db:seed --force \
+# On start: cache config/routes/views, run migrations, seed, then serve.
+# APP_KEY is supplied by the platform (Render: generateValue), so we only
+# generate one when the environment genuinely doesn't have it — running
+# key:generate unconditionally just logs "Unable to set application key".
+# Render also injects $PORT; bind to it instead of hardcoding 8000.
+CMD ["sh", "-c", "if [ -z \"$APP_KEY\" ]; then php artisan key:generate --no-interaction --force; fi \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
-    && php artisan serve --host=0.0.0.0 --port=8000"]
+    && php artisan migrate --force \
+    && php artisan db:seed --force \
+    && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
