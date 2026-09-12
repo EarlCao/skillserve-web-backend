@@ -38,9 +38,16 @@ COPY --chown=app:app . .
 # Render injects real secrets as env vars at runtime, which override these values.
 RUN cp .env.example .env
 
+# php artisan serve handles one request at a time by default; a browser that
+# opens several parallel calls (or holds a polling connection) queues behind
+# it and looks "hung". A small worker pool keeps concurrent API calls moving
+# on the 512 MB free instance.
+ENV PHP_CLI_SERVER_WORKERS=4
+
 EXPOSE 8000
 
-# On start: cache config/routes/views, run migrations, seed, then serve.
+# On start: cache config/routes/views, run migrations, seed (first boot only),
+# then serve.
 # APP_KEY is supplied by the platform (Render: generateValue), so we only
 # generate one when the environment genuinely doesn't have it — running
 # key:generate unconditionally just logs "Unable to set application key".
@@ -50,5 +57,5 @@ CMD ["sh", "-c", "if [ -z \"$APP_KEY\" ]; then php artisan key:generate --no-int
     && php artisan route:cache \
     && php artisan view:cache \
     && php artisan migrate --force \
-    && php artisan db:seed --force \
+    && php artisan db:seed-if-empty \
     && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
