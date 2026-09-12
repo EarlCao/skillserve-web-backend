@@ -94,9 +94,11 @@ use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Modules\Users\Listeners\LogUserActivity;
 use App\Modules\Users\Listeners\SendUserModerationMail;
+use App\Shared\Services\BrevoApiTransport;
 use App\Modules\Users\Policies\UserManagementPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -121,6 +123,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Brevo transactional email over their HTTPS API (port 443). Some
+        // hosts (Render free tier included) block outbound SMTP ports, so
+        // MAIL_MAILER=brevo-api + BREVO_API_KEY provides a working path.
+        Mail::extend('brevo-api', function (array $config) {
+            return new BrevoApiTransport(
+                apiKey: (string) env('BREVO_API_KEY'),
+                timeoutSeconds: (int) env('BREVO_API_TIMEOUT', 15),
+            );
+        });
+
         Sanctum::authenticateAccessTokensUsing(function ($accessToken, bool $isValid): bool {
             if (! $isValid || $accessToken->name === 'client-access') {
                 return $isValid;

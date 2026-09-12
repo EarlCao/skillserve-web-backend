@@ -45,8 +45,17 @@ return [
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            // Fail fast instead of hanging for PHP's 60 s socket default
+            // when the host blocks outbound SMTP (Render free tier does).
+            'timeout' => env('MAIL_TIMEOUT', 15),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        // Brevo REST API over HTTPS (port 443) — use on hosts that cannot
+        // reach SMTP ports. Requires BREVO_API_KEY (xkeysib-… key from
+        // Brevo → SMTP & API → API Keys). Registered in AppServiceProvider.
+        'brevo-api' => [
+            'transport' => 'brevo-api',
         ],
 
         'ses' => [
