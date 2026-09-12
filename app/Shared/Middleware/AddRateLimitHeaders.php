@@ -15,24 +15,54 @@ use Symfony\Component\HttpFoundation\Response;
  *   X-RateLimit-Limit     – max requests in the current window
  *   X-RateLimit-Remaining – requests left in the current window
  *   X-RateLimit-Reset     – UTC epoch seconds when the window resets
+ *
+ * Note: RateLimiter::limiter() returns the registered *closure* resolver,
+ * not an object — the limiter state (hits/timers) lives in the cache under
+ * a hashed key, exactly like Illuminate's ThrottleRequests middleware
+ * computes it (see resolveRequestSignature / handleRequestUsingNamedLimiter).
+ * Headers already stamped by the group's throttle middleware are never
+ * overridden, and decoration is best-effort: it must never turn a valid
+ * response into a 500.
  */
 class AddRateLimitHeaders
 {
+    /**
+     * Max requests per minute for the shared "api" limiter.
+     * Keep in sync with RateLimiter::for('api', ...) in AppServiceProvider.
+     */
+    private const API_MAX_ATTEMPTS = 60;
+
     public function handle(Request $request, Closure $next): Response
     {
-        $response = $next($request);
+        return $this->addHeaders($request, $next($request));
+    }
 
-        $limiter = RateLimiter::limiter('api');
-        $key = $limiter ? $limiter->resolveRequest($request) : $request->ip();
+    private function addHeaders(Request $request, Response $response): Response
+    {
+        try {
+            // throttle:api (and throttle:login) already add these headers on
+            // the responses they guard — leave theirs untouched.
+            if ($response->headers->has('X-RateLimit-Remaining')) {
+                return $response;
+            }
 
-        if ($key && RateLimiter::maximum($limiter) !== null) {
-            $max = RateLimiter::maximum($limiter);
-            $remaining = RateLimiter::remaining($limiter, $key);
-            $resetAt = RateLimiter::availableIn($limiter, $key);
+            // Same signature core ThrottleRequests uses: authenticated user
+            // id when available, otherwise domain|ip — then hashed.
+            $key = sha1(
+                $request->user()?->getAuthIdentifier()
+                    ?? ($request->route()?->getDomain() ?? '').'|'.$request->ip()
+            );
 
-            $response->headers->set('X-RateLimit-Limit', (string) $max);
+            $attempts = (int) RateLimiter::attempts($key);
+            $remaining = max(0, self::API_MAX_ATTEMPTS - $attempts);
+            $resetIn = RateLimiter::availableIn($key);
+
+            $response->headers->set('X-RateLimit-Limit', (string) self::API_MAX_ATTEMPTS);
             $response->headers->set('X-RateLimit-Remaining', (string) $remaining);
-            $response->headers->set('X-RateLimit-Reset', (string) (time() + $resetAt));
+            $response->headers->set('X-RateLimit-Reset', (string) (time() + $resetIn));
+        } catch (\Throwable) {
+            // Header decoration is informational only — never break the
+            // response because of it.
         }
 
         return $response;
