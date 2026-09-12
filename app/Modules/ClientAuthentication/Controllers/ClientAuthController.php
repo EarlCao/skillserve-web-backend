@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\ClientAuthentication\Requests\CancelClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
@@ -131,6 +132,31 @@ class ClientAuthController extends Controller
         $verified = $this->otpService->verify($user, (string) $request->validated('code'));
 
         return $this->success(new ClientUserResource($verified), 'Email verified successfully.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/cancel-registration',
+        summary: 'Delete an unverified account after the user backs out of email verification',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email', 'password'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Unverified registration cancelled (always returned, even for unknown accounts, to prevent enumeration)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function cancelRegistration(CancelClientRegistrationRequest $request): JsonResponse
+    {
+        // Verified and unknown accounts return the same response so the
+        // endpoint cannot be used to probe which emails exist.
+        $this->authenticationService->cancelUnverifiedRegistration($request->validated());
+
+        return $this->success([], 'Registration cancelled.');
     }
 
     #[OA\Post(

@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
+use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,6 +52,46 @@ class ClientAuthenticationService
         }
 
         return $session;
+    }
+
+    /**
+     * Hard-delete an UNVERIFIED mobile account (customer or provider) whose
+     * owner backed out of email verification. Guarded by the password set
+     * during registration. Verified accounts are never touched; failures
+     * are silent so the response cannot enumerate accounts.
+     *
+     * @param  array{email: string, password: string}  $validated
+     */
+    public function cancelUnverifiedRegistration(array $validated): void
+    {
+        $user = User::query()
+            ->where('email', $validated['email'])
+            ->whereIn('user_type', ['customer', 'provider'])
+            ->doesntHave('roles')
+            ->first();
+
+        if (! $user || ! Hash::check((string) $validated['password'], $user->password)) {
+            return;
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return;
+        }
+
+        DB::transaction(function () use ($user): void {
+            if ($user->user_type === 'provider') {
+                ProviderProfile::query()->where('user_id', $user->id)->delete();
+            }
+
+            // Refresh tokens restrict user deletion, so remove them
+            // explicitly (plus any access tokens and notifications).
+            \App\Modules\ClientAuthentication\Models\ClientRefreshToken::query()
+                ->where('user_id', $user->id)
+                ->delete();
+            $user->tokens()->delete();
+            $user->notifications()->delete();
+            $user->forceDelete();
+        });
     }
 
     /**

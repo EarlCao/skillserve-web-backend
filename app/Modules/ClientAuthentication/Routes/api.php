@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
  */
 
 Route::post('/register', [ClientAuthController::class, 'register']);
+Route::post('/cancel-registration', [ClientAuthController::class, 'cancelRegistration']);
 Route::post('/register-provider', [ClientAuthController::class, 'registerProvider']);
 Route::post('/verify-otp', [ClientAuthController::class, 'verifyOtp']);
 Route::post('/resend-otp', [ClientAuthController::class, 'resendOtp']);
