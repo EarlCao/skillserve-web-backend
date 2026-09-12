@@ -14,7 +14,7 @@ class EnsureActiveClient
         $user = $request->user();
         $token = $user?->currentAccessToken();
 
-        if (! $user || ! $user->isClientAccount() || ! $token?->can(config('client-auth.access_ability'))) {
+        if (! $user || ! $user->isMobileAccount() || ! $token?->can(config('client-auth.access_ability'))) {
             throw new ApiException('This token is not valid for client access.', 403);
         }
 

@@ -19,6 +19,18 @@ class ClientUserResource extends JsonResource
             'address' => $this->address,
             'birthday' => $this->birthday?->toDateString(),
             'status' => $this->status,
+            'user_type' => $this->user_type,
+            'provider' => $this->when(
+                $this->user_type === 'provider' && $this->providerProfile()->exists(),
+                fn () => [
+                    'id' => $this->providerProfile->id,
+                    'business_name' => $this->providerProfile->business_name,
+                    'specialization' => $this->providerProfile->specialization,
+                    'experience_years' => $this->providerProfile->experience_years,
+                    'bio' => $this->providerProfile->bio,
+                    'verification_status' => $this->providerProfile->verification_status,
+                ],
+            ),
             'email_verified' => $this->hasVerifiedEmail(),
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

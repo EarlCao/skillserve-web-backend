@@ -125,6 +125,27 @@ class User extends Authenticatable implements CanResetPasswordContract
     }
 
     /**
+     * Provider accounts self-registered through the mobile app. They use the
+     * same client session surface as customers, but carry a provider profile
+     * pending administrator verification.
+     */
+    public function isMobileProviderAccount(): bool
+    {
+        return $this->user_type === 'provider'
+            && ! $this->roles()->exists()
+            && $this->providerProfile()->exists();
+    }
+
+    /**
+     * Any account allowed through the mobile client surface (customers and
+     * mobile-registered providers). Administrators are excluded.
+     */
+    public function isMobileAccount(): bool
+    {
+        return $this->isClientAccount() || $this->isMobileProviderAccount();
+    }
+
+    /**
      * Whether the account is temporarily suspended.
      */
     public function isSuspended(): bool

@@ -59,7 +59,7 @@ class ClientAuthenticationService
     {
         $user = User::query()
             ->where('email', $validated['email'])
-            ->where('user_type', 'customer')
+            ->whereIn('user_type', ['customer', 'provider'])
             ->doesntHave('roles')
             ->first();
 
@@ -95,9 +95,20 @@ class ClientAuthenticationService
         }
     }
 
+    /**
+     * Send the email-verification link to any unverified mobile account
+     * (customers and mobile-registered providers).
+     */
+    public function sendMobileVerificationNotification(User $user): void
+    {
+        if ($user->isMobileAccount() && ! $user->hasVerifiedEmail()) {
+            $user->notify(new ClientEmailVerificationNotification);
+        }
+    }
+
     public function verifyEmail(User $user, string $hash): User
     {
-        if (! $user->isClientAccount() || ! $user->isActive() || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+        if (! $user->isMobileAccount() || ! $user->isActive() || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
             throw new ApiException('The email verification link is invalid.', 403);
         }
 
@@ -161,7 +172,7 @@ class ClientAuthenticationService
         $status = Password::broker('clients')->reset(
             $validated,
             function (User $resetUser, string $password) use (&$resetAllowed): void {
-                if (! $resetUser->isClientAccount() || ! $resetUser->isActive()) {
+                if (! $resetUser->isMobileAccount() || ! $resetUser->isActive()) {
                     $resetAllowed = false;
 
                     return;

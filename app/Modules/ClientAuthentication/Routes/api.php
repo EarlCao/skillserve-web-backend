@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
  */
 
 Route::post('/register', [ClientAuthController::class, 'register']);
+Route::post('/register-provider', [ClientAuthController::class, 'registerProvider']);
 Route::post('/login', [ClientAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/refresh', [ClientAuthController::class, 'refresh']);
 Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword']);

@@ -75,7 +75,7 @@ class ClientSessionService
             }
 
             $user = $refreshToken->user;
-            if (! $user || ! $user->isClientAccount() || ! $user->isActive()) {
+            if (! $user || ! $user->isMobileAccount() || ! $user->isActive()) {
                 $this->revokeFamily($refreshToken->family_id);
 
                 return new ApiException('Your account is not active.', 403);

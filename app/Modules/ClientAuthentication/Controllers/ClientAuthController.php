@@ -9,10 +9,12 @@ use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\RefreshClientTokenRequest;
 use App\Modules\ClientAuthentication\Requests\RegisterClientRequest;
+use App\Modules\ClientAuthentication\Requests\RegisterProviderClientRequest;
 use App\Modules\ClientAuthentication\Requests\ResetClientPasswordRequest;
 use App\Modules\ClientAuthentication\Resources\ClientAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientUserResource;
 use App\Modules\ClientAuthentication\Services\ClientAuthenticationService;
+use App\Modules\ClientAuthentication\Services\ClientProviderRegistrationService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class ClientAuthController extends Controller
 
     public function __construct(
         private readonly ClientAuthenticationService $authenticationService,
+        private readonly ClientProviderRegistrationService $providerRegistrationService,
     ) {}
 
     #[OA\Post(
@@ -51,6 +54,38 @@ class ClientAuthController extends Controller
         return $this->success(
             new ClientAuthResource($this->authenticationService->register($request->validated())),
             'Registered successfully.',
+            status: 201,
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/register-provider',
+        summary: 'Register a service provider account from the mobile app',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['first_name', 'last_name', 'email', 'password', 'password_confirmation', 'specialization'],
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
+                new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Provider'),
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'provider@example.com'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'password123'),
+                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+                new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Alex Repairs'),
+                new OA\Property(property: 'specialization', type: 'string', maxLength: 255, example: 'Home Repair'),
+                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
+                new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Provider registered and logged in; account awaits administrator verification', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function registerProvider(RegisterProviderClientRequest $request): JsonResponse
+    {
+        return $this->success(
+            new ClientAuthResource($this->providerRegistrationService->register($request->validated())),
+            'Provider account registered successfully. It is now pending verification.',
             status: 201,
         );
     }
