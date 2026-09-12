@@ -13,8 +13,13 @@ use Illuminate\Support\Str;
  *
  * The Flutter app obtains a Google ID token (google_sign_in) and posts it
  * here. We validate it against Google's tokeninfo endpoint, require the
- * audience to match the configured mobile client ID, and find-or-create the
+ * audience to match the configured client ID, and find-or-create the
  * matching mobile account. Google-verified emails skip the OTP flow.
+ *
+ * A Google account may own at most ONE SkillServe account. Google sign-in
+ * resolves accounts by the stable Google `sub` claim first, then refuses
+ * to touch an email/password account with the same address — the user must
+ * keep using that account's credentials (or a different Google account).
  */
 class ClientGoogleAuthService
 {
@@ -32,19 +37,65 @@ class ClientGoogleAuthService
         $claims = $this->verifyIdToken($idToken);
 
         $email = strtolower((string) $claims['email']);
+        $googleSub = (string) ($claims['sub'] ?? '');
 
-        $user = User::query()
+        // 1) Stable identity: an account previously created/linked with this
+        //    Google account always wins, regardless of role or later email
+        //    edits (Google allows address changes; `sub` never changes).
+        if ($googleSub !== '') {
+            $user = User::query()
+                ->where('google_sub', $googleSub)
+                ->whereIn('user_type', ['customer', 'provider'])
+                ->doesntHave('roles')
+                ->first();
+
+            if ($user) {
+                return $this->loginExisting($user, $googleSub);
+            }
+        }
+
+        // 2) No linked account. If the email belongs to an existing mobile
+        //    account, refuse: that address is taken by a customer/provider
+        //    account with its own password and its own role. One Google
+        //    account maps to exactly one SkillServe account — to use this
+        //    Google account, the existing credentials would have to be
+        //    removed first; otherwise the user picks a different Google
+        //    account. Silently merging would let anyone with a verified
+        //    Google address of that name take the account over.
+        $existing = User::query()
             ->where('email', $email)
             ->whereIn('user_type', ['customer', 'provider'])
             ->doesntHave('roles')
             ->first();
 
-        if (! $user) {
-            $user = $this->createAccountFromGoogle($claims, $email);
+        if ($existing) {
+            Log::warning('Google sign-in refused: email already registered.', [
+                'email' => $email,
+                'user_type' => $existing->user_type,
+            ]);
+            throw new ApiException(
+                'This Google account\'s email is already registered as a '
+                    .$existing->user_type.' account. Sign in with that account\'s '
+                    .'email and password instead, or continue with a different Google account.',
+                409,
+            );
         }
 
+        // 3) Brand-new Google user: create the account (always a customer).
+        $user = $this->createAccountFromGoogle($claims, $email, $googleSub);
+
+        return $this->sessionService->issue($user);
+    }
+
+    private function loginExisting(User $user, string $googleSub): array
+    {
         if (! $user->isActive()) {
             throw new ApiException('Your account is not active.', 403);
+        }
+
+        // Keep the link current (covers a Google address change).
+        if ($user->google_sub !== $googleSub) {
+            $user->forceFill(['google_sub' => $googleSub])->save();
         }
 
         // Trust Google's email verification.
@@ -92,7 +143,7 @@ class ClientGoogleAuthService
     /**
      * @param  array<string, mixed>  $claims
      */
-    private function createAccountFromGoogle(array $claims, string $email): User
+    private function createAccountFromGoogle(array $claims, string $email, string $googleSub = ''): User
     {
         $firstName = (string) ($claims['given_name'] ?? '');
         $lastName = (string) ($claims['family_name'] ?? '');
@@ -115,7 +166,10 @@ class ClientGoogleAuthService
             'user_type' => 'customer',
             'status' => 'active',
         ]);
-        $user->forceFill(['email_verified_at' => now()])->save();
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'google_sub' => $googleSub !== '' ? $googleSub : null,
+        ])->save();
 
         return $user;
     }
