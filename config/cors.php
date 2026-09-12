@@ -17,9 +17,19 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => array_filter([
+        env('FRONTEND_URL', '*'),
+        ...array_map('trim', explode(',', env('FRONTEND_URLS', ''))),
+        // Always allow localhost for development
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://127.0.0.1:5173',
+    ]),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '/^https:\/\/.*\.vercel\.app$/',
+        '/^https:\/\/.*\.onrender\.com$/',
+    ],
 
     'allowed_headers' => ['*'],
 
@@ -27,6 +37,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];
