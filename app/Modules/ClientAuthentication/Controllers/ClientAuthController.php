@@ -24,6 +24,7 @@ use App\Shared\Exceptions\ApiException;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'Client Authentication', description: 'Customer registration, sessions and password management')]
@@ -166,7 +167,19 @@ class ClientAuthController extends Controller
             return $this->success([], 'Email is already verified.', status: 200);
         }
 
-        $this->otpService->issue($user);
+        try {
+            $this->otpService->issue($user);
+        } catch (\Throwable $e) {
+            // Mail failures must be visible in the platform log stream
+            // (the default channel writes inside the container where
+            // Render cannot see them).
+            Log::channel('stderr')->error('OTP send failed.', [
+                'email' => $email,
+                'reason' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
 
         return $this->success([], 'A new verification code has been sent to your email.', status: 202);
     }

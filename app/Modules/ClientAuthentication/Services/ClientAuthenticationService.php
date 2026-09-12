@@ -43,7 +43,7 @@ class ClientAuthenticationService
         try {
             $this->otpService->issue($session['user']);
         } catch (\Throwable $e) {
-            Log::error('Failed to send verification OTP for client registration.', [
+            Log::channel('stderr')->error('Failed to send verification OTP for client registration.', [
                 'user_id' => $session['user']->id,
                 'email' => $session['user']->email,
                 'error' => $e->getMessage(),
