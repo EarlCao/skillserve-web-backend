@@ -7,14 +7,20 @@ use App\Models\User;
 use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
+use App\Modules\ClientAuthentication\Requests\GoogleClientAuthRequest;
 use App\Modules\ClientAuthentication\Requests\RefreshClientTokenRequest;
 use App\Modules\ClientAuthentication\Requests\RegisterClientRequest;
 use App\Modules\ClientAuthentication\Requests\RegisterProviderClientRequest;
+use App\Modules\ClientAuthentication\Requests\ResendClientOtpRequest;
 use App\Modules\ClientAuthentication\Requests\ResetClientPasswordRequest;
+use App\Modules\ClientAuthentication\Requests\VerifyClientOtpRequest;
 use App\Modules\ClientAuthentication\Resources\ClientAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientUserResource;
 use App\Modules\ClientAuthentication\Services\ClientAuthenticationService;
+use App\Modules\ClientAuthentication\Services\ClientEmailOtpService;
+use App\Modules\ClientAuthentication\Services\ClientGoogleAuthService;
 use App\Modules\ClientAuthentication\Services\ClientProviderRegistrationService;
+use App\Shared\Exceptions\ApiException;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +34,8 @@ class ClientAuthController extends Controller
     public function __construct(
         private readonly ClientAuthenticationService $authenticationService,
         private readonly ClientProviderRegistrationService $providerRegistrationService,
+        private readonly ClientEmailOtpService $otpService,
+        private readonly ClientGoogleAuthService $googleAuthService,
     ) {}
 
     #[OA\Post(
@@ -87,6 +95,104 @@ class ClientAuthController extends Controller
             new ClientAuthResource($this->providerRegistrationService->register($request->validated())),
             'Provider account registered successfully. It is now pending verification.',
             status: 201,
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/verify-otp',
+        summary: 'Verify a mobile account email with a 6-digit OTP',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email', 'code'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+                new OA\Property(property: 'code', type: 'string', minLength: 6, maxLength: 6, example: '123456'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Email verified', content: new OA\JsonContent(ref: '#/components/schemas/ClientUserEnvelope')),
+            new OA\Response(response: 422, description: 'Invalid or expired code', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'Too many attempts or resend cooldown', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function verifyOtp(VerifyClientOtpRequest $request): JsonResponse
+    {
+        $user = User::query()
+            ->where('email', $request->validated('email'))
+            ->where(fn ($q) => $q->where('user_type', 'customer')->orWhere('user_type', 'provider'))
+            ->doesntHave('roles')
+            ->first();
+
+        if (! $user) {
+            throw new ApiException('No account found for this email.', 404);
+        }
+
+        $verified = $this->otpService->verify($user, (string) $request->validated('code'));
+
+        return $this->success(new ClientUserResource($verified), 'Email verified successfully.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/resend-otp',
+        summary: 'Resend the mobile account verification OTP',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 202, description: 'A new code has been sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 404, description: 'No account found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'Resend cooldown active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function resendOtp(ResendClientOtpRequest $request): JsonResponse
+    {
+        $email = (string) $request->validated('email');
+
+        $user = User::query()
+            ->where('email', $email)
+            ->where(fn ($q) => $q->where('user_type', 'customer')->orWhere('user_type', 'provider'))
+            ->doesntHave('roles')
+            ->first();
+
+        if (! $user) {
+            throw new ApiException('No account found for this email.', 404);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return $this->success([], 'Email is already verified.', status: 200);
+        }
+
+        $this->otpService->issue($user);
+
+        return $this->success([], 'A new verification code has been sent to your email.', status: 202);
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/google',
+        summary: 'Sign in or sign up with a Google ID token (mobile)',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['id_token'],
+            properties: [
+                new OA\Property(property: 'id_token', type: 'string'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Authenticated with Google; account created on first sign-in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 401, description: 'Invalid Google token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Account not active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function google(GoogleClientAuthRequest $request): JsonResponse
+    {
+        return $this->success(
+            new ClientAuthResource($this->googleAuthService->authenticate($request->validated('id_token'))),
+            'Logged in with Google successfully.',
         );
     }
 

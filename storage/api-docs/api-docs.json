@@ -3791,6 +3791,204 @@
                 }
             }
         },
+        "/api/client/v1/auth/verify-otp": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Verify a mobile account email with a 6-digit OTP",
+                "operationId": "384e32ed09d02274d8908c5c13a5a922",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "code": {
+                                        "type": "string",
+                                        "example": "123456",
+                                        "maxLength": 6,
+                                        "minLength": 6
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Email verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many attempts or resend cooldown",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/resend-otp": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Resend the mobile account verification OTP",
+                "operationId": "71d42e8a3aa51efb351c9fbd1b4063c8",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "A new code has been sent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No account found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Resend cooldown active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/google": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Sign in or sign up with a Google ID token (mobile)",
+                "operationId": "1f31b7d474269df661b63731398bc008",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "id_token"
+                                ],
+                                "properties": {
+                                    "id_token": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Authenticated with Google; account created on first sign-in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid Google token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Account not active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/client/v1/auth/login": {
             "post": {
                 "tags": [

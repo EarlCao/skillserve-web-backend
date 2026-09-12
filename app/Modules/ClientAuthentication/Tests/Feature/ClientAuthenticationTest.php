@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Notifications\ClientEmailOtpNotification;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
 use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -57,7 +58,7 @@ class ClientAuthenticationTest extends TestCase
         $user = User::where('email', 'alex@example.com')->firstOrFail();
         $this->assertSame('customer', $user->user_type);
         $this->assertFalse($user->roles()->exists());
-        Notification::assertSentTo($user, ClientEmailVerificationNotification::class);
+        Notification::assertSentTo($user, ClientEmailOtpNotification::class);
     }
 
     public function test_registration_validates_required_fields_and_duplicate_email(): void

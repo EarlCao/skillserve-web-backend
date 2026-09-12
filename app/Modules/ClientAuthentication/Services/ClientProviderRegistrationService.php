@@ -3,8 +3,11 @@
 namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Services\ClientEmailOtpService;
 use App\Modules\Providers\Models\ProviderProfile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * Self-service provider registration for the mobile app.
@@ -18,6 +21,7 @@ class ClientProviderRegistrationService
 {
     public function __construct(
         private readonly ClientSessionService $sessionService,
+        private readonly ClientEmailOtpService $otpService,
     ) {}
 
     /**
@@ -37,11 +41,6 @@ class ClientProviderRegistrationService
                 'status' => 'active',
             ]);
 
-            // `email_verified_at` is not mass-assignable; mark providers as
-            // verified immediately since administrator verification (not
-            // email confirmation) gates their marketplace access.
-            $user->forceFill(['email_verified_at' => now()])->save();
-
             ProviderProfile::create([
                 'user_id' => $user->id,
                 'business_name' => $validated['business_name'] ?? null,
@@ -53,6 +52,18 @@ class ClientProviderRegistrationService
 
             return $this->sessionService->issue($user);
         });
+
+        // Providers verify their email with the same 6-digit OTP as
+        // customers; admin verification gates marketplace actions later.
+        try {
+            $this->otpService->issue($session['user']);
+        } catch (Throwable $e) {
+            Log::error('Failed to send verification OTP for provider registration.', [
+                'user_id' => $session['user']->id,
+                'email' => $session['user']->email,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return $session;
     }

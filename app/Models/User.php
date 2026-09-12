@@ -188,6 +188,7 @@ class User extends Authenticatable implements CanResetPasswordContract
             'banned_at' => 'datetime',
             'banned_until' => 'datetime',
             'deleted_at' => 'datetime',
+            'email_otp_expires_at' => 'datetime',
         ];
     }
 }

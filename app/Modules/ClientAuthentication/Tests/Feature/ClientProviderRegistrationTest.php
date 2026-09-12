@@ -56,6 +56,22 @@ class ClientProviderRegistrationTest extends TestCase
             'specialization' => 'Home Repair',
         ])->assertCreated();
 
+        // New providers start unverified and must confirm the emailed OTP.
+        $user = User::query()->where('email', 'provider@example.com')->firstOrFail();
+        $this->assertFalse($user->hasVerifiedEmail());
+
+        $code = '654321';
+        $user->forceFill([
+            'email_otp_hash' => Hash::make($code),
+            'email_otp_expires_at' => now()->addMinutes(10),
+            'email_otp_attempts' => 0,
+        ])->save();
+
+        $this->postJson('/api/client/v1/auth/verify-otp', [
+            'email' => 'provider@example.com',
+            'code' => $code,
+        ])->assertOk();
+
         $login = $this->postJson('/api/client/v1/auth/login', [
             'email' => 'provider@example.com',
             'password' => 'password123',

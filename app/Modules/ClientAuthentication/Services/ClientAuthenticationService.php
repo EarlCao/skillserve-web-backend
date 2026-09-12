@@ -17,6 +17,7 @@ class ClientAuthenticationService
 {
     public function __construct(
         private readonly ClientSessionService $sessionService,
+        private readonly ClientEmailOtpService $otpService,
     ) {}
 
     /**
@@ -40,9 +41,9 @@ class ClientAuthenticationService
         });
 
         try {
-            $this->sendVerificationNotification($session['user']);
+            $this->otpService->issue($session['user']);
         } catch (\Throwable $e) {
-            Log::error('Failed to send verification notification for client registration.', [
+            Log::error('Failed to send verification OTP for client registration.', [
                 'user_id' => $session['user']->id,
                 'email' => $session['user']->email,
                 'error' => $e->getMessage(),
