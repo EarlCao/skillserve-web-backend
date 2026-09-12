@@ -29,6 +29,14 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],
 
+    // Brevo transactional email (REST API transport). Read via config() at
+    // runtime — never env() outside config files, which returns null once
+    // `php artisan config:cache` has run (Render does this at boot).
+    'brevo' => [
+        'api_key' => env('BREVO_API_KEY'),
+        'timeout' => (int) env('BREVO_API_TIMEOUT', 15),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

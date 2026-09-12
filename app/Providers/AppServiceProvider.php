@@ -127,9 +127,11 @@ class AppServiceProvider extends ServiceProvider
         // hosts (Render free tier included) block outbound SMTP ports, so
         // MAIL_MAILER=brevo-api + BREVO_API_KEY provides a working path.
         Mail::extend('brevo-api', function (array $config) {
+            // config(), not env(): config is cached at boot on Render, and
+            // env() calls outside config/ files return null after that.
             return new BrevoApiTransport(
-                apiKey: (string) env('BREVO_API_KEY'),
-                timeoutSeconds: (int) env('BREVO_API_TIMEOUT', 15),
+                apiKey: (string) config('services.brevo.api_key'),
+                timeoutSeconds: (int) config('services.brevo.timeout', 15),
             );
         });
 
