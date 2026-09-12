@@ -8,6 +8,7 @@ return [
 
     'allowed_origins' => [
         'https://skillserve-admin-side.vercel.app',
+        'https://skillserve-web-admin.vercel.app',
         'https://skillserve-frontend.onrender.com',
         'http://localhost:5173',
         'http://localhost:3000',
