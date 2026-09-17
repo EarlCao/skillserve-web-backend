@@ -22,8 +22,10 @@ final class UpdateRoleAction extends BaseAction
      */
     public function handle(Role $role, array $validated): Role
     {
+        SystemRole::assertStaffRole($role);
+
         if (
-            $role->name === SystemRole::SUPER_ADMIN
+            SystemRole::isFixed($role)
             && isset($validated['name'])
             && $validated['name'] !== $role->name
         ) {

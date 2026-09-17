@@ -26,6 +26,15 @@ class ClientProviderResource extends BaseResource
             'total_reviews' => $this->total_reviews,
             'total_bookings' => $this->total_bookings,
             'completed_bookings' => $this->completed_bookings,
+            // Catalog summary, present on the public provider list and detail.
+            'starting_price' => $this->when(
+                array_key_exists('starting_price', $this->resource->getAttributes()),
+                fn () => $this->starting_price === null ? null : number_format((float) $this->starting_price, 2, '.', ''),
+            ),
+            'primary_category' => $this->when(
+                array_key_exists('primary_category', $this->resource->getAttributes()),
+                fn () => $this->primary_category,
+            ),
             'services' => $this->whenLoaded(
                 'services',
                 fn () => ClientServiceResource::collection($this->services),

@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Modules\Services\Models\Service;
 use App\Modules\Services\Requests\ApproveServiceRequest;
 use App\Modules\Services\Requests\RejectServiceRequest;
-use App\Modules\Services\Requests\StoreServiceRequest;
 use App\Modules\Services\Requests\UpdateServiceRequest;
 use App\Modules\Services\Resources\ServiceResource;
 use App\Modules\Services\Services\ServiceService;
@@ -16,14 +15,15 @@ use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 /**
- * Service management endpoints — CRUD plus approve, reject, hide, feature,
- * and delete.
+ * Service moderation endpoints — list, view, edit listing details, approve,
+ * reject, hide, feature, and delete. Providers create services and set
+ * pricing through the client API; every action here notifies the provider.
  *
  * Every action is authorization-gated through the ServicePolicy
  * ("manage services" permission; super administrators bypass via
  * Gate::before).
  */
-#[OA\Tag(name: 'Services', description: 'Manage services (view, create, edit, approve, reject, hide, feature, delete)')]
+#[OA\Tag(name: 'Services', description: 'Moderate provider services (view, edit, approve, reject, hide, feature, delete)')]
 class ServiceController extends Controller
 {
     use ApiResponse;
@@ -138,138 +138,6 @@ class ServiceController extends Controller
         ]));
 
         return $this->paginated($paginator, ServiceResource::class, 'Services retrieved.');
-    }
-
-    /**
-     * POST /api/services — create a new service.
-     */
-    #[OA\Post(
-        path: '/api/services',
-        summary: 'Create a service',
-        tags: ['Services'],
-        security: [['bearerAuth' => []]],
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ['title', 'provider_id', 'category_id'],
-                example: [
-                    'title' => 'Plumbing Repair',
-                    'description' => 'Expert plumbing repair service.',
-                    'provider_id' => 1,
-                    'category_id' => 1,
-                    'subcategory_id' => 1,
-                    'price' => 150.00,
-                    'price_type' => 'fixed',
-                    'currency' => 'PHP',
-                    'duration' => '1-2 hours',
-                    'location' => 'Austin, TX',
-                ],
-                properties: [
-                    new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Plumbing Repair'),
-                    new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
-                    new OA\Property(property: 'provider_id', type: 'integer', example: 1),
-                    new OA\Property(property: 'category_id', type: 'integer', example: 1),
-                    new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true),
-                    new OA\Property(property: 'price', type: 'number', format: 'float', nullable: true),
-                    new OA\Property(property: 'price_type', type: 'string', enum: ['fixed', 'hourly', 'custom'], default: 'fixed'),
-                    new OA\Property(property: 'currency', type: 'string', maxLength: 3, default: 'PHP'),
-                    new OA\Property(property: 'duration', type: 'string', maxLength: 100, nullable: true),
-                    new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true),
-                ],
-            ),
-        ),
-        responses: [
-            new OA\Response(
-                response: 201,
-                description: 'Service created',
-                content: new OA\JsonContent(
-                    ref: '#/components/schemas/ApiEnvelope',
-                    example: [
-                        'success' => true,
-                        'message' => 'Service created.',
-                        'data' => [
-                            'id' => 41,
-                            'title' => 'Plumbing Repair',
-                            'description' => 'Expert plumbing repair service.',
-                            'price' => 150.00,
-                            'price_type' => 'fixed',
-                            'currency' => 'PHP',
-                            'duration' => '1-2 hours',
-                            'location' => 'Austin, TX',
-                            'status' => 'draft',
-                            'approval_status' => 'pending',
-                            'rejection_reason' => null,
-                            'is_featured' => false,
-                            'is_hidden' => false,
-                            'total_bookings' => 0,
-                            'completed_bookings' => 0,
-                            'average_rating' => 0,
-                            'total_reviews' => 0,
-                            'provider' => ['id' => 1, 'business_name' => 'Garcia Plumbing Solutions', 'user' => ['id' => 1, 'name' => 'Maria Garcia', 'email' => 'maria.garcia@example.com']],
-                            'category' => ['id' => 1, 'name' => 'Home Maintenance'],
-                            'subcategory' => ['id' => 1, 'name' => 'Plumbing'],
-                            'created_at' => '2026-08-20T12:00:00+00:00',
-                            'updated_at' => '2026-08-20T12:00:00+00:00',
-                        ],
-                        'errors' => null,
-                        'meta' => [],
-                    ],
-                ),
-            ),
-            new OA\Response(
-                response: 401,
-                description: 'Unauthenticated / expired token',
-                content: new OA\JsonContent(
-                    ref: '#/components/schemas/ApiEnvelope',
-                    example: [
-                        'success' => false,
-                        'message' => 'Unauthenticated.',
-                        'data' => new \stdClass,
-                        'errors' => null,
-                        'meta' => [],
-                    ],
-                ),
-            ),
-            new OA\Response(
-                response: 403,
-                description: 'Missing the create services permission',
-                content: new OA\JsonContent(
-                    ref: '#/components/schemas/ApiEnvelope',
-                    example: [
-                        'success' => false,
-                        'message' => 'This action is unauthorized.',
-                        'data' => new \stdClass,
-                        'errors' => null,
-                        'meta' => [],
-                    ],
-                ),
-            ),
-            new OA\Response(
-                response: 422,
-                description: 'Validation error',
-                content: new OA\JsonContent(
-                    ref: '#/components/schemas/ApiEnvelope',
-                    example: [
-                        'success' => false,
-                        'message' => 'Validation failed.',
-                        'data' => new \stdClass,
-                        'errors' => [
-                            'title' => ['The title field is required.'],
-                            'category_id' => ['The category id field is required.'],
-                        ],
-                        'meta' => [],
-                    ],
-                ),
-            ),
-        ],
-    )]
-    public function store(StoreServiceRequest $request): JsonResponse
-    {
-        $this->authorize('create', Service::class);
-
-        $service = $this->serviceService->store($request->validated(), $request->user());
-
-        return $this->success(new ServiceResource($service), 'Service created.', status: 201);
     }
 
     /**
@@ -391,24 +259,18 @@ class ServiceController extends Controller
         ],
         requestBody: new OA\RequestBody(
             required: true,
+            description: 'Administrators may correct listing details only. Provider, pricing, duration and location belong to the provider and are rejected with 422.',
             content: new OA\JsonContent(
                 example: [
                     'title' => 'Updated Service Title',
                     'description' => 'Updated description.',
                     'category_id' => 1,
-                    'price' => 200.00,
-                    'status' => 'published',
                 ],
                 properties: [
                     new OA\Property(property: 'title', type: 'string', maxLength: 255),
                     new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
                     new OA\Property(property: 'category_id', type: 'integer'),
                     new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true),
-                    new OA\Property(property: 'price', type: 'number', format: 'float', nullable: true),
-                    new OA\Property(property: 'price_type', type: 'string', enum: ['fixed', 'hourly', 'custom']),
-                    new OA\Property(property: 'currency', type: 'string', maxLength: 3),
-                    new OA\Property(property: 'duration', type: 'string', maxLength: 100, nullable: true),
-                    new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true),
                     new OA\Property(property: 'status', type: 'string', enum: ['draft', 'published', 'archived']),
                     new OA\Property(property: 'is_featured', type: 'boolean'),
                     new OA\Property(property: 'is_hidden', type: 'boolean'),
@@ -428,7 +290,7 @@ class ServiceController extends Controller
                             'id' => 1,
                             'title' => 'Updated Service Title',
                             'description' => 'Updated description.',
-                            'price' => 200.00,
+                            'price' => 1500.00,
                             'price_type' => 'fixed',
                             'currency' => 'PHP',
                             'status' => 'published',
@@ -495,7 +357,7 @@ class ServiceController extends Controller
                         'message' => 'Validation failed.',
                         'data' => new \stdClass,
                         'errors' => [
-                            'title' => ['The title must not be greater than 255 characters.'],
+                            'price' => ['The price field is prohibited.'],
                         ],
                         'meta' => [],
                     ],

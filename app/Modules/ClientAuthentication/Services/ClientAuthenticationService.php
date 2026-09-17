@@ -3,9 +3,11 @@
 namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
-use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
+use App\Modules\Providers\Models\ProviderProfile;
+use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +35,7 @@ class ClientAuthenticationService
                 'name' => trim($validated['first_name'].' '.$validated['last_name']),
                 'email' => $validated['email'],
                 'password' => $validated['password'],
-                'user_type' => 'customer',
+                'role_id' => AccountRole::Customer->value,
                 'status' => 'active',
                 'email_verified_at' => null,
             ]);
@@ -66,8 +68,7 @@ class ClientAuthenticationService
     {
         $user = User::query()
             ->where('email', $validated['email'])
-            ->whereIn('user_type', ['customer', 'provider'])
-            ->doesntHave('roles')
+            ->mobileAccounts()
             ->first();
 
         if (! $user || ! Hash::check((string) $validated['password'], $user->password)) {
@@ -85,7 +86,7 @@ class ClientAuthenticationService
 
             // Refresh tokens restrict user deletion, so remove them
             // explicitly (plus any access tokens and notifications).
-            \App\Modules\ClientAuthentication\Models\ClientRefreshToken::query()
+            ClientRefreshToken::query()
                 ->where('user_id', $user->id)
                 ->delete();
             $user->tokens()->delete();
@@ -101,8 +102,7 @@ class ClientAuthenticationService
     {
         $user = User::query()
             ->where('email', $validated['email'])
-            ->whereIn('user_type', ['customer', 'provider'])
-            ->doesntHave('roles')
+            ->mobileAccounts()
             ->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
@@ -236,8 +236,7 @@ class ClientAuthenticationService
     private function clientQuery(): Builder
     {
         return User::query()
-            ->where('user_type', 'customer')
-            ->doesntHave('roles');
+            ->customers();
     }
 
     private function invalidResetException(?string $status = null): ApiException

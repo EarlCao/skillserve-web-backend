@@ -3,6 +3,7 @@
 namespace App\Modules\Users\Resources;
 
 use App\Modules\Authentication\Resources\UserResource;
+use App\Shared\Enums\AccountRole;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
 
@@ -25,6 +26,11 @@ class UserManagementResource extends UserResource
         return array_merge(parent::toArray($request), [
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
+            'role_id' => $this->role_id,
+            // Flat fields: older app builds read a string `role` key, so the
+            // role is not exposed as a nested `role` object.
+            'role_name' => AccountRole::tryFrom((int) $this->role_id)?->roleName() ?? $this->role?->name,
+            // Derived from role_id; kept for existing clients.
             'user_type' => $this->user_type,
             'phone' => $this->phone,
             'address' => $this->address,

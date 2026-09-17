@@ -15,8 +15,7 @@ class NotificationSeeder extends Seeder
     {
         $recipients = User::query()
             ->where('status', 'active')
-            ->whereDoesntHave('roles')
-            ->whereIn('user_type', ['customer', 'provider'])
+            ->mobileAccounts()
             ->pluck('id')
             ->values()
             ->all();
@@ -30,8 +29,7 @@ class NotificationSeeder extends Seeder
 
         $customerIds = User::query()
             ->where('status', 'active')
-            ->whereDoesntHave('roles')
-            ->where('user_type', 'customer')
+            ->customers()
             ->pluck('id')
             ->values()
             ->all();
@@ -45,8 +43,7 @@ class NotificationSeeder extends Seeder
 
         $providerIds = User::query()
             ->where('status', 'active')
-            ->whereDoesntHave('roles')
-            ->where('user_type', 'provider')
+            ->providers()
             ->pluck('id')
             ->values()
             ->all();

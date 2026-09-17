@@ -93,6 +93,9 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'address', type: 'string', nullable: true),
         new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true),
         new OA\Property(property: 'status', type: 'string', example: 'active'),
+        new OA\Property(property: 'role_id', type: 'integer', example: 4, description: 'users.role_id → roles.id: 1 super-admin, 2 admin, 3 provider, 4 customer'),
+        new OA\Property(property: 'role_name', type: 'string', enum: ['super-admin', 'admin', 'provider', 'customer'], example: 'customer'),
+        new OA\Property(property: 'user_type', type: 'string', enum: ['customer', 'provider', 'admin'], example: 'customer', description: 'Derived from role_id; kept for existing clients'),
         new OA\Property(property: 'email_verified', type: 'boolean', example: true),
         new OA\Property(property: 'email_verified_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
@@ -131,6 +134,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'name', type: 'string'),
         new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'provider_count', type: 'integer', description: 'Verified providers with public services in this category (list endpoint only)'),
         new OA\Property(property: 'subcategories', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientSubcategory')),
     ],
 )]
@@ -155,6 +159,64 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
     ],
+)]
+#[OA\Schema(
+    schema: 'ProviderService',
+    description: 'A provider\'s own service with its moderation state.',
+    allOf: [
+        new OA\Schema(ref: '#/components/schemas/ClientService'),
+        new OA\Schema(properties: [
+            new OA\Property(property: 'category_id', type: 'integer'),
+            new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true),
+            new OA\Property(property: 'status', type: 'string', enum: ['draft', 'published', 'archived']),
+            new OA\Property(property: 'approval_status', type: 'string', enum: ['pending', 'approved', 'rejected']),
+            new OA\Property(property: 'rejection_reason', type: 'string', nullable: true),
+            new OA\Property(property: 'is_featured', type: 'boolean'),
+            new OA\Property(property: 'is_hidden', type: 'boolean'),
+            new OA\Property(property: 'approved_at', type: 'string', format: 'date-time', nullable: true),
+        ]),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ProviderServiceInput',
+    description: 'Required on create: title, category_id, price, price_type. All fields optional on update.',
+    properties: [
+        new OA\Property(property: 'title', type: 'string', maxLength: 255),
+        new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
+        new OA\Property(property: 'category_id', type: 'integer', description: 'An enabled service category'),
+        new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true, description: 'An enabled subcategory of category_id'),
+        new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, description: 'Amount in Philippine pesos'),
+        new OA\Property(property: 'price_type', type: 'string', enum: ['fixed', 'hourly', 'custom']),
+        new OA\Property(property: 'duration', type: 'string', maxLength: 100, nullable: true),
+        new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ProviderProfile',
+    description: 'The signed-in provider\'s own profile.',
+    allOf: [
+        new OA\Schema(ref: '#/components/schemas/ClientProvider'),
+        new OA\Schema(properties: [
+            new OA\Property(property: 'user_id', type: 'integer'),
+            new OA\Property(property: 'verification_status', type: 'string', enum: ['pending', 'verified', 'rejected', 'additional_info_required']),
+            new OA\Property(property: 'verified_at', type: 'string', format: 'date-time', nullable: true),
+            new OA\Property(property: 'rejection_reason', type: 'string', nullable: true),
+            new OA\Property(property: 'is_featured', type: 'boolean'),
+            new OA\Property(property: 'is_suspended', type: 'boolean'),
+        ]),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ProviderProfileEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderProfile')])],
+)]
+#[OA\Schema(
+    schema: 'ProviderServiceEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderService')])],
+)]
+#[OA\Schema(
+    schema: 'ProviderServiceListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ProviderService')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
 )]
 #[OA\Schema(
     schema: 'ClientProviderSummary',
@@ -186,6 +248,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'total_reviews', type: 'integer'),
         new OA\Property(property: 'total_bookings', type: 'integer'),
         new OA\Property(property: 'completed_bookings', type: 'integer'),
+        new OA\Property(property: 'starting_price', type: 'string', nullable: true, example: '1500.00', description: 'Lowest price (PHP) across the provider\'s public services'),
+        new OA\Property(property: 'primary_category', type: 'string', nullable: true, example: 'Appliance Repair', description: 'Category with the most public services'),
         new OA\Property(property: 'services', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientService')),
         new OA\Property(property: 'reviews', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientReview')),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
@@ -293,6 +357,10 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'booking_id', type: 'integer', nullable: true),
         new OA\Property(property: 'ticket_id', type: 'integer', nullable: true),
         new OA\Property(property: 'ticket_number', type: 'string', nullable: true),
+        new OA\Property(property: 'action', type: 'string', nullable: true, description: 'Service moderation action: approved, rejected, updated, hidden, unhidden, featured, unfeatured, deleted', example: 'approved'),
+        new OA\Property(property: 'service_id', type: 'integer', nullable: true),
+        new OA\Property(property: 'service_title', type: 'string', nullable: true),
+        new OA\Property(property: 'reason', type: 'string', nullable: true, description: 'Rejection reason or approval note'),
     ],
 )]
 #[OA\Schema(

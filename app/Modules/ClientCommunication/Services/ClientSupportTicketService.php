@@ -69,8 +69,8 @@ class ClientSupportTicketService extends BaseService
     private function relations(bool $withMessages): array
     {
         return $withMessages
-            ? ['requester:id,name,user_type', 'messages.author:id,name']
-            : ['requester:id,name,user_type'];
+            ? ['requester:id,name,role_id', 'messages.author:id,name']
+            : ['requester:id,name,role_id'];
     }
 
     private function perPage(array $filters): int

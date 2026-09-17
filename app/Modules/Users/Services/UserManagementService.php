@@ -15,6 +15,7 @@ use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
+use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -80,7 +81,7 @@ class UserManagementService extends BaseService
         }
 
         if ($userType = trim((string) ($filters['user_type'] ?? ''))) {
-            $query->where('user_type', $userType);
+            $query->where('role_id', AccountRole::idForUserType($userType));
         }
 
         if ($status = trim((string) ($filters['status'] ?? ''))) {

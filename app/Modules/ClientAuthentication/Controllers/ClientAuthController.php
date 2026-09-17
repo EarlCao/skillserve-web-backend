@@ -121,8 +121,7 @@ class ClientAuthController extends Controller
     {
         $user = User::query()
             ->where('email', $request->validated('email'))
-            ->where(fn ($q) => $q->where('user_type', 'customer')->orWhere('user_type', 'provider'))
-            ->doesntHave('roles')
+            ->mobileAccounts()
             ->first();
 
         if (! $user) {
@@ -181,8 +180,7 @@ class ClientAuthController extends Controller
 
         $user = User::query()
             ->where('email', $email)
-            ->where(fn ($q) => $q->where('user_type', 'customer')->orWhere('user_type', 'provider'))
-            ->doesntHave('roles')
+            ->mobileAccounts()
             ->first();
 
         if (! $user) {

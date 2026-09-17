@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
  * Seeds a realistic set of service-provider accounts so the Provider
  * Management screens have data to list, search, filter and moderate.
  *
- * Each provider gets a user account (user_type "provider"), a ProviderProfile,
+ * Each provider gets a user account (role_id 3, provider), a ProviderProfile,
  * and — where appropriate — VerificationRequests with matching documents to
  * exercise every verification status the UI supports.
  *

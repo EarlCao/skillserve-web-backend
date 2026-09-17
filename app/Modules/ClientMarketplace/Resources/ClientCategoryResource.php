@@ -12,6 +12,10 @@ class ClientCategoryResource extends BaseResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'provider_count' => $this->when(
+                array_key_exists('provider_count', $this->resource->getAttributes()),
+                fn () => (int) $this->provider_count,
+            ),
             'subcategories' => $this->whenLoaded(
                 'subcategories',
                 fn () => ClientSubcategoryResource::collection($this->subcategories),

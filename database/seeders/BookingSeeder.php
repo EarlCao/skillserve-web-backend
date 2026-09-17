@@ -94,7 +94,7 @@ class BookingSeeder extends Seeder
             return;
         }
 
-        $clients = User::query()->where('user_type', 'customer')->doesntHave('roles')->get();
+        $clients = User::query()->customers()->get();
         $services = Service::query()->where('approval_status', 'approved')->get()->keyBy('title');
         $providers = ProviderProfile::query()->get()->keyBy('id');
         $actor = User::query()->whereHas('roles')->first();

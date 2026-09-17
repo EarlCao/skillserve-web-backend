@@ -44,8 +44,8 @@ class ReportSeeder extends Seeder
             return;
         }
 
-        $reporters = User::query()->where('user_type', 'customer')->doesntHave('roles')->get();
-        $users = User::query()->where('user_type', 'customer')->doesntHave('roles')->get();
+        $reporters = User::query()->customers()->get();
+        $users = User::query()->customers()->get();
         $services = Service::query()->where('approval_status', 'approved')->get();
         $reviews = Review::query()->get();
         $messages = Message::query()->get();
@@ -179,7 +179,7 @@ class ReportSeeder extends Seeder
             return;
         }
 
-        $customers = User::query()->where('user_type', 'customer')->doesntHave('roles')->get();
+        $customers = User::query()->customers()->get();
         $providers = ProviderProfile::query()->with('user:id')->get()->pluck('user')->filter();
 
         if ($customers->isEmpty() || $providers->isEmpty()) {

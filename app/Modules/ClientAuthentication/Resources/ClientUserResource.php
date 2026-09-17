@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Resources;
 
+use App\Shared\Enums\AccountRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,6 +20,11 @@ class ClientUserResource extends JsonResource
             'address' => $this->address,
             'birthday' => $this->birthday?->toDateString(),
             'status' => $this->status,
+            'role_id' => $this->role_id,
+            // Flat fields: older app builds read a string `role` key, so the
+            // role is not exposed as a nested `role` object.
+            'role_name' => AccountRole::tryFrom((int) $this->role_id)?->roleName() ?? $this->role?->name,
+            // Derived from role_id; kept for existing clients.
             'user_type' => $this->user_type,
             'provider' => $this->when(
                 $this->user_type === 'provider' && $this->providerProfile()->exists(),

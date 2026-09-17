@@ -12,6 +12,12 @@ class ClientNotificationCreated implements ShouldBroadcast
     use Dispatchable, SerializesModels;
 
     /**
+     * Realtime delivery is best-effort (the notification is already stored and
+     * the app also polls), so an unreachable WebSocket server is not retried.
+     */
+    public int $tries = 1;
+
+    /**
      * @param  array<string, mixed>  $data
      */
     public function __construct(

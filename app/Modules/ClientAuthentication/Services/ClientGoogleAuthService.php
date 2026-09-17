@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
+use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -45,8 +46,7 @@ class ClientGoogleAuthService
         if ($googleSub !== '') {
             $user = User::query()
                 ->where('google_sub', $googleSub)
-                ->whereIn('user_type', ['customer', 'provider'])
-                ->doesntHave('roles')
+                ->mobileAccounts()
                 ->first();
 
             if ($user) {
@@ -64,8 +64,7 @@ class ClientGoogleAuthService
         //    Google address of that name take the account over.
         $existing = User::query()
             ->where('email', $email)
-            ->whereIn('user_type', ['customer', 'provider'])
-            ->doesntHave('roles')
+            ->mobileAccounts()
             ->first();
 
         if ($existing) {
@@ -163,7 +162,7 @@ class ClientGoogleAuthService
             'email' => $email,
             // Not used for Google logins, but the column requires a hash.
             'password' => Str::random(32),
-            'user_type' => 'customer',
+            'role_id' => AccountRole::Customer->value,
             'status' => 'active',
         ]);
         $user->forceFill([

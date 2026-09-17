@@ -8,7 +8,9 @@ FROM php:8.3-cli-alpine
 #   zip              — archive support (maatwebsite/excel, spatie/laravel-backup)
 #   exif             — image metadata (spatie/laravel-medialibrary)
 #   pcntl            — process signals (laravel/reverb WebSocket server)
+#   nginx            — single public port: routes WebSockets to Reverb, the rest to Laravel
 RUN apk add --no-cache \
+        nginx \
         libpq-dev \
         libpng-dev \
         libjpeg-turbo-dev \
@@ -44,18 +46,10 @@ RUN cp .env.example .env
 # on the 512 MB free instance.
 ENV PHP_CLI_SERVER_WORKERS=4
 
-EXPOSE 8000
+EXPOSE 10000
 
-# On start: cache config/routes/views, run migrations, seed (first boot only),
-# then serve.
-# APP_KEY is supplied by the platform (Render: generateValue), so we only
-# generate one when the environment genuinely doesn't have it — running
-# key:generate unconditionally just logs "Unable to set application key".
-# Render also injects $PORT; bind to it instead of hardcoding 8000.
-CMD ["sh", "-c", "if [ -z \"$APP_KEY\" ]; then php artisan key:generate --no-interaction --force; fi \
-    && php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache \
-    && php artisan migrate --force \
-    && php artisan db:seed-if-empty \
-    && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+# Start-up (see deploy/render/start.sh): cache config, migrate, seed on first
+# boot, then run the API, Reverb WebSockets, queue worker and scheduler behind
+# nginx on Render's $PORT. Without the worker and scheduler, announcements and
+# ban expiry never run; without Reverb, nothing is realtime.
+CMD ["sh", "deploy/render/start.sh"]

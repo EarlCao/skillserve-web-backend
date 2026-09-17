@@ -77,6 +77,7 @@ use App\Modules\Services\Events\ServiceHidden;
 use App\Modules\Services\Events\ServiceRejected;
 use App\Modules\Services\Events\ServiceUpdated;
 use App\Modules\Services\Listeners\LogServiceActivity;
+use App\Modules\Services\Listeners\NotifyProviderOfServiceModeration;
 use App\Modules\Services\Models\Service;
 use App\Modules\Services\Policies\ServicePolicy;
 use App\Modules\Settings\Services\SettingsService;
@@ -94,17 +95,22 @@ use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Modules\Users\Listeners\LogUserActivity;
 use App\Modules\Users\Listeners\SendUserModerationMail;
-use App\Shared\Services\BrevoApiTransport;
 use App\Modules\Users\Policies\UserManagementPolicy;
+use App\Shared\Listeners\SyncUserRoleId;
+use App\Shared\Realtime\RealtimeChangeTracker;
+use App\Shared\Services\BrevoApiTransport;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\Sanctum;
+use Spatie\Permission\Events\RoleAttachedEvent;
+use Spatie\Permission\Events\RoleDetachedEvent;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -115,7 +121,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->scoped(RealtimeChangeTracker::class);
     }
 
     /**
@@ -239,6 +245,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ServiceFeatured::class, LogServiceActivity::class);
         Event::listen(ServiceDeleted::class, LogServiceActivity::class);
 
+        // Every administrator action on a service notifies its provider.
+        Event::listen(
+            [ServiceUpdated::class, ServiceApproved::class, ServiceRejected::class, ServiceHidden::class, ServiceFeatured::class, ServiceDeleted::class],
+            NotifyProviderOfServiceModeration::class,
+        );
+
         // Booking Management module events.
         Event::listen(BookingStatusChanged::class, LogBookingActivity::class);
         Event::listen(BookingCancelled::class, LogBookingActivity::class);
@@ -308,5 +320,37 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('activate providers', [ProviderPolicy::class, 'activate']);
         Gate::define('verify providers', [ProviderPolicy::class, 'verify']);
         Gate::define('reject providers', [ProviderPolicy::class, 'reject']);
+
+        // users.role_id follows staff role changes made through Spatie.
+        Event::listen([RoleAttachedEvent::class, RoleDetachedEvent::class], SyncUserRoleId::class);
+
+        $this->registerRealtimeAdminUpdates();
+    }
+
+    /**
+     * Push "data changed" signals to admin dashboards so open pages refresh
+     * without a manual reload. Changes are collected, then broadcast once at
+     * the end of each request, console command or queued job.
+     */
+    private function registerRealtimeAdminUpdates(): void
+    {
+        $tracker = fn (): RealtimeChangeTracker => $this->app->make(RealtimeChangeTracker::class);
+
+        Event::listen(
+            ['eloquent.created: *', 'eloquent.updated: *', 'eloquent.deleted: *', 'eloquent.restored: *'],
+            function (string $event, array $payload) use ($tracker): void {
+                $tracker()->recordModel($payload[0]);
+            },
+        );
+
+        // Role assignment and permission syncs write pivot tables, which fire
+        // no model events.
+        Event::listen(
+            [AdministratorCreated::class, AdministratorUpdated::class, AdministratorStatusChanged::class, RoleCreated::class, RoleUpdated::class, RoleDeleted::class, RolePermissionsSynced::class],
+            fn () => $tracker()->record('users', 'roles'),
+        );
+
+        $this->app->terminating(fn () => $tracker()->flush());
+        Queue::after(fn () => $tracker()->flush());
     }
 }

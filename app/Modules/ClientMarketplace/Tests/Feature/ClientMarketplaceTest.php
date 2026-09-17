@@ -63,6 +63,34 @@ class ClientMarketplaceTest extends TestCase
             ->assertJsonMissingPath('data.0.user');
     }
 
+    public function test_catalog_lists_include_card_summaries_from_public_services_only(): void
+    {
+        [$provider] = $this->provider();
+        [$otherProvider] = $this->provider(['business_name' => 'Second Provider']);
+        $cleaning = $this->category('Cleaning '.Str::random(5));
+        $repair = $this->category('Repair '.Str::random(5));
+
+        $this->service($provider, $cleaning, ['price' => 900]);
+        $this->service($provider, $cleaning, ['price' => 1500]);
+        $this->service($provider, $repair, ['price' => 700]);
+        $this->service($provider, $repair, ['price' => 100, 'approval_status' => 'pending', 'status' => 'draft']);
+        $this->service($otherProvider, $cleaning, ['price' => 2000]);
+
+        $providers = collect($this->getJson('/api/client/v1/providers?per_page=10')->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame('700.00', $providers[$provider->id]['starting_price']);
+        $this->assertSame($cleaning->name, $providers[$provider->id]['primary_category']);
+        $this->assertSame('2000.00', $providers[$otherProvider->id]['starting_price']);
+
+        $this->getJson("/api/client/v1/providers/{$provider->id}")
+            ->assertOk()
+            ->assertJsonPath('data.starting_price', '700.00')
+            ->assertJsonPath('data.primary_category', $cleaning->name);
+
+        $categories = collect($this->getJson('/api/client/v1/categories')->assertOk()->json('data'))->keyBy('id');
+        $this->assertSame(2, $categories[$cleaning->id]['provider_count']);
+        $this->assertSame(1, $categories[$repair->id]['provider_count']);
+    }
+
     public function test_admin_tokens_cannot_use_client_bookings_and_clients_cannot_read_each_other(): void
     {
         $owner = $this->customer();

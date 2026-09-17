@@ -23,6 +23,8 @@ final class SyncRolePermissionsAction extends BaseAction
      */
     public function handle(Role $role, array $permissions, User $actor): Role
     {
+        SystemRole::assertStaffRole($role);
+
         if ($role->name === SystemRole::SUPER_ADMIN) {
             throw new ApiException(
                 'Super administrator permissions cannot be modified.',

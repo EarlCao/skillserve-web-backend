@@ -48,10 +48,10 @@ class AnnouncementService extends BaseService
     {
         $query = User::query()
             ->where('status', 'active')
-            ->whereDoesntHave('roles');
+            ->mobileAccounts();
 
         if (in_array($target, ['customers', 'providers'], true)) {
-            $query->where('user_type', $target === 'customers' ? 'customer' : 'provider');
+            $target === 'customers' ? $query->customers() : $query->providers();
         }
 
         if ($search = trim((string) $search)) {
@@ -61,7 +61,15 @@ class AnnouncementService extends BaseService
                 ->orWhereRaw('LOWER(email) LIKE ?', [$term]));
         }
 
-        return $query->orderBy('name')->limit(100)->get(['id', 'name', 'email', 'user_type'])->toArray();
+        return $query->orderBy('name')->limit(100)->get(['id', 'name', 'email', 'role_id'])
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+                'user_type' => $user->user_type,
+            ])
+            ->all();
     }
 
     /**
@@ -130,16 +138,14 @@ class AnnouncementService extends BaseService
 
     private function recipientQuery(string $target, ?array $ids = null)
     {
-        $query = User::query()->where('status', 'active')->whereDoesntHave('roles');
+        $query = User::query()->where('status', 'active')->mobileAccounts();
 
         if ($target === 'customers') {
-            $query->where('user_type', 'customer');
+            $query->customers();
         } elseif ($target === 'providers') {
-            $query->where('user_type', 'provider');
+            $query->providers();
         } elseif ($target === 'selected') {
             $query->whereIn('id', $ids ?? []);
-        } else {
-            $query->whereIn('user_type', ['customer', 'provider']);
         }
 
         return $query;

@@ -2768,7 +2768,7 @@
                                             "total_price": 150,
                                             "service_price": 150,
                                             "platform_fee": 15,
-                                            "currency": "USD",
+                                            "currency": "PHP",
                                             "scheduled_date": "2026-09-01T10:00:00+00:00",
                                             "service": {
                                                 "id": 1,
@@ -3859,6 +3859,63 @@
                 }
             }
         },
+        "/api/client/v1/auth/cancel-registration": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Delete an unverified account after the user backs out of email verification",
+                "operationId": "d34b83d446c506bf043832f092198d55",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Unverified registration cancelled (always returned, even for unknown accounts, to prevent enumeration)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/client/v1/auth/resend-otp": {
             "post": {
                 "tags": [
@@ -4740,7 +4797,7 @@
                         "description": "Unauthenticated"
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "422": {
                         "description": "Invalid pagination"
@@ -4772,7 +4829,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     }
                 },
                 "security": [
@@ -4812,7 +4869,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "404": {
                         "description": "Notification not found"
@@ -4844,7 +4901,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     }
                 },
                 "security": [
@@ -5852,6 +5909,298 @@
                     },
                     "422": {
                         "description": "Booking is not completed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/profile": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Get the authenticated provider's own profile (any verification state)",
+                "operationId": "906d1b17a65e538881622e3b8076ce83",
+                "responses": {
+                    "200": {
+                        "description": "Provider profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderProfileEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/services": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "List the authenticated provider's services (all approval states)",
+                "operationId": "0cc29c874bdbddfb9624ff8f2a130cf2",
+                "parameters": [
+                    {
+                        "name": "approval_status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "approved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider services",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderServiceListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified provider account required"
+                    },
+                    "422": {
+                        "description": "Invalid filters"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Submit a new service for administrator approval",
+                "description": "Creates the service as draft/pending. It becomes visible to customers only after an administrator approves it. Amounts are in Philippine pesos (PHP). Requires a verified provider profile.",
+                "operationId": "498ce382ee5b7b2d2d676ea6f6cb8163",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProviderServiceInput"
+                            },
+                            "example": {
+                                "title": "Aircon Cleaning",
+                                "description": "Split-type aircon deep cleaning.",
+                                "category_id": 1,
+                                "subcategory_id": null,
+                                "price": 1500,
+                                "price_type": "fixed",
+                                "duration": "2 hours",
+                                "location": "Quezon City"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Service submitted (pending approval)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderServiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not a provider account, or provider not yet verified"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/services/{service}": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Get one of the provider's own services",
+                "operationId": "85cbe070b9c18ea007fc5db240671d9d",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderServiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified provider account required"
+                    },
+                    "404": {
+                        "description": "Service not found or owned by another provider"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Update an owned service (returns it to pending approval)",
+                "description": "Any actual change sets approval_status to pending and hides the service from customers until an administrator approves it again. Saving identical values changes nothing.",
+                "operationId": "5a8595075d72915ae26c9218dd1ae8c1",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProviderServiceInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderServiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not a provider account, or provider not yet verified"
+                    },
+                    "404": {
+                        "description": "Service not found or owned by another provider"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Delete an owned service",
+                "operationId": "ce54800c328c6c6bf0ad877191588b31",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Service deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified provider account required"
+                    },
+                    "404": {
+                        "description": "Service not found or owned by another provider"
+                    },
+                    "409": {
+                        "description": "Service has pending, confirmed or active bookings"
                     }
                 },
                 "security": [
@@ -11210,7 +11559,7 @@
                                             "description": "Fast, reliable emergency pipe repair.",
                                             "price": 150,
                                             "price_type": "fixed",
-                                            "currency": "USD",
+                                            "currency": "PHP",
                                             "duration": "1-2 hours",
                                             "location": "Austin, TX",
                                             "status": "published",
@@ -11303,213 +11652,6 @@
                         "bearerAuth": []
                     }
                 ]
-            },
-            "post": {
-                "tags": [
-                    "Services"
-                ],
-                "summary": "Create a service",
-                "description": "POST /api/services — create a new service.",
-                "operationId": "605f1fb55050ab449b8e620dcb1a9a9c",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "title",
-                                    "provider_id",
-                                    "category_id"
-                                ],
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Plumbing Repair",
-                                        "maxLength": 255
-                                    },
-                                    "description": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 5000
-                                    },
-                                    "provider_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "category_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "subcategory_id": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "price": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "nullable": true
-                                    },
-                                    "price_type": {
-                                        "type": "string",
-                                        "default": "fixed",
-                                        "enum": [
-                                            "fixed",
-                                            "hourly",
-                                            "custom"
-                                        ]
-                                    },
-                                    "currency": {
-                                        "type": "string",
-                                        "default": "USD",
-                                        "maxLength": 3
-                                    },
-                                    "duration": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 100
-                                    },
-                                    "location": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 255
-                                    }
-                                },
-                                "type": "object"
-                            },
-                            "example": {
-                                "title": "Plumbing Repair",
-                                "description": "Expert plumbing repair service.",
-                                "provider_id": 1,
-                                "category_id": 1,
-                                "subcategory_id": 1,
-                                "price": 150,
-                                "price_type": "fixed",
-                                "currency": "USD",
-                                "duration": "1-2 hours",
-                                "location": "Austin, TX"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "201": {
-                        "description": "Service created",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                },
-                                "example": {
-                                    "success": true,
-                                    "message": "Service created.",
-                                    "data": {
-                                        "id": 41,
-                                        "title": "Plumbing Repair",
-                                        "description": "Expert plumbing repair service.",
-                                        "price": 150,
-                                        "price_type": "fixed",
-                                        "currency": "USD",
-                                        "duration": "1-2 hours",
-                                        "location": "Austin, TX",
-                                        "status": "draft",
-                                        "approval_status": "pending",
-                                        "rejection_reason": null,
-                                        "is_featured": false,
-                                        "is_hidden": false,
-                                        "total_bookings": 0,
-                                        "completed_bookings": 0,
-                                        "average_rating": 0,
-                                        "total_reviews": 0,
-                                        "provider": {
-                                            "id": 1,
-                                            "business_name": "Garcia Plumbing Solutions",
-                                            "user": {
-                                                "id": 1,
-                                                "name": "Maria Garcia",
-                                                "email": "maria.garcia@example.com"
-                                            }
-                                        },
-                                        "category": {
-                                            "id": 1,
-                                            "name": "Home Maintenance"
-                                        },
-                                        "subcategory": {
-                                            "id": 1,
-                                            "name": "Plumbing"
-                                        },
-                                        "created_at": "2026-08-20T12:00:00+00:00",
-                                        "updated_at": "2026-08-20T12:00:00+00:00"
-                                    },
-                                    "errors": null,
-                                    "meta": []
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthenticated / expired token",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                },
-                                "example": {
-                                    "success": false,
-                                    "message": "Unauthenticated.",
-                                    "data": {},
-                                    "errors": null,
-                                    "meta": []
-                                }
-                            }
-                        }
-                    },
-                    "403": {
-                        "description": "Missing the create services permission",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                },
-                                "example": {
-                                    "success": false,
-                                    "message": "This action is unauthorized.",
-                                    "data": {},
-                                    "errors": null,
-                                    "meta": []
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                },
-                                "example": {
-                                    "success": false,
-                                    "message": "Validation failed.",
-                                    "data": {},
-                                    "errors": {
-                                        "title": [
-                                            "The title field is required."
-                                        ],
-                                        "category_id": [
-                                            "The category id field is required."
-                                        ]
-                                    },
-                                    "meta": []
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ]
             }
         },
         "/api/services/{service}": {
@@ -11547,7 +11689,7 @@
                                         "description": "Fast, reliable emergency pipe repair.",
                                         "price": 150,
                                         "price_type": "fixed",
-                                        "currency": "USD",
+                                        "currency": "PHP",
                                         "duration": "1-2 hours",
                                         "location": "Austin, TX",
                                         "status": "published",
@@ -11674,6 +11816,7 @@
                     }
                 ],
                 "requestBody": {
+                    "description": "Administrators may correct listing details only. Provider, pricing, duration and location belong to the provider and are rejected with 422.",
                     "required": true,
                     "content": {
                         "application/json": {
@@ -11695,33 +11838,6 @@
                                         "type": "integer",
                                         "nullable": true
                                     },
-                                    "price": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "nullable": true
-                                    },
-                                    "price_type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "fixed",
-                                            "hourly",
-                                            "custom"
-                                        ]
-                                    },
-                                    "currency": {
-                                        "type": "string",
-                                        "maxLength": 3
-                                    },
-                                    "duration": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 100
-                                    },
-                                    "location": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 255
-                                    },
                                     "status": {
                                         "type": "string",
                                         "enum": [
@@ -11742,9 +11858,7 @@
                             "example": {
                                 "title": "Updated Service Title",
                                 "description": "Updated description.",
-                                "category_id": 1,
-                                "price": 200,
-                                "status": "published"
+                                "category_id": 1
                             }
                         }
                     }
@@ -11764,9 +11878,9 @@
                                         "id": 1,
                                         "title": "Updated Service Title",
                                         "description": "Updated description.",
-                                        "price": 200,
+                                        "price": 1500,
                                         "price_type": "fixed",
-                                        "currency": "USD",
+                                        "currency": "PHP",
                                         "status": "published",
                                         "approval_status": "approved",
                                         "is_featured": true,
@@ -11843,8 +11957,8 @@
                                     "message": "Validation failed.",
                                     "data": {},
                                     "errors": {
-                                        "title": [
-                                            "The title must not be greater than 255 characters."
+                                        "price": [
+                                            "The price field is prohibited."
                                         ]
                                     },
                                     "meta": []
@@ -14549,6 +14663,31 @@
                         "type": "string",
                         "example": "active"
                     },
+                    "role_id": {
+                        "description": "users.role_id → roles.id: 1 super-admin, 2 admin, 3 provider, 4 customer",
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "role_name": {
+                        "type": "string",
+                        "example": "customer",
+                        "enum": [
+                            "super-admin",
+                            "admin",
+                            "provider",
+                            "customer"
+                        ]
+                    },
+                    "user_type": {
+                        "description": "Derived from role_id; kept for existing clients",
+                        "type": "string",
+                        "example": "customer",
+                        "enum": [
+                            "customer",
+                            "provider",
+                            "admin"
+                        ]
+                    },
                     "email_verified": {
                         "type": "boolean",
                         "example": true
@@ -14635,6 +14774,10 @@
                     "description": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "provider_count": {
+                        "description": "Verified providers with public services in this category (list endpoint only)",
+                        "type": "integer"
                     },
                     "subcategories": {
                         "type": "array",
@@ -14731,6 +14874,196 @@
                     }
                 },
                 "type": "object"
+            },
+            "ProviderService": {
+                "description": "A provider's own service with its moderation state.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ClientService"
+                    },
+                    {
+                        "properties": {
+                            "category_id": {
+                                "type": "integer"
+                            },
+                            "subcategory_id": {
+                                "type": "integer",
+                                "nullable": true
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": [
+                                    "draft",
+                                    "published",
+                                    "archived"
+                                ]
+                            },
+                            "approval_status": {
+                                "type": "string",
+                                "enum": [
+                                    "pending",
+                                    "approved",
+                                    "rejected"
+                                ]
+                            },
+                            "rejection_reason": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "is_featured": {
+                                "type": "boolean"
+                            },
+                            "is_hidden": {
+                                "type": "boolean"
+                            },
+                            "approved_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderServiceInput": {
+                "description": "Required on create: title, category_id, price, price_type. All fields optional on update.",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 5000
+                    },
+                    "category_id": {
+                        "description": "An enabled service category",
+                        "type": "integer"
+                    },
+                    "subcategory_id": {
+                        "description": "An enabled subcategory of category_id",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "price": {
+                        "description": "Amount in Philippine pesos",
+                        "type": "number",
+                        "format": "float",
+                        "minimum": 0
+                    },
+                    "price_type": {
+                        "type": "string",
+                        "enum": [
+                            "fixed",
+                            "hourly",
+                            "custom"
+                        ]
+                    },
+                    "duration": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 100
+                    },
+                    "location": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 255
+                    }
+                },
+                "type": "object"
+            },
+            "ProviderProfile": {
+                "description": "The signed-in provider's own profile.",
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ClientProvider"
+                    },
+                    {
+                        "properties": {
+                            "user_id": {
+                                "type": "integer"
+                            },
+                            "verification_status": {
+                                "type": "string",
+                                "enum": [
+                                    "pending",
+                                    "verified",
+                                    "rejected",
+                                    "additional_info_required"
+                                ]
+                            },
+                            "verified_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "rejection_reason": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "is_featured": {
+                                "type": "boolean"
+                            },
+                            "is_suspended": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderProfileEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ProviderProfile"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderServiceEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ProviderService"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderServiceListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ProviderService"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ClientProviderSummary": {
                 "properties": {
@@ -14833,6 +15166,18 @@
                     },
                     "completed_bookings": {
                         "type": "integer"
+                    },
+                    "starting_price": {
+                        "description": "Lowest price (PHP) across the provider's public services",
+                        "type": "string",
+                        "example": "1500.00",
+                        "nullable": true
+                    },
+                    "primary_category": {
+                        "description": "Category with the most public services",
+                        "type": "string",
+                        "example": "Appliance Repair",
+                        "nullable": true
                     },
                     "services": {
                         "type": "array",
@@ -15198,6 +15543,25 @@
                         "nullable": true
                     },
                     "ticket_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "action": {
+                        "description": "Service moderation action: approved, rejected, updated, hidden, unhidden, featured, unfeatured, deleted",
+                        "type": "string",
+                        "example": "approved",
+                        "nullable": true
+                    },
+                    "service_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "service_title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "description": "Rejection reason or approval note",
                         "type": "string",
                         "nullable": true
                     }
@@ -15915,6 +16279,10 @@
             "description": "Customer reviews for completed bookings"
         },
         {
+            "name": "Provider Services",
+            "description": "Providers create and manage their own services; every submission and change awaits administrator approval"
+        },
+        {
             "name": "Dashboard",
             "description": "Administrative dashboard summaries, activity, and analytics"
         },
@@ -15948,7 +16316,7 @@
         },
         {
             "name": "Services",
-            "description": "Manage services (view, create, edit, approve, reject, hide, feature, delete)"
+            "description": "Moderate provider services (view, edit, approve, reject, hide, feature, delete)"
         },
         {
             "name": "System Settings",

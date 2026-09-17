@@ -41,13 +41,11 @@ class DashboardService
     /** @return array<string, int> */
     private function userSummary(): array
     {
-        $users = User::query()
-            ->whereDoesntHave('roles')
-            ->whereIn('user_type', self::PLATFORM_USER_TYPES);
+        $users = User::query()->mobileAccounts();
 
         return [
-            'total_clients' => (clone $users)->where('user_type', 'customer')->count(),
-            'total_providers' => (clone $users)->where('user_type', 'provider')->count(),
+            'total_clients' => (clone $users)->customers()->count(),
+            'total_providers' => (clone $users)->providers()->count(),
             'active_users' => (clone $users)->where('status', 'active')->count(),
             'suspended_users' => (clone $users)->where('status', 'suspended')->count(),
         ];
@@ -149,7 +147,7 @@ class DashboardService
         $start = Carbon::now()->subMonths(5)->startOfMonth();
         $end = Carbon::now()->endOfMonth();
         $users = $this->monthlyCounts(User::class, function ($query): void {
-            $query->whereDoesntHave('roles')->whereIn('user_type', self::PLATFORM_USER_TYPES);
+            $query->mobileAccounts();
         }, $start, $end);
         $providers = $this->monthlyCounts(ProviderProfile::class, null, $start, $end);
         $services = $this->monthlyCounts(Service::class, null, $start, $end);
@@ -173,9 +171,9 @@ class DashboardService
             'monthly_activity' => $months,
             'booking_statuses' => $bookingSummary,
             'user_statuses' => [
-                'active' => User::query()->whereDoesntHave('roles')->whereIn('user_type', self::PLATFORM_USER_TYPES)->where('status', 'active')->count(),
-                'suspended' => User::query()->whereDoesntHave('roles')->whereIn('user_type', self::PLATFORM_USER_TYPES)->where('status', 'suspended')->count(),
-                'banned' => User::query()->whereDoesntHave('roles')->whereIn('user_type', self::PLATFORM_USER_TYPES)->where('status', 'banned')->count(),
+                'active' => User::query()->mobileAccounts()->where('status', 'active')->count(),
+                'suspended' => User::query()->mobileAccounts()->where('status', 'suspended')->count(),
+                'banned' => User::query()->mobileAccounts()->where('status', 'banned')->count(),
             ],
         ];
     }

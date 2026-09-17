@@ -2,6 +2,7 @@
 
 namespace App\Modules\Administrators\Requests;
 
+use App\Shared\Enums\AccountRole;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,7 @@ class UpdateAdministratorRequest extends BaseFormRequest
                 'max:255',
                 Rule::unique('users', 'email')->ignore($this->route('administrator')?->id),
             ],
-            'role' => ['sometimes', 'string', Rule::exists('roles', 'name')],
+            'role' => ['sometimes', 'string', Rule::exists('roles', 'name')->whereNotIn('id', AccountRole::accountTypeIds())],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive'])],
         ];
     }

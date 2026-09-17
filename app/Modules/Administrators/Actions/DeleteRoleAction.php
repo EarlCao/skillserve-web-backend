@@ -2,6 +2,7 @@
 
 namespace App\Modules\Administrators\Actions;
 
+use App\Models\User;
 use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Actions\BaseAction;
 use App\Shared\Exceptions\ApiException;
@@ -17,7 +18,7 @@ final class DeleteRoleAction extends BaseAction
      */
     public function handle(Role $role): void
     {
-        if ($role->name === SystemRole::SUPER_ADMIN) {
+        if (SystemRole::isFixed($role)) {
             throw new ApiException(
                 'The system default role cannot be deleted.',
                 422,
@@ -25,8 +26,15 @@ final class DeleteRoleAction extends BaseAction
             );
         }
 
+        $users = User::query()->where('role_id', $role->getKey())->get();
+
         $role->users()->detach();
         $role->permissions()->detach();
+
+        // Accounts whose type pointed at this role fall back to their next
+        // staff role, or become customers (users.role_id cannot dangle).
+        $users->each(fn (User $user) => $user->syncRoleIdFromStaffRoles());
+
         $role->delete();
     }
 }

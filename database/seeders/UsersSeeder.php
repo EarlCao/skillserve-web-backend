@@ -10,8 +10,8 @@ use Illuminate\Database\Seeder;
  * Seeds at least 150 customer accounts so the User Management screens have
  * realistic data to list, search, filter and moderate.
  *
- * Only customers are seeded: every account is created WITHOUT roles and with
- * user_type "customer". Role-bearing accounts are administrators and belong
+ * Only customers are seeded: every account is created with role_id 4
+ * (customer). Role-bearing accounts are administrators and belong
  * to the Administrator Management module, so they are never created here —
  * the only administrator in the database is the bootstrap super-admin from
  * RolePermissionSeeder.
@@ -40,8 +40,7 @@ class UsersSeeder extends Seeder
         $actor = User::query()->whereHas('roles')->first();
 
         $existing = User::query()
-            ->where('user_type', 'customer')
-            ->doesntHave('roles')
+            ->customers()
             ->count();
         $missing = max(0, self::TARGET_USERS - $existing);
 
@@ -129,8 +128,7 @@ class UsersSeeder extends Seeder
     private function statusBreakdown(): string
     {
         return User::query()
-            ->where('user_type', 'customer')
-            ->doesntHave('roles')
+            ->customers()
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->orderBy('status')

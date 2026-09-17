@@ -17,6 +17,10 @@ class ClientCatalogService extends BaseService
     {
         return ServiceCategory::query()
             ->where('status', 'enabled')
+            ->select('service_categories.*')
+            ->addSelect(['provider_count' => $this->publicServicesQuery()
+                ->whereColumn('services.category_id', 'service_categories.id')
+                ->selectRaw('COUNT(DISTINCT services.provider_id)')])
             ->with(['subcategories' => fn ($query) => $query
                 ->where('status', 'enabled')
                 ->orderBy('name')])
@@ -108,7 +112,7 @@ class ClientCatalogService extends BaseService
         return $this->publicProvidersQuery()
             ->whereKey($provider->id)
             ->with([
-                'services' => fn ($query) => $this->applyPublicServiceFilters($query)
+                'services' => fn ($query) => $this->applyPublicServiceFilters($query->getQuery())
                     ->with(['category:id,name', 'subcategory:id,name']),
                 'reviews' => fn ($query) => $query
                     ->where('status', 'active')
@@ -146,9 +150,31 @@ class ClientCatalogService extends BaseService
         return $this->applyPublicServiceFilters(Service::query());
     }
 
+    /**
+     * Verified, active providers with a catalog summary for listing cards:
+     * the lowest price across their public services and the category they
+     * offer most services in.
+     */
     private function publicProvidersQuery(): Builder
     {
+        $primaryCategory = ServiceCategory::query()
+            ->select('service_categories.name')
+            ->join('services', 'services.category_id', '=', 'service_categories.id')
+            ->whereColumn('services.provider_id', 'provider_profiles.id')
+            ->where('service_categories.status', 'enabled')
+            ->where('services.status', 'published')
+            ->where('services.approval_status', 'approved')
+            ->where('services.is_hidden', false)
+            ->whereNull('services.deleted_at')
+            ->groupBy('service_categories.id', 'service_categories.name')
+            ->orderByRaw('COUNT(*) DESC')
+            ->orderBy('service_categories.name')
+            ->limit(1);
+
         return ProviderProfile::query()
+            ->select('provider_profiles.*')
+            ->addSelect(['primary_category' => $primaryCategory])
+            ->withMin(['services as starting_price' => fn ($query) => $this->applyPublicServiceFilters($query)], 'price')
             ->where('verification_status', 'verified')
             ->whereNull('suspended_at')
             ->whereHas('user', fn ($query) => $query

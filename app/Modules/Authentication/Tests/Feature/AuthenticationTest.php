@@ -134,7 +134,7 @@ class AuthenticationTest extends TestCase
     public function test_me_returns_authenticated_user_with_roles_and_permissions(): void
     {
         Permission::findOrCreate('view reports');
-        $role = Role::create(['name' => 'admin']);
+        $role = Role::findOrCreate('admin');
         $role->givePermissionTo('view reports');
 
         $user = $this->createUser();

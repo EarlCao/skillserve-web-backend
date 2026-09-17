@@ -3,8 +3,8 @@
 namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
-use App\Modules\ClientAuthentication\Services\ClientEmailOtpService;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Shared\Enums\AccountRole;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -37,7 +37,7 @@ class ClientProviderRegistrationService
                 'name' => trim($validated['first_name'].' '.$validated['last_name']),
                 'email' => $validated['email'],
                 'password' => $validated['password'],
-                'user_type' => 'provider',
+                'role_id' => AccountRole::Provider->value,
                 'status' => 'active',
             ]);
 

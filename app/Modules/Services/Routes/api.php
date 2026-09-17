@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('services')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [ServiceController::class, 'index']);
-    Route::post('/', [ServiceController::class, 'store']);
     Route::get('/{service}', [ServiceController::class, 'show']);
     Route::put('/{service}', [ServiceController::class, 'update']);
     Route::patch('/{service}', [ServiceController::class, 'update']);

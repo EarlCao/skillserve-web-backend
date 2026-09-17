@@ -4,14 +4,12 @@ namespace App\Modules\Services\Services;
 
 use App\Models\User;
 use App\Modules\Services\Actions\ApproveServiceAction;
-use App\Modules\Services\Actions\CreateServiceAction;
 use App\Modules\Services\Actions\DeleteServiceAction;
 use App\Modules\Services\Actions\FeatureServiceAction;
 use App\Modules\Services\Actions\HideServiceAction;
 use App\Modules\Services\Actions\RejectServiceAction;
 use App\Modules\Services\Actions\UpdateServiceAction;
 use App\Modules\Services\Events\ServiceApproved;
-use App\Modules\Services\Events\ServiceCreated;
 use App\Modules\Services\Events\ServiceDeleted;
 use App\Modules\Services\Events\ServiceFeatured;
 use App\Modules\Services\Events\ServiceHidden;
@@ -34,7 +32,6 @@ class ServiceService extends BaseService
     private const SORTABLE = ['title', 'created_at', 'average_rating', 'price'];
 
     public function __construct(
-        private readonly CreateServiceAction $createServiceAction,
         private readonly UpdateServiceAction $updateServiceAction,
         private readonly ApproveServiceAction $approveServiceAction,
         private readonly RejectServiceAction $rejectServiceAction,
@@ -117,24 +114,6 @@ class ServiceService extends BaseService
             'updatedBy:id,name',
             'approvedBy:id,name',
         ]);
-    }
-
-    /**
-     * Create a service and record the activity.
-     *
-     * @param  array<string, mixed>  $validated
-     */
-    public function store(array $validated, User $actor): Service
-    {
-        return $this->transaction(function () use ($validated, $actor): Service {
-            $service = $this->createServiceAction->handle($validated, $actor);
-
-            $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
-
-            event(new ServiceCreated(service: $service, actor: $actor, data: $validated));
-
-            return $service;
-        });
     }
 
     /**

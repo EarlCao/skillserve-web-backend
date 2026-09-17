@@ -2,6 +2,7 @@
 
 namespace App\Modules\Administrators\Requests;
 
+use App\Shared\Enums\AccountRole;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -20,7 +21,7 @@ class StoreAdministratorRequest extends BaseFormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
-            'role' => ['required', 'string', Rule::exists('roles', 'name')],
+            'role' => ['required', 'string', Rule::exists('roles', 'name')->whereNotIn('id', AccountRole::accountTypeIds())],
         ];
     }
 

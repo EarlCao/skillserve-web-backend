@@ -30,7 +30,7 @@ class ClientNotificationController extends Controller
         responses: [
             new OA\Response(response: 200, description: 'Paginated notification inbox', content: new OA\JsonContent(ref: '#/components/schemas/ClientNotificationListEnvelope')),
             new OA\Response(response: 401, description: 'Unauthenticated'),
-            new OA\Response(response: 403, description: 'Active, verified client access required'),
+            new OA\Response(response: 403, description: 'Active, verified customer or provider account required'),
             new OA\Response(response: 422, description: 'Invalid pagination'),
         ],
     )]
@@ -48,7 +48,7 @@ class ClientNotificationController extends Controller
         summary: 'Count unread customer notifications',
         tags: ['Client Notifications'],
         security: [['bearerAuth' => []]],
-        responses: [new OA\Response(response: 200, description: 'Unread count', content: new OA\JsonContent(ref: '#/components/schemas/ClientUnreadCountEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required')],
+        responses: [new OA\Response(response: 200, description: 'Unread count', content: new OA\JsonContent(ref: '#/components/schemas/ClientUnreadCountEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required')],
     )]
     public function unreadCount(Request $request): JsonResponse
     {
@@ -65,7 +65,7 @@ class ClientNotificationController extends Controller
         parameters: [new OA\Parameter(name: 'notification', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
         responses: [
             new OA\Response(response: 200, description: 'Notification marked read', content: new OA\JsonContent(ref: '#/components/schemas/ClientNotificationEnvelope')),
-            new OA\Response(response: 403, description: 'Active, verified client access required'),
+            new OA\Response(response: 403, description: 'Active, verified customer or provider account required'),
             new OA\Response(response: 404, description: 'Notification not found'),
         ],
     )]
@@ -82,7 +82,7 @@ class ClientNotificationController extends Controller
         summary: 'Mark all owned notifications as read',
         tags: ['Client Notifications'],
         security: [['bearerAuth' => []]],
-        responses: [new OA\Response(response: 200, description: 'Notifications marked read', content: new OA\JsonContent(ref: '#/components/schemas/ClientReadAllEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required')],
+        responses: [new OA\Response(response: 200, description: 'Notifications marked read', content: new OA\JsonContent(ref: '#/components/schemas/ClientReadAllEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required')],
     )]
     public function readAll(Request $request): JsonResponse
     {

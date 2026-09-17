@@ -7,11 +7,14 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
+use App\Shared\Enums\AccountRole;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -25,12 +28,113 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
+#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'role_id', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
     /** @use HasFactory<UserFactory> */
     use CanResetPasswordTrait, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        // New accounts are customers unless a role is given.
+        static::creating(function (User $user): void {
+            $user->role_id ??= AccountRole::Customer->value;
+        });
+
+        // role_id is the source of truth: keep the staff role assignment
+        // (which carries permissions) in step with it.
+        static::saved(function (User $user): void {
+            if ($user->wasRecentlyCreated || $user->wasChanged('role_id')) {
+                $user->syncStaffRoleFromRoleId();
+            }
+        });
+    }
+
+    /**
+     * The role that classifies this account (users.role_id → roles.id).
+     */
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(config('permission.models.role'), 'role_id');
+    }
+
+    /**
+     * Account type derived from the role: "customer", "provider" or "admin".
+     * Setting it (e.g. `'user_type' => 'provider'`) sets role_id.
+     */
+    protected function userType(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => AccountRole::userTypeFor($this->role_id === null ? null : (int) $this->role_id),
+            set: fn (string $value) => ['role_id' => AccountRole::idForUserType($value)],
+        );
+    }
+
+    public function isAdministrator(): bool
+    {
+        return $this->role_id !== null && ! in_array((int) $this->role_id, AccountRole::accountTypeIds(), true);
+    }
+
+    public function scopeCustomers(Builder $query): Builder
+    {
+        return $query->where('role_id', AccountRole::Customer->value);
+    }
+
+    public function scopeProviders(Builder $query): Builder
+    {
+        return $query->where('role_id', AccountRole::Provider->value);
+    }
+
+    /**
+     * Customer and provider accounts (the mobile app's users).
+     */
+    public function scopeMobileAccounts(Builder $query): Builder
+    {
+        return $query->whereIn('role_id', AccountRole::accountTypeIds());
+    }
+
+    /**
+     * Assign role_id's staff role, or clear staff roles for mobile accounts.
+     */
+    public function syncStaffRoleFromRoleId(): void
+    {
+        $roleId = (int) $this->role_id;
+
+        if (in_array($roleId, AccountRole::accountTypeIds(), true)) {
+            if ($this->roles()->exists()) {
+                $this->roles()->detach();
+            }
+        } elseif (! $this->roles()->whereKey($roleId)->exists()) {
+            $this->roles()->sync([$roleId]);
+        }
+
+        $this->unsetRelation('roles');
+    }
+
+    /**
+     * Point role_id at the account's primary staff role after its role
+     * assignment changed (super-admin, then admin, then the lowest custom
+     * role); an account left without staff roles becomes a customer.
+     */
+    public function syncRoleIdFromStaffRoles(): void
+    {
+        $roleIds = $this->roles()->pluck('roles.id')->map(fn ($id) => (int) $id)->all();
+
+        $roleId = match (true) {
+            in_array(AccountRole::SuperAdmin->value, $roleIds, true) => AccountRole::SuperAdmin->value,
+            in_array(AccountRole::Admin->value, $roleIds, true) => AccountRole::Admin->value,
+            $roleIds !== [] => min($roleIds),
+            $this->isAdministrator() => AccountRole::Customer->value,
+            default => (int) $this->role_id,
+        };
+
+        if ($roleId !== (int) $this->role_id) {
+            $this->forceFill(['role_id' => $roleId])->saveQuietly();
+        }
+
+        $this->unsetRelation('roles');
+    }
 
     /**
      * The administrator who created this account.
@@ -116,23 +220,20 @@ class User extends Authenticatable implements CanResetPasswordContract
     }
 
     /**
-     * Client accounts are intentionally roleless; role-bearing accounts use
-     * the administrator authentication surface instead.
+     * Customer accounts (role 4) use the mobile client surface.
      */
     public function isClientAccount(): bool
     {
-        return $this->user_type === 'customer' && ! $this->roles()->exists();
+        return (int) $this->role_id === AccountRole::Customer->value;
     }
 
     /**
-     * Provider accounts self-registered through the mobile app. They use the
-     * same client session surface as customers, but carry a provider profile
-     * pending administrator verification.
+     * Provider accounts (role 3) self-registered through the mobile app, with
+     * a provider profile pending or past administrator verification.
      */
     public function isMobileProviderAccount(): bool
     {
-        return $this->user_type === 'provider'
-            && ! $this->roles()->exists()
+        return (int) $this->role_id === AccountRole::Provider->value
             && $this->providerProfile()->exists();
     }
 

@@ -11,6 +11,7 @@ use App\Modules\Administrators\Events\RoleCreated;
 use App\Modules\Administrators\Events\RoleDeleted;
 use App\Modules\Administrators\Events\RolePermissionsSynced;
 use App\Modules\Administrators\Events\RoleUpdated;
+use App\Shared\Enums\AccountRole;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Spatie\Permission\Models\Role;
@@ -37,7 +38,8 @@ class RoleService extends BaseService
      */
     public function index(array $filters): LengthAwarePaginator
     {
-        $query = Role::query()->with('permissions');
+        // Provider and customer rows classify mobile accounts; they are not staff roles.
+        $query = Role::query()->whereNotIn('id', AccountRole::accountTypeIds())->with('permissions');
 
         if ($search = trim((string) ($filters['search'] ?? ''))) {
             $term = '%'.mb_strtolower($search).'%';

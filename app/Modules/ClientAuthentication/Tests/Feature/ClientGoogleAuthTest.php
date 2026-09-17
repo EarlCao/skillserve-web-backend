@@ -56,7 +56,7 @@ class ClientGoogleAuthTest extends TestCase
         $response->assertOk();
         $this->assertDatabaseHas('users', [
             'email' => 'new.google.user@gmail.com',
-            'user_type' => 'customer',
+            'role_id' => 4,
             'google_sub' => 'google-sub-123',
         ]);
 

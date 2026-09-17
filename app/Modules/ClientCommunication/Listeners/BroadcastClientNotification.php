@@ -10,7 +10,7 @@ class BroadcastClientNotification
 {
     public function handle(NotificationSent $event): void
     {
-        if ($event->channel !== 'database' || ! $event->notifiable instanceof User || ! $event->notifiable->isClientAccount()) {
+        if ($event->channel !== 'database' || ! $event->notifiable instanceof User || ! $event->notifiable->isMobileAccount()) {
             return;
         }
 

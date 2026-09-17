@@ -69,7 +69,7 @@ class ProviderRecognitionService extends BaseService
         $query = $this->withAggregates(ProviderProfile::query())
             ->with(['user:id,name,email', 'badges'])
             ->whereNull('suspended_at')
-            ->whereHas('user', fn ($user) => $user->where('user_type', 'provider')->where('status', 'active'));
+            ->whereHas('user', fn ($user) => $user->providers()->where('status', 'active'));
         $this->applyProviderFilters($query, $filters);
 
         $sort = in_array($filters['sort'] ?? null, self::SORTABLE, true) ? $filters['sort'] : 'created_at';
@@ -89,7 +89,7 @@ class ProviderRecognitionService extends BaseService
             ->where('verification_status', 'verified')
             ->whereHas('reviews', fn ($reviewQuery) => $reviewQuery->where('status', 'active'))
             ->whereNull('suspended_at')
-            ->whereHas('user', fn ($user) => $user->where('user_type', 'provider')->where('status', 'active'));
+            ->whereHas('user', fn ($user) => $user->providers()->where('status', 'active'));
         $this->applyProviderFilters($query, $filters);
 
         if (! empty($filters['min_rating'])) {
@@ -207,7 +207,7 @@ class ProviderRecognitionService extends BaseService
 
     private function assertEligibleProvider(ProviderProfile $provider, bool $requireVerified = false): void
     {
-        $provider->loadMissing('user:id,user_type,status');
+        $provider->loadMissing('user:id,role_id,status');
 
         if ($provider->user?->user_type !== 'provider' || $provider->user?->status !== 'active') {
             throw new ApiException('Only active provider accounts can receive recognition.', 422);

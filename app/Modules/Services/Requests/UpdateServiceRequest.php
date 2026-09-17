@@ -29,11 +29,14 @@ class UpdateServiceRequest extends BaseFormRequest
                 Rule::exists('service_subcategories', 'id')
                     ->where(fn ($query) => $query->where('category_id', $categoryId)),
             ],
-            'price' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'price_type' => ['sometimes', 'string', Rule::in(['fixed', 'hourly', 'custom'])],
-            'currency' => ['sometimes', 'string', 'max:3'],
-            'duration' => ['sometimes', 'nullable', 'string', 'max:100'],
-            'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            // Owned by the provider (set through the client API); administrators
+            // moderate listings but never change the provider's offer.
+            'provider_id' => ['prohibited'],
+            'price' => ['prohibited'],
+            'price_type' => ['prohibited'],
+            'currency' => ['prohibited'],
+            'duration' => ['prohibited'],
+            'location' => ['prohibited'],
             'status' => ['sometimes', 'string', Rule::in(['draft', 'published', 'archived'])],
             'is_featured' => ['sometimes', 'boolean'],
             'is_hidden' => ['sometimes', 'boolean'],
@@ -48,6 +51,12 @@ class UpdateServiceRequest extends BaseFormRequest
         return [
             'category_id.exists' => 'The selected category does not exist.',
             'subcategory_id.exists' => 'The selected subcategory does not exist.',
+            'provider_id.prohibited' => 'Only the provider can change who offers this service.',
+            'price.prohibited' => 'Only the provider can change the price.',
+            'price_type.prohibited' => 'Only the provider can change the price type.',
+            'currency.prohibited' => 'Only the provider can change the currency.',
+            'duration.prohibited' => 'Only the provider can change the duration.',
+            'location.prohibited' => 'Only the provider can change the location.',
         ];
     }
 }

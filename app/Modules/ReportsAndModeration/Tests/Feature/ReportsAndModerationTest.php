@@ -12,6 +12,7 @@ use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -151,7 +152,10 @@ class ReportsAndModerationTest extends TestCase
         return Report::create(array_merge([
             'reportable_type' => $target->getMorphClass(),
             'reportable_id' => $target->id,
-            'reporter_id' => $this->createCustomer()->id,
+            // Digit-free email: searching by report ID also matches reporter
+            // emails, so a random faker email containing the ID made the
+            // search-by-ID assertion flaky.
+            'reporter_id' => $this->createCustomer(['email' => 'reporter.'.Str::lower(Str::password(12, letters: true, numbers: false, symbols: false, spaces: false)).'@skillserve.test'])->id,
             'reason' => 'fraud',
             'description' => 'Reported for review.',
             'status' => 'pending',
