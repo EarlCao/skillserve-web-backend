@@ -19,15 +19,37 @@ php artisan view:cache
 php artisan migrate --force
 php artisan db:seed-if-empty
 
-# Keep a background process alive: restart it whenever it exits.
+# Keep a background process alive: restart it shortly after it exits.
 supervise() {
-    (while true; do "$@" || true; sleep 5; done) > /dev/null 2>&1 &
+    (while true; do "$@" || true; sleep 1; done) > /dev/null 2>&1 &
 }
 
-supervise php artisan serve --host=127.0.0.1 --port=8000
+# Wait until something accepts connections on 127.0.0.1:$1 (max $2 seconds).
+wait_for_port() {
+    tries=0
+    until php -r 'exit(@fsockopen("127.0.0.1", (int) $argv[1], $e, $m, 1) ? 0 : 1);' "$1"; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge "$2" ]; then
+            echo "Port $1 did not open within $2s; starting nginx anyway." >&2
+            return 0
+        fi
+        sleep 1
+    done
+}
+
+# PHP's built-in server directly (what `artisan serve` wraps): `artisan serve`
+# ignores PHP_CLI_SERVER_WORKERS unless --no-reload is passed, and it hops to
+# another port when 8000 is still held by a dying process.
+# The router script treats the working directory as public/.
+supervise sh -c 'cd public && exec php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
 supervise php artisan reverb:start --host=127.0.0.1 --port=8080
 supervise php artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=90 --max-time=3600
 supervise php artisan schedule:work
+
+# Open the public port only once the app and Reverb are ready, so Render
+# never routes requests to a server that is still starting.
+wait_for_port 8000 60
+wait_for_port 8080 30
 
 sed "s/__PORT__/${PORT:-10000}/" deploy/render/nginx.conf > /tmp/nginx.conf
 exec nginx -e /dev/stderr -c /tmp/nginx.conf -g 'daemon off;'
