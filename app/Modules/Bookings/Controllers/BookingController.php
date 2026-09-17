@@ -63,7 +63,7 @@ class BookingController extends Controller
                                 'total_price' => 150.00,
                                 'service_price' => 150.00,
                                 'platform_fee' => 15.00,
-                                'currency' => 'USD',
+                                'currency' => 'PHP',
                                 'scheduled_date' => '2026-09-01T10:00:00+00:00',
                                 'service' => ['id' => 1, 'title' => 'Emergency Pipe Repair'],
                                 'client' => ['id' => 3, 'name' => 'Alice Customer'],

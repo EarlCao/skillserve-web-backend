@@ -24,7 +24,7 @@ final class CreateServiceAction extends BaseAction
             'subcategory_id' => $validated['subcategory_id'] ?? null,
             'price' => $validated['price'] ?? null,
             'price_type' => $validated['price_type'] ?? 'fixed',
-            'currency' => $validated['currency'] ?? 'USD',
+            'currency' => $validated['currency'] ?? 'PHP',
             'duration' => $validated['duration'] ?? null,
             'location' => $validated['location'] ?? null,
             'status' => 'draft',

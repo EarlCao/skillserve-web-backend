@@ -134,7 +134,7 @@ class BookingSeeder extends Seeder
                 'total_price' => $data['price'],
                 'service_price' => $data['sp'],
                 'platform_fee' => $data['fee'],
-                'currency' => 'USD',
+                'currency' => 'PHP',
                 'payment_method' => $data['ps'] === 'paid' ? 'credit_card' : null,
                 'client_notes' => $data['cn'] ?? null,
                 'provider_notes' => $data['pn'] ?? null,
