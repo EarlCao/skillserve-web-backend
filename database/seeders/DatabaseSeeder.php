@@ -34,6 +34,8 @@ class DatabaseSeeder extends Seeder
             UsersSeeder::class,
             ServiceCategorySeeder::class,
             ProviderSeeder::class,
+            // After ProviderSeeder: it tops up to a fixed profile count.
+            DemoAccountSeeder::class,
             ProviderRecognitionSeeder::class,
             ServiceSeeder::class,
             BookingSeeder::class,

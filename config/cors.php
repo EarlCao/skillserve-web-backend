@@ -15,10 +15,12 @@ return [
         'http://127.0.0.1:5173',
     ],
 
-    'allowed_origins_patterns' => [
+    'allowed_origins_patterns' => array_values(array_filter([
         '/^https:\/\/.*\.vercel\.app$/',
         '/^https:\/\/.*\.onrender\.com$/',
-    ],
+        // Local only: `flutter run -d edge/chrome` serves on a random localhost port.
+        env('APP_ENV') === 'local' ? '/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/' : null,
+    ])),
 
     'allowed_headers' => ['*'],
 
