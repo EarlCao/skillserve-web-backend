@@ -177,8 +177,9 @@ class UserManagementTest extends TestCase
     public function test_profile_summary_uses_authoritative_relational_counts(): void
     {
         [, $token] = $this->actingManager();
-        $target = $this->createUser(['user_type' => 'provider']);
-        $provider = ProviderProfile::create(['user_id' => $target->id, 'business_name' => 'Counted Provider']);
+        $target = $this->createUser();
+        $providerUser = $this->createUser(['user_type' => 'provider']);
+        $provider = ProviderProfile::create(['user_id' => $providerUser->id, 'business_name' => 'Counted Provider']);
         $category = ServiceCategory::create(['name' => 'Counts '.uniqid(), 'status' => 'enabled']);
         $service = Service::create([
             'provider_id' => $provider->id,
@@ -212,10 +213,40 @@ class UserManagementTest extends TestCase
         $this->withToken($token)
             ->getJson("/api/users/{$target->id}")
             ->assertOk()
-            ->assertJsonPath('data.summary.services_count', 1)
+            ->assertJsonPath('data.summary.services_count', 0)
             ->assertJsonPath('data.summary.bookings_count', 1)
             ->assertJsonPath('data.summary.ratings_count', 0)
             ->assertJsonPath('data.summary.reviews_count', 0);
+    }
+
+    public function test_listing_includes_customers_only(): void
+    {
+        [, $token] = $this->actingManager();
+        $customer = $this->createUser();
+        $provider = $this->createUser(['user_type' => 'provider']);
+
+        $ids = collect($this->withToken($token)->getJson('/api/users?per_page=100')->assertOk()->json('data'))
+            ->pluck('id');
+
+        $this->assertContains($customer->id, $ids);
+        $this->assertNotContains($provider->id, $ids);
+    }
+
+    public function test_provider_accounts_cannot_be_managed_here(): void
+    {
+        [, $token] = $this->actingManager();
+        $provider = $this->createUser(['user_type' => 'provider']);
+
+        $this->withToken($token)
+            ->getJson("/api/users/{$provider->id}")
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Provider accounts are managed in Provider Management.');
+
+        $this->withToken($token)
+            ->patchJson("/api/users/{$provider->id}/suspend", ['reason' => 'Should not apply'])
+            ->assertStatus(422);
+
+        $this->assertSame('active', $provider->fresh()->status);
     }
 
     public function test_show_returns_404_for_a_deleted_user(): void

@@ -36,12 +36,11 @@ class UserController extends Controller
      */
     #[OA\Get(
         path: '/api/users',
-        summary: 'List platform users',
+        summary: 'List customer accounts',
         tags: ['Users'],
         security: [['bearerAuth' => []]],
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Search by name, email or user ID', required: false, schema: new OA\Schema(type: 'string')),
-            new OA\Parameter(name: 'user_type', in: 'query', description: 'Filter by user type', required: false, schema: new OA\Schema(type: 'string', enum: ['customer'])),
             new OA\Parameter(name: 'status', in: 'query', description: 'Filter by account status', required: false, schema: new OA\Schema(type: 'string', enum: ['active', 'suspended', 'banned'])),
             new OA\Parameter(name: 'verification', in: 'query', description: 'Filter by verification status', required: false, schema: new OA\Schema(type: 'string', enum: ['verified', 'unverified'])),
             new OA\Parameter(name: 'sort', in: 'query', description: 'Sort column', required: false, schema: new OA\Schema(type: 'string', enum: ['name', 'created_at', 'last_login_at'], default: 'created_at')),
@@ -115,7 +114,7 @@ class UserController extends Controller
         $this->authorize('view users', User::class);
 
         $paginator = $this->userManagementService->index($request->only([
-            'search', 'user_type', 'status', 'verification', 'sort', 'direction', 'per_page',
+            'search', 'status', 'verification', 'sort', 'direction', 'per_page',
         ]));
 
         return $this->paginated($paginator, UserManagementResource::class, 'Users retrieved.');

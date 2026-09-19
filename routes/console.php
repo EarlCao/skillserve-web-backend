@@ -12,3 +12,6 @@ Artisan::command('inspire', function () {
 // logins also auto-recover expired bans). Requires the scheduler to run —
 // the backend container starts `schedule:work` alongside the web server.
 Schedule::command('users:unban-expired')->everyMinute();
+
+// Permanently remove deleted reviews, reports and messages 30 days after deletion.
+Schedule::command('data-management:purge-expired')->daily();

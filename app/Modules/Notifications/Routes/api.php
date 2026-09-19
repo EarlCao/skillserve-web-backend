@@ -7,4 +7,5 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function (): v
     Route::get('/', [NotificationController::class, 'index']);
     Route::get('/recipients', [NotificationController::class, 'recipients']);
     Route::post('/announcements', [NotificationController::class, 'store']);
+    Route::delete('/announcements/{announcement}', [NotificationController::class, 'destroy']);
 });

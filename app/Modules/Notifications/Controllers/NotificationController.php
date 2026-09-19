@@ -83,4 +83,16 @@ class NotificationController extends Controller
             201,
         );
     }
+
+    #[OA\Delete(path: '/api/notifications/announcements/{announcement}', summary: 'Remove an announcement from the history', description: 'Cancels a scheduled or pending announcement. Notifications already delivered stay in the recipients\' inboxes.', tags: ['Notifications'], security: [['bearerAuth' => []]], parameters: [
+        new OA\Parameter(name: 'announcement', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+    ], responses: [new OA\Response(response: 200, description: 'Announcement removed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'Announcement not found')])]
+    public function destroy(Announcement $announcement): JsonResponse
+    {
+        $this->authorize('delete', $announcement);
+
+        $this->announcementService->destroy($announcement);
+
+        return $this->success(null, 'Announcement removed.');
+    }
 }

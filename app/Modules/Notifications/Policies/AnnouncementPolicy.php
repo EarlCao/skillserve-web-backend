@@ -16,4 +16,9 @@ class AnnouncementPolicy extends BasePolicy
     {
         return $user->hasPermissionTo('send announcements');
     }
+
+    public function delete(User $user): bool
+    {
+        return $user->hasPermissionTo('send announcements');
+    }
 }

@@ -63,6 +63,42 @@ class ReviewRemovalTest extends TestCase
         ]);
     }
 
+    public function test_deleted_reviews_are_purged_after_thirty_days_but_users_are_not(): void
+    {
+        Permission::findOrCreate('manage deleted records');
+        $role = Role::create(['name' => 'records-manager']);
+        $role->syncPermissions(['manage deleted records']);
+        $admin = User::factory()->create(['status' => 'active']);
+        $admin->assignRole($role);
+
+        $expired = $this->createReview();
+        $recent = $this->createReview();
+        $expired->delete();
+        $recent->delete();
+        $expired->forceFill(['deleted_at' => now()->subDays(31)])->saveQuietly();
+        $recent->forceFill(['deleted_at' => now()->subDays(29)])->saveQuietly();
+
+        $deletedUser = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+        $deletedUser->delete();
+        $deletedUser->forceFill(['deleted_at' => now()->subDays(60)])->saveQuietly();
+
+        $records = collect($this->withToken($admin->createToken('test')->plainTextToken)
+            ->getJson('/api/data-management/deleted?per_page=100')
+            ->assertOk()
+            ->json('data'))->keyBy(fn ($record) => $record['resource_type'].'-'.$record['resource_id']);
+
+        $this->assertTrue($records["reviews-{$recent->id}"]['can_permanently_delete']);
+        $this->assertNotNull($records["reviews-{$recent->id}"]['purge_at']);
+        $this->assertFalse($records["users-{$deletedUser->id}"]['can_permanently_delete']);
+        $this->assertNull($records["users-{$deletedUser->id}"]['purge_at']);
+
+        $this->artisan('data-management:purge-expired')->assertSuccessful();
+
+        $this->assertDatabaseMissing('reviews', ['id' => $expired->id]);
+        $this->assertSoftDeleted('reviews', ['id' => $recent->id]);
+        $this->assertSoftDeleted('users', ['id' => $deletedUser->id]);
+    }
+
     private function createReview(): Review
     {
         $client = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);

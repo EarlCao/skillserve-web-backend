@@ -109,6 +109,16 @@ class AnnouncementService extends BaseService
         return $announcement;
     }
 
+    /**
+     * Remove an announcement from the history. A scheduled or pending one is
+     * cancelled (its queued job is dropped); notifications already delivered
+     * stay in the recipients' inboxes.
+     */
+    public function destroy(Announcement $announcement): void
+    {
+        $announcement->delete();
+    }
+
     public function deliver(Announcement $announcement): void
     {
         if (! $this->settingsService->value('notifications', 'announcement_notifications_enabled')) {

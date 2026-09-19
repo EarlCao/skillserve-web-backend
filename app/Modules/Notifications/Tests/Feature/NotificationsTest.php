@@ -72,6 +72,57 @@ class NotificationsTest extends TestCase
             ->assertJsonStructure(['errors' => ['recipient_ids']]);
     }
 
+    public function test_authorized_administrator_can_remove_an_announcement_and_delivered_copies_remain(): void
+    {
+        [, $token] = $this->actingAdministrator(['view notifications', 'send announcements']);
+        $recipient = $this->createRecipient('customer@example.test', 'customer');
+
+        // Sync queue: the announcement is delivered immediately.
+        $id = $this->withToken($token)
+            ->postJson('/api/notifications/announcements', [
+                'title' => 'Delivered',
+                'message' => 'Already in the inbox.',
+                'target' => 'all',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->assertSame(1, $recipient->notifications()->count());
+
+        $this->withToken($token)
+            ->deleteJson("/api/notifications/announcements/{$id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Announcement removed.');
+
+        $this->assertFalse(Announcement::query()->whereKey($id)->exists());
+        $this->assertSame(1, $recipient->notifications()->count());
+
+        $this->withToken($token)
+            ->deleteJson("/api/notifications/announcements/{$id}")
+            ->assertNotFound();
+    }
+
+    public function test_removing_an_announcement_requires_the_send_permission(): void
+    {
+        [$actor, $token] = $this->actingAdministrator(['view notifications']);
+        $announcement = Announcement::query()->create([
+            'created_by' => $actor->id,
+            'title' => 'Scheduled',
+            'message' => 'Later.',
+            'target' => 'all',
+            'recipient_ids' => [],
+            'recipient_count' => 0,
+            'status' => 'scheduled',
+            'scheduled_at' => now()->addDay(),
+        ]);
+
+        $this->withToken($token)
+            ->deleteJson("/api/notifications/announcements/{$announcement->id}")
+            ->assertForbidden();
+
+        $this->assertTrue(Announcement::query()->whereKey($announcement->id)->exists());
+    }
+
     private function actingAdministrator(array $permissions): array
     {
         foreach (array_merge(['manage administrators'], $permissions) as $permission) {

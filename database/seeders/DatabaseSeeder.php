@@ -12,15 +12,15 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * Set SEED_MODE=admin-only to seed only the super-admin account
-     * (empty database with one admin user). The default mode seeds
+     * Set SEED_MODE=admin-only to seed only the super-admin and admin
+     * accounts (otherwise empty database). The default mode seeds
      * the full demo dataset.
      */
     public function run(): void
     {
         $mode = env('SEED_MODE', 'demo');
 
-        // Roles, permissions, and the super-admin account are always required.
+        // Roles, permissions, and the super-admin and admin accounts are always required.
         $this->call([
             RolePermissionSeeder::class,
         ]);

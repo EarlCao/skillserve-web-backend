@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Shared\Enums\AccountRole;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use LogicException;
@@ -12,7 +13,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Seeds the Role-Based Access Control catalog and the bootstrap
- * super-admin account used for the first login.
+ * super-admin and admin accounts used for the first login.
  *
  * Permission names use the "manage <entity>" convention and are meant to
  * grow with each phase — modules create their own permissions here later.
@@ -123,6 +124,8 @@ class RolePermissionSeeder extends Seeder
             [
                 'name' => 'System Administrator',
                 'password' => Hash::make(env('ADMIN_PASSWORD', 'SkillServe#2026')),
+                // Explicit: DatabaseSeeder mutes the model hook that defaults role_id.
+                'role_id' => AccountRole::SuperAdmin->value,
             ],
         );
 
@@ -130,22 +133,20 @@ class RolePermissionSeeder extends Seeder
             $adminUser->assignRole('super-admin');
         }
 
-        // Skip the system admin in admin-only mode (SEED_MODE=admin-only).
-        if (env('SEED_MODE', 'demo') !== 'admin-only') {
-            // Exactly one ordinary administrator (override via SYSTEM_ADMIN_EMAIL /
-            // SYSTEM_ADMIN_PASSWORD in .env). Role-bearing accounts are managed in
-            // the Administrator Management module, never in User Management.
-            $systemAdmin = User::query()->firstOrCreate(
-                ['email' => env('SYSTEM_ADMIN_EMAIL', 'system@skillserve.test')],
-                [
-                    'name' => 'System Admin',
-                    'password' => Hash::make(env('SYSTEM_ADMIN_PASSWORD', 'SkillServe#2026')),
-                ],
-            );
+        // Exactly one ordinary administrator, seeded in every mode (override via
+        // SYSTEM_ADMIN_EMAIL / SYSTEM_ADMIN_PASSWORD in .env). Role-bearing accounts
+        // are managed in the Administrator Management module, never in User Management.
+        $systemAdmin = User::query()->firstOrCreate(
+            ['email' => env('SYSTEM_ADMIN_EMAIL', 'system@skillserve.test')],
+            [
+                'name' => 'System Admin',
+                'password' => Hash::make(env('SYSTEM_ADMIN_PASSWORD', 'SkillServe#2026')),
+                'role_id' => AccountRole::Admin->value,
+            ],
+        );
 
-            if (! $systemAdmin->hasRole('admin')) {
-                $systemAdmin->assignRole('admin');
-            }
+        if (! $systemAdmin->hasRole('admin')) {
+            $systemAdmin->assignRole('admin');
         }
     }
 }

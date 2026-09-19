@@ -15,7 +15,6 @@ use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
-use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -48,14 +47,14 @@ class UserManagementService extends BaseService
     /**
      * Paginated, searchable, filterable, sortable user listing.
      *
-     * @param  array{search?: string, user_type?: string, status?: string, verification?: string, sort?: string, direction?: string, per_page?: int}  $filters
+     * @param  array{search?: string, status?: string, verification?: string, sort?: string, direction?: string, per_page?: int}  $filters
      */
     public function index(array $filters): LengthAwarePaginator
     {
         $query = User::query()
-            // User Management = platform users; role-bearing accounts are
-            // administrators and are managed by Administrator Management.
-            ->doesntHave('roles')
+            // Customer Management lists customers only: administrators and
+            // providers have their own management modules.
+            ->customers()
             // roles + permissions are read by the base UserResource — eager
             // loading them avoids an N+1 on every row of the listing.
             ->with(['roles', 'roles.permissions', 'createdBy:id,name'])
@@ -78,10 +77,6 @@ class UserManagementService extends BaseService
                     $q->orWhere('id', (int) $search);
                 }
             });
-        }
-
-        if ($userType = trim((string) ($filters['user_type'] ?? ''))) {
-            $query->where('role_id', AccountRole::idForUserType($userType));
         }
 
         if ($status = trim((string) ($filters['status'] ?? ''))) {
@@ -285,18 +280,26 @@ class UserManagementService extends BaseService
     }
 
     /**
-     * The Users module manages platform users only — administrator accounts
-     * (role-bearing) are owned by the Administrator Management module.
+     * The Users module manages customer accounts only — administrators and
+     * providers are owned by their own management modules.
      *
-     * @throws ApiException when the account is an administrator.
+     * @throws ApiException when the account is not a customer.
      */
     private function assertPlatformUser(User $user): void
     {
-        if ($user->roles()->exists()) {
+        if ($user->isAdministrator()) {
             throw new ApiException(
                 'Administrator accounts are managed in Administrator Management.',
                 422,
                 errors: ['id' => ['Administrator accounts cannot be managed here.']],
+            );
+        }
+
+        if (! $user->isClientAccount()) {
+            throw new ApiException(
+                'Provider accounts are managed in Provider Management.',
+                422,
+                errors: ['id' => ['Provider accounts cannot be managed here.']],
             );
         }
     }

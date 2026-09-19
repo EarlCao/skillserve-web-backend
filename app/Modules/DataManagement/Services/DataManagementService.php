@@ -15,6 +15,7 @@ use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class DataManagementService extends BaseService
@@ -101,11 +102,23 @@ class DataManagementService extends BaseService
             return new LengthAwarePaginator([], 0, $this->perPage($filters), (int) ($filters['page'] ?? 1), ['path' => request()->url()]);
         }
 
+        $purgeable = config('data-management.permanent_delete_types');
+        $retentionDays = (int) config('data-management.retention_days');
+
         return DB::query()
             ->fromSub($union, 'deleted_records')
             ->orderByDesc('deleted_at')
             ->orderByDesc('resource_id')
-            ->paginate($this->perPage($filters), ['*'], 'page', max(1, (int) ($filters['page'] ?? 1)));
+            ->paginate($this->perPage($filters), ['*'], 'page', max(1, (int) ($filters['page'] ?? 1)))
+            ->through(function (object $record) use ($purgeable, $retentionDays): object {
+                $canPurge = in_array($record->resource_type, $purgeable, true);
+                $record->can_permanently_delete = $canPurge;
+                $record->purge_at = $canPurge && $record->deleted_at
+                    ? Carbon::parse($record->deleted_at)->addDays($retentionDays)->toIso8601String()
+                    : null;
+
+                return $record;
+            });
     }
 
     public function restoreDeleted(string $type, int $id, User $actor): void
@@ -134,10 +147,46 @@ class DataManagementService extends BaseService
 
         $model = $this->findModel($type, $id, true);
         DB::transaction(function () use ($model, $type, $id, $actor): void {
-            DataArchive::query()->where('resource_type', $type)->where('resource_id', $id)->delete();
-            $model->forceDelete();
+            $this->forceDelete($type, $model);
             activity('data_management')->causedBy($actor)->withProperties(['resource_type' => $type, 'resource_id' => $id])->log('Deleted record permanently removed');
         });
+    }
+
+    /**
+     * Permanently remove purgeable records deleted more than the retention
+     * period ago. Returns the number of records removed per type.
+     *
+     * @return array<string, int>
+     */
+    public function purgeExpired(): array
+    {
+        $cutoff = now()->subDays((int) config('data-management.retention_days'));
+        $purged = [];
+
+        foreach (config('data-management.permanent_delete_types') as $type) {
+            $purged[$type] = 0;
+
+            self::MODELS[$type]::onlyTrashed()
+                ->where('deleted_at', '<=', $cutoff)
+                ->chunkById(100, function ($models) use ($type, &$purged): void {
+                    foreach ($models as $model) {
+                        DB::transaction(fn () => $this->forceDelete($type, $model));
+                        $purged[$type]++;
+                    }
+                });
+        }
+
+        if (array_sum($purged) > 0) {
+            activity('data_management')->withProperties(['purged' => $purged])->log('Expired deleted records permanently removed');
+        }
+
+        return $purged;
+    }
+
+    private function forceDelete(string $type, Model $model): void
+    {
+        DataArchive::query()->where('resource_type', $type)->where('resource_id', $model->getKey())->delete();
+        $model->forceDelete();
     }
 
     private function findModel(string $type, int $id, bool $trashed = false, bool $lock = false): Model

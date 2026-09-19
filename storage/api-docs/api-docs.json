@@ -6461,7 +6461,7 @@
                     "Data Management"
                 ],
                 "summary": "List deleted records",
-                "description": "Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection.",
+                "description": "Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection. Each row includes can_permanently_delete and purge_at (when it is purged automatically; null for types that are never purged).",
                 "operationId": "a69d534f4c275def4e2a9ce369899511",
                 "parameters": [
                     {
@@ -6597,6 +6597,7 @@
                     "Data Management"
                 ],
                 "summary": "Permanently delete a record",
+                "description": "Records of these types are also purged automatically 30 days after deletion.",
                 "operationId": "23cabc6cda195c5e7b609c08d2180c8f",
                 "parameters": [
                     {
@@ -6607,7 +6608,8 @@
                             "type": "string",
                             "enum": [
                                 "messages",
-                                "reports"
+                                "reports",
+                                "reviews"
                             ]
                         }
                     },
@@ -6965,6 +6967,49 @@
                     },
                     "403": {
                         "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/notifications/announcements/{announcement}": {
+            "delete": {
+                "tags": [
+                    "Notifications"
+                ],
+                "summary": "Remove an announcement from the history",
+                "description": "Cancels a scheduled or pending announcement. Notifications already delivered stay in the recipients' inboxes.",
+                "operationId": "b6f34b5ed77143d7aa0505ac374107f9",
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Announcement removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "Announcement not found"
                     }
                 },
                 "security": [
@@ -13177,7 +13222,7 @@
                 "tags": [
                     "Users"
                 ],
-                "summary": "List platform users",
+                "summary": "List customer accounts",
                 "description": "GET /api/users — paginated, searchable, filterable list of platform users.",
                 "operationId": "de627648b749cabc72a2ae5761ba0297",
                 "parameters": [
@@ -13188,18 +13233,6 @@
                         "required": false,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "name": "user_type",
-                        "in": "query",
-                        "description": "Filter by user type",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "enum": [
-                                "customer"
-                            ]
                         }
                     },
                     {

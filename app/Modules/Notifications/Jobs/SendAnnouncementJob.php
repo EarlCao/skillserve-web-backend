@@ -15,6 +15,11 @@ class SendAnnouncementJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * A deleted announcement cancels its pending delivery.
+     */
+    public bool $deleteWhenMissingModels = true;
+
     public function __construct(public readonly Announcement $announcement) {}
 
     public function handle(): void
