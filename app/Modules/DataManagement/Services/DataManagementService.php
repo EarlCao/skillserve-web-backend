@@ -3,6 +3,7 @@
 namespace App\Modules\DataManagement\Services;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\DataManagement\Models\DataArchive;
 use App\Modules\ReportsAndModeration\Models\Message;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class DataManagementService extends BaseService
 {
@@ -40,6 +42,33 @@ class DataManagementService extends BaseService
         'messages' => Message::class,
         'service_categories' => ServiceCategory::class,
         'service_subcategories' => ServiceSubcategory::class,
+    ];
+
+    /**
+     * Rows that still reference a record, as [table, column, label]. A record
+     * with any of them (soft-deleted ones included) is never force-deleted:
+     * the foreign keys would either cascade and silently destroy the related
+     * rows (bookings, provider profiles, services…) or reject the delete.
+     */
+    private const DEPENDENTS = [
+        'users' => [
+            ['bookings', 'client_id', 'booking'],
+            ['provider_profiles', 'user_id', 'provider profile'],
+            ['reviews', 'reviewer_id', 'review'],
+            ['messages', 'sender_id', 'sent message'],
+            ['messages', 'receiver_id', 'received message'],
+        ],
+        'services' => [
+            ['bookings', 'service_id', 'booking'],
+            ['reviews', 'service_id', 'review'],
+        ],
+        'bookings' => [
+            ['reviews', 'booking_id', 'review'],
+        ],
+        'service_categories' => [
+            ['services', 'category_id', 'service'],
+            ['service_subcategories', 'category_id', 'subcategory'],
+        ],
     ];
 
     public function archives(array $filters): LengthAwarePaginator
@@ -111,8 +140,10 @@ class DataManagementService extends BaseService
             ->orderByDesc('resource_id')
             ->paginate($this->perPage($filters), ['*'], 'page', max(1, (int) ($filters['page'] ?? 1)))
             ->through(function (object $record) use ($purgeable, $retentionDays): object {
-                $canPurge = in_array($record->resource_type, $purgeable, true);
+                $blockedBy = $this->blockingDependents($record->resource_type, (int) $record->resource_id);
+                $canPurge = in_array($record->resource_type, $purgeable, true) && $blockedBy === null;
                 $record->can_permanently_delete = $canPurge;
+                $record->blocked_by = $blockedBy;
                 $record->purge_at = $canPurge && $record->deleted_at
                     ? Carbon::parse($record->deleted_at)->addDays($retentionDays)->toIso8601String()
                     : null;
@@ -146,6 +177,11 @@ class DataManagementService extends BaseService
         }
 
         $model = $this->findModel($type, $id, true);
+
+        if ($blockedBy = $this->blockingDependents($type, $id)) {
+            throw new ApiException("This record still has related data ({$blockedBy}). Remove or permanently delete those first.", 409);
+        }
+
         DB::transaction(function () use ($model, $type, $id, $actor): void {
             $this->forceDelete($type, $model);
             activity('data_management')->causedBy($actor)->withProperties(['resource_type' => $type, 'resource_id' => $id])->log('Deleted record permanently removed');
@@ -170,6 +206,11 @@ class DataManagementService extends BaseService
                 ->where('deleted_at', '<=', $cutoff)
                 ->chunkById(100, function ($models) use ($type, &$purged): void {
                     foreach ($models as $model) {
+                        // Kept until its related records are gone.
+                        if ($this->blockingDependents($type, (int) $model->getKey())) {
+                            continue;
+                        }
+
                         DB::transaction(fn () => $this->forceDelete($type, $model));
                         $purged[$type]++;
                     }
@@ -183,9 +224,40 @@ class DataManagementService extends BaseService
         return $purged;
     }
 
+    /**
+     * Human-readable list of rows still referencing the record (e.g.
+     * "2 bookings, 1 review"), or null when it can be force-deleted.
+     */
+    private function blockingDependents(string $type, int $id): ?string
+    {
+        $found = [];
+
+        foreach (self::DEPENDENTS[$type] ?? [] as [$table, $column, $label]) {
+            $count = DB::table($table)->where($column, $id)->count();
+
+            if ($count > 0) {
+                $found[] = $count.' '.Str::plural($label, $count);
+            }
+        }
+
+        return $found === [] ? null : implode(', ', $found);
+    }
+
     private function forceDelete(string $type, Model $model): void
     {
         DataArchive::query()->where('resource_type', $type)->where('resource_id', $model->getKey())->delete();
+
+        if ($model instanceof User) {
+            // Login tokens and role links: they would otherwise block (refresh
+            // tokens) or outlive (Sanctum tokens, role pivot rows) the account.
+            ClientRefreshToken::query()->where('user_id', $model->getKey())->delete();
+            $model->tokens()->delete();
+            DB::table(config('permission.table_names.model_has_roles'))
+                ->where(config('permission.column_names.model_morph_key'), $model->getKey())
+                ->where('model_type', $model->getMorphClass())
+                ->delete();
+        }
+
         $model->forceDelete();
     }
 

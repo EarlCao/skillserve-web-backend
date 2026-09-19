@@ -6461,7 +6461,7 @@
                     "Data Management"
                 ],
                 "summary": "List deleted records",
-                "description": "Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection. Each row includes can_permanently_delete and purge_at (when it is purged automatically; null for types that are never purged).",
+                "description": "Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection. Each row includes can_permanently_delete, blocked_by (related records preventing deletion, or null) and purge_at (when it is purged automatically; null while blocked).",
                 "operationId": "a69d534f4c275def4e2a9ce369899511",
                 "parameters": [
                     {
@@ -6597,7 +6597,7 @@
                     "Data Management"
                 ],
                 "summary": "Permanently delete a record",
-                "description": "Records of these types are also purged automatically 30 days after deletion.",
+                "description": "Deleted records are also purged automatically 30 days after deletion. Refused with 409 while related records (e.g. a user's bookings) still reference the record.",
                 "operationId": "23cabc6cda195c5e7b609c08d2180c8f",
                 "parameters": [
                     {
@@ -6607,9 +6607,14 @@
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "messages",
+                                "users",
+                                "services",
+                                "bookings",
+                                "reviews",
                                 "reports",
-                                "reviews"
+                                "messages",
+                                "service_categories",
+                                "service_subcategories"
                             ]
                         }
                     },
@@ -6634,6 +6639,9 @@
                     },
                     "404": {
                         "description": "Record not found"
+                    },
+                    "409": {
+                        "description": "Related records still reference this record"
                     },
                     "422": {
                         "description": "Record type cannot be permanently deleted"

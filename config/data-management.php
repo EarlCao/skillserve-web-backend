@@ -3,10 +3,13 @@
 return [
     'export_types' => ['users', 'providers', 'services', 'bookings', 'reviews', 'activity'],
     'archive_types' => ['services'],
-    // Only types that nothing else depends on: force-deleting users, services,
-    // bookings or categories would cascade into (or be blocked by) related records.
-    'permanent_delete_types' => ['messages', 'reports', 'reviews'],
-    // Deleted records of the types above are purged this many days after deletion.
+    // Deleted records of these types can be permanently deleted, and are purged
+    // automatically after retention_days — unless related records still reference
+    // them (see DataManagementService::DEPENDENTS).
+    'permanent_delete_types' => [
+        'users', 'services', 'bookings', 'reviews', 'reports', 'messages',
+        'service_categories', 'service_subcategories',
+    ],
     'retention_days' => 30,
     'resource_types' => [
         'users', 'services', 'bookings', 'reviews', 'reports', 'messages',

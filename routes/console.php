@@ -13,5 +13,6 @@ Artisan::command('inspire', function () {
 // the backend container starts `schedule:work` alongside the web server.
 Schedule::command('users:unban-expired')->everyMinute();
 
-// Permanently remove deleted reviews, reports and messages 30 days after deletion.
+// Permanently remove deleted records 30 days after deletion (records that
+// related data still references are kept).
 Schedule::command('data-management:purge-expired')->daily();

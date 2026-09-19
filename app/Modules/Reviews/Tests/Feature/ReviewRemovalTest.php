@@ -63,13 +63,9 @@ class ReviewRemovalTest extends TestCase
         ]);
     }
 
-    public function test_deleted_reviews_are_purged_after_thirty_days_but_users_are_not(): void
+    public function test_deleted_records_are_purged_after_thirty_days_unless_related_data_references_them(): void
     {
-        Permission::findOrCreate('manage deleted records');
-        $role = Role::create(['name' => 'records-manager']);
-        $role->syncPermissions(['manage deleted records']);
-        $admin = User::factory()->create(['status' => 'active']);
-        $admin->assignRole($role);
+        $token = $this->actingRecordsManager();
 
         $expired = $this->createReview();
         $recent = $this->createReview();
@@ -78,25 +74,68 @@ class ReviewRemovalTest extends TestCase
         $expired->forceFill(['deleted_at' => now()->subDays(31)])->saveQuietly();
         $recent->forceFill(['deleted_at' => now()->subDays(29)])->saveQuietly();
 
-        $deletedUser = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
-        $deletedUser->delete();
-        $deletedUser->forceFill(['deleted_at' => now()->subDays(60)])->saveQuietly();
+        // No related data: purged like any other record.
+        $loneUser = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+        $loneUser->createToken('mobile');
+        $loneUser->delete();
+        $loneUser->forceFill(['deleted_at' => now()->subDays(60)])->saveQuietly();
 
-        $records = collect($this->withToken($admin->createToken('test')->plainTextToken)
+        // Still has a booking and a review: kept, so nothing cascades.
+        $client = $recent->reviewer;
+        $client->delete();
+        $client->forceFill(['deleted_at' => now()->subDays(60)])->saveQuietly();
+
+        $records = collect($this->withToken($token)
             ->getJson('/api/data-management/deleted?per_page=100')
             ->assertOk()
             ->json('data'))->keyBy(fn ($record) => $record['resource_type'].'-'.$record['resource_id']);
 
         $this->assertTrue($records["reviews-{$recent->id}"]['can_permanently_delete']);
         $this->assertNotNull($records["reviews-{$recent->id}"]['purge_at']);
-        $this->assertFalse($records["users-{$deletedUser->id}"]['can_permanently_delete']);
-        $this->assertNull($records["users-{$deletedUser->id}"]['purge_at']);
+        $this->assertTrue($records["users-{$loneUser->id}"]['can_permanently_delete']);
+        $this->assertFalse($records["users-{$client->id}"]['can_permanently_delete']);
+        $this->assertSame('1 booking, 1 review', $records["users-{$client->id}"]['blocked_by']);
+        $this->assertNull($records["users-{$client->id}"]['purge_at']);
 
         $this->artisan('data-management:purge-expired')->assertSuccessful();
 
         $this->assertDatabaseMissing('reviews', ['id' => $expired->id]);
         $this->assertSoftDeleted('reviews', ['id' => $recent->id]);
-        $this->assertSoftDeleted('users', ['id' => $deletedUser->id]);
+        $this->assertDatabaseMissing('users', ['id' => $loneUser->id]);
+        $this->assertSoftDeleted('users', ['id' => $client->id]);
+        $this->assertDatabaseHas('bookings', ['client_id' => $client->id]);
+    }
+
+    public function test_permanent_delete_is_refused_while_related_data_references_the_record(): void
+    {
+        $token = $this->actingRecordsManager();
+        $review = $this->createReview();
+        $client = $review->reviewer;
+        $client->delete();
+
+        $this->withToken($token)
+            ->deleteJson("/api/data-management/deleted/users/{$client->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'This record still has related data (1 booking, 1 review). Remove or permanently delete those first.');
+
+        $this->assertSoftDeleted('users', ['id' => $client->id]);
+
+        $review->delete();
+        $this->withToken($token)
+            ->deleteJson("/api/data-management/deleted/reviews/{$review->id}")
+            ->assertNoContent();
+        $this->assertDatabaseMissing('reviews', ['id' => $review->id]);
+    }
+
+    private function actingRecordsManager(): string
+    {
+        Permission::findOrCreate('manage deleted records');
+        $role = Role::findOrCreate('records-manager');
+        $role->syncPermissions(['manage deleted records']);
+        $admin = User::factory()->create(['status' => 'active']);
+        $admin->assignRole($role);
+
+        return $admin->createToken('test')->plainTextToken;
     }
 
     private function createReview(): Review
