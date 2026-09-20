@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Resources;
 
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Enums\AccountRole;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -18,6 +19,9 @@ class ClientUserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'address' => $this->address,
+            // Absolute URL derived from the stored path, so the app can
+            // load it directly without knowing where photos are kept.
+            'profile_picture' => ClientProfileService::photoUrl($this->profile_photo_path),
             'birthday' => $this->birthday?->toDateString(),
             'status' => $this->status,
             'role_id' => $this->role_id,

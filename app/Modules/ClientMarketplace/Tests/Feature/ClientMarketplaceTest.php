@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientPreferences\Services\ClientPreferenceService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
@@ -312,6 +313,42 @@ class ClientMarketplaceTest extends TestCase
         $admin->assignRole($role);
 
         return $admin->createToken('admin-test', ['admin:auth'])->plainTextToken;
+    }
+
+    public function test_a_private_profile_is_hidden_from_public_discovery(): void
+    {
+        [$public] = $this->provider(['business_name' => 'Public Provider']);
+        [$private, $privateUser] = $this->provider(['business_name' => 'Private Provider']);
+        $category = $this->category('Cleaning '.Str::random(5));
+        $this->service($public, $category);
+        $privateService = $this->service($private, $category, ['title' => 'Hidden by preference']);
+
+        // Both are discoverable while the setting is off.
+        $this->getJson('/api/client/v1/providers?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 2);
+
+        app(ClientPreferenceService::class)->update($privateUser, ['private_profile' => true]);
+
+        // The provider drops out of the listing...
+        $listed = collect($this->getJson('/api/client/v1/providers?per_page=10')->assertOk()->json('data'))
+            ->pluck('id');
+        $this->assertTrue($listed->contains($public->id));
+        $this->assertFalse($listed->contains($private->id), 'A private profile must not be listed.');
+
+        // ...their detail page is gone...
+        $this->getJson("/api/client/v1/providers/{$private->id}")->assertNotFound();
+
+        // ...and their services leave the public catalogue with them.
+        $services = collect($this->getJson('/api/client/v1/services?per_page=10')->assertOk()->json('data'))
+            ->pluck('id');
+        $this->assertFalse($services->contains($privateService->id));
+
+        // Switching it back restores discovery.
+        app(ClientPreferenceService::class)->update($privateUser, ['private_profile' => false]);
+        $this->getJson('/api/client/v1/providers?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 2);
     }
 
     private function provider(array $attributes = []): array

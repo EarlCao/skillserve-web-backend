@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientPreferences\Models\ClientPreference;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
@@ -192,6 +193,15 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function providerProfile(): HasOne
     {
         return $this->hasOne(ProviderProfile::class);
+    }
+
+    /**
+     * The account's mobile settings. Absent until first read, in which case
+     * ClientPreference::defaults() apply.
+     */
+    public function preferences(): HasOne
+    {
+        return $this->hasOne(ClientPreference::class);
     }
 
     public function services(): HasManyThrough

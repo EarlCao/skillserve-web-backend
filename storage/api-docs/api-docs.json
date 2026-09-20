@@ -3622,7 +3622,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Register a customer account",
+                "summary": "Start a customer sign-up (no account until the email is verified)",
+                "description": "Parks the sign-up and emails a 6-digit code. The `users` row is created by POST /auth/verify-otp, so abandoning verification leaves the address free to register again.",
                 "operationId": "b5faaf55a97e3dff551cccea48d0831e",
                 "requestBody": {
                     "required": true,
@@ -3670,18 +3671,38 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Registered and logged in; email verification is required before marketplace access",
+                    "202": {
+                        "description": "Verification code sent; confirm it to create the account",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                    "$ref": "#/components/schemas/ClientPendingRegistrationEnvelope"
                                 }
                             }
                         }
                     },
                     "422": {
                         "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "A code was sent moments ago; wait before retrying",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The verification email could not be sent",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3698,7 +3719,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Register a service provider account from the mobile app",
+                "summary": "Start a service provider sign-up from the mobile app",
+                "description": "Same deferred flow as customer registration: the provider account and its pending `provider_profiles` row are created by POST /auth/verify-otp.",
                 "operationId": "891233611f6bfe5043c0e69d5e6dda61",
                 "requestBody": {
                     "required": true,
@@ -3768,18 +3790,38 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Provider registered and logged in; account awaits administrator verification",
+                    "202": {
+                        "description": "Verification code sent; confirm it to create the provider account",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                    "$ref": "#/components/schemas/ClientPendingRegistrationEnvelope"
                                 }
                             }
                         }
                     },
                     "422": {
                         "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "A code was sent moments ago; wait before retrying",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The verification email could not be sent",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3796,7 +3838,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Verify a mobile account email with a 6-digit OTP",
+                "summary": "Confirm the 6-digit code, creating the account and signing in",
+                "description": "For a sign-up started by /auth/register or /auth/register-provider this creates the account and returns a session. Accounts registered before sign-ups were deferred are simply marked verified and signed in.",
                 "operationId": "384e32ed09d02274d8908c5c13a5a922",
                 "requestBody": {
                     "required": true,
@@ -3827,11 +3870,41 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Email verified",
+                        "description": "Email verified, account created and signed in",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Account is not active",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No sign-up or account found for this email",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The email was registered by someone else while this code was outstanding",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
                                 }
                             }
                         }
@@ -3847,7 +3920,7 @@
                         }
                     },
                     "429": {
-                        "description": "Too many attempts or resend cooldown",
+                        "description": "Too many incorrect attempts",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3864,7 +3937,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Delete an unverified account after the user backs out of email verification",
+                "summary": "Discard a sign-up after the user backs out of email verification",
+                "description": "Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away.",
                 "operationId": "d34b83d446c506bf043832f092198d55",
                 "requestBody": {
                     "required": true,
@@ -3894,7 +3968,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Unverified registration cancelled (always returned, even for unknown accounts, to prevent enumeration)",
+                        "description": "Sign-up cancelled (always returned, even for unknown accounts, to prevent enumeration)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3921,7 +3995,7 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Resend the mobile account verification OTP",
+                "summary": "Resend the sign-up verification OTP",
                 "operationId": "71d42e8a3aa51efb351c9fbd1b4063c8",
                 "requestBody": {
                     "required": true,
@@ -3944,6 +4018,16 @@
                     }
                 },
                 "responses": {
+                    "200": {
+                        "description": "The email is already verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
                     "202": {
                         "description": "A new code has been sent",
                         "content": {
@@ -3955,7 +4039,7 @@
                         }
                     },
                     "404": {
-                        "description": "No account found",
+                        "description": "No sign-up or account found",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3982,7 +4066,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Sign in or sign up with a Google ID token (mobile)",
+                "summary": "Sign in with a Google ID token, or start a Google sign-up (mobile)",
+                "description": "Resolves the Google identity against existing accounts:\n * linked Google account, or an account owning the Google-verified email -> signed in (`registration_required: false`); the account is linked and its email marked verified.\n * no account -> nothing is created. Responds with `registration_required: true` plus a name/email draft for the sign-up form, which is submitted to POST /auth/google/register.",
                 "operationId": "1f31b7d474269df661b63731398bc008",
                 "requestBody": {
                     "required": true,
@@ -4004,11 +4089,11 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Authenticated with Google; account created on first sign-in",
+                        "description": "Signed in, or a sign-up is required",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                    "$ref": "#/components/schemas/ClientGoogleAuthEnvelope"
                                 }
                             }
                         }
@@ -4024,7 +4109,122 @@
                         }
                     },
                     "403": {
-                        "description": "Account not active",
+                        "description": "Account not active, or the email belongs to an administrator",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/google/register": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Finish a Google sign-up with the details from the profile form",
+                "description": "Creates the customer or provider account for a Google identity that has none, and signs it in. The ID token is re-verified, so the email always comes from Google. Until this call succeeds nothing is written, so abandoning the form leaves no account behind.",
+                "operationId": "b1721d242ce410967f5b1fd127e0d32c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "id_token",
+                                    "first_name",
+                                    "last_name",
+                                    "role"
+                                ],
+                                "properties": {
+                                    "id_token": {
+                                        "description": "The same Google ID token POST /auth/google was called with",
+                                        "type": "string"
+                                    },
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Alex",
+                                        "maxLength": 255
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Customer",
+                                        "maxLength": 255
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "customer",
+                                        "enum": [
+                                            "customer",
+                                            "provider"
+                                        ]
+                                    },
+                                    "business_name": {
+                                        "type": "string",
+                                        "example": "Alex Repairs",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "specialization": {
+                                        "description": "Required when role is provider",
+                                        "type": "string",
+                                        "example": "Home Repair",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "experience_years": {
+                                        "type": "integer",
+                                        "example": 3,
+                                        "minimum": 0
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Account created and signed in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or expired Google token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Account not active, or the email belongs to an administrator",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4101,7 +4301,7 @@
                         }
                     },
                     "403": {
-                        "description": "Inactive or unverified customer account",
+                        "description": "Inactive account, or a sign-up that has not been verified yet (`meta.verification_required`)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4203,6 +4403,217 @@
                 "responses": {
                     "200": {
                         "description": "Authenticated customer",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Update the signed-in account's own profile",
+                "description": "Partial update: only the fields present in the body are changed. Email and role are not editable here — changing an address re-opens verification, and the role governs authorization.",
+                "operationId": "9a52ff5db1c8d57cfd69b6265604a974",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Juan",
+                                        "maxLength": 255
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Dela Cruz",
+                                        "maxLength": 255
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "09171234567",
+                                        "nullable": true,
+                                        "maxLength": 30
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Mabini St, Manila",
+                                        "nullable": true,
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/me/photo": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Upload or replace the profile photo",
+                "description": "Multipart upload. The previous photo is deleted once the new one is stored. The response carries the new absolute URL in `profile_picture`.",
+                "operationId": "d34322678495ce26f1afb791811f00b5",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo"
+                                ],
+                                "properties": {
+                                    "photo": {
+                                        "description": "JPG, PNG or WebP image, at most 5 MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photo stored",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUserEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Missing, oversized, or non-image file",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Remove the profile photo",
+                "description": "Deletes the stored file and clears the reference. Succeeds even when no photo is set, so the call is safe to repeat.",
+                "operationId": "5e4b485cb60dc1ccacf23eebbf880a9e",
+                "responses": {
+                    "200": {
+                        "description": "Photo removed",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -6201,6 +6612,157 @@
                     },
                     "409": {
                         "description": "Service has pending, confirmed or active bookings"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/preferences": {
+            "get": {
+                "tags": [
+                    "Client Preferences"
+                ],
+                "summary": "Get the signed-in account's settings",
+                "description": "Returns the stored settings, creating them with the platform defaults on first call. Settings are account-scoped, so they follow the user to any device.",
+                "operationId": "e0f0345a62e7bce62d0e33b7704c212b",
+                "responses": {
+                    "200": {
+                        "description": "Current settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPreferenceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Client Preferences"
+                ],
+                "summary": "Update the signed-in account's settings",
+                "description": "Partial update: send only the settings that changed.\n\nThese are enforced server-side, not just shown in the app:\n * the four notification flags gate whether that category is delivered at all;\n * `private_profile` removes a provider from public discovery and hides their services from the catalogue.",
+                "operationId": "f20d2ae83852ab8cd113c6758ff83501",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "booking_notifications": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "service_notifications": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "message_notifications": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "announcement_notifications": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "private_profile": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "activity_personalization": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "reduce_motion": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "theme": {
+                                        "type": "string",
+                                        "example": "system",
+                                        "enum": [
+                                            "light",
+                                            "dark",
+                                            "system"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated settings",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPreferenceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Token is not a client token or account is inactive",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -15672,6 +16234,181 @@
                     }
                 ]
             },
+            "ClientPreference": {
+                "description": "A mobile account's notification, privacy and application settings.",
+                "properties": {
+                    "booking_notifications": {
+                        "type": "boolean"
+                    },
+                    "service_notifications": {
+                        "type": "boolean"
+                    },
+                    "message_notifications": {
+                        "type": "boolean"
+                    },
+                    "announcement_notifications": {
+                        "type": "boolean"
+                    },
+                    "private_profile": {
+                        "type": "boolean"
+                    },
+                    "activity_personalization": {
+                        "type": "boolean"
+                    },
+                    "reduce_motion": {
+                        "type": "boolean"
+                    },
+                    "theme": {
+                        "type": "string",
+                        "enum": [
+                            "light",
+                            "dark",
+                            "system"
+                        ]
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientPreferenceEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientPreference"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientPendingRegistration": {
+                "description": "A mobile sign-up parked until its emailed code is confirmed. No account and no session exist yet.",
+                "properties": {
+                    "verification_required": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "first_name": {
+                        "type": "string"
+                    },
+                    "last_name": {
+                        "type": "string"
+                    },
+                    "user_type": {
+                        "type": "string",
+                        "enum": [
+                            "customer",
+                            "provider"
+                        ]
+                    },
+                    "code_expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "registration_expires_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientPendingRegistrationEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientPendingRegistration"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientGoogleRegistrationDraft": {
+                "description": "Prefill for the \"complete your profile\" screen shown when a Google account has no SkillServe account yet.",
+                "properties": {
+                    "registration_required": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "google": {
+                        "properties": {
+                            "email": {
+                                "type": "string",
+                                "format": "email"
+                            },
+                            "first_name": {
+                                "type": "string"
+                            },
+                            "last_name": {
+                                "type": "string"
+                            },
+                            "picture": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientGoogleAuthPayload": {
+                "description": "Either an issued session (registration_required=false) or a sign-up draft (registration_required=true).",
+                "oneOf": [
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientAuthPayload"
+                            },
+                            {
+                                "properties": {
+                                    "registration_required": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    {
+                        "$ref": "#/components/schemas/ClientGoogleRegistrationDraft"
+                    }
+                ]
+            },
+            "ClientGoogleAuthEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientGoogleAuthPayload"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ClientCategoryEnvelope": {
                 "allOf": [
                     {
@@ -16322,6 +17059,10 @@
         {
             "name": "Provider Services",
             "description": "Providers create and manage their own services; every submission and change awaits administrator approval"
+        },
+        {
+            "name": "Client Preferences",
+            "description": "Notification, privacy and application settings for a mobile account"
         },
         {
             "name": "Dashboard",

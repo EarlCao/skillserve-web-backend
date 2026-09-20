@@ -13,7 +13,10 @@ Route::post('/cancel-registration', [ClientAuthController::class, 'cancelRegistr
 Route::post('/register-provider', [ClientAuthController::class, 'registerProvider']);
 Route::post('/verify-otp', [ClientAuthController::class, 'verifyOtp']);
 Route::post('/resend-otp', [ClientAuthController::class, 'resendOtp']);
-Route::post('/google', [ClientAuthController::class, 'google']);
+// Both mint a session from an externally supplied token and call out to
+// Google on every request, so they share the login throttle.
+Route::post('/google', [ClientAuthController::class, 'google'])->middleware('throttle:login');
+Route::post('/google/register', [ClientAuthController::class, 'googleRegister'])->middleware('throttle:login');
 Route::post('/login', [ClientAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/refresh', [ClientAuthController::class, 'refresh']);
 Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword']);
@@ -24,6 +27,9 @@ Route::get('/verify-email/{user}/{hash}', [ClientAuthController::class, 'verifyE
 
 Route::middleware(['auth:sanctum', EnsureActiveClient::class])->group(function (): void {
     Route::get('/me', [ClientAuthController::class, 'me']);
+    Route::patch('/me', [ClientAuthController::class, 'updateProfile']);
+    Route::post('/me/photo', [ClientAuthController::class, 'updateProfilePhoto']);
+    Route::delete('/me/photo', [ClientAuthController::class, 'deleteProfilePhoto']);
     Route::post('/logout', [ClientAuthController::class, 'logout']);
     Route::post('/change-password', [ClientAuthController::class, 'changePassword']);
     Route::post('/verification-notification', [ClientAuthController::class, 'sendVerificationNotification']);

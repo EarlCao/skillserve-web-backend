@@ -18,6 +18,12 @@ class ServiceModerationNotification extends BaseNotification
         private readonly ?string $reason = null,
     ) {}
 
+    /** Muted by the "Service updates" switch in the app's settings. */
+    public function notificationCategory(): ?string
+    {
+        return 'service';
+    }
+
     public function toArray(object $notifiable): array
     {
         return [

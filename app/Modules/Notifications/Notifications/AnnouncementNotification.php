@@ -12,9 +12,10 @@ class AnnouncementNotification extends BaseNotification
 
     public function __construct(private readonly Announcement $announcement) {}
 
-    public function via(object $notifiable): array
+    /** Muted by the "Announcements" switch in the app's settings. */
+    public function notificationCategory(): ?string
     {
-        return ['database'];
+        return 'announcement';
     }
 
     public function toArray(object $notifiable): array

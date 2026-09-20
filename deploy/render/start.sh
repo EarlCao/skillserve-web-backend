@@ -16,6 +16,9 @@ export REVERB_SERVER_HOST=127.0.0.1 REVERB_SERVER_PORT=8080
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+# Profile photos are written to the `public` disk and served through
+# public/storage, which is gitignored and so absent from a fresh container.
+php artisan storage:link --force
 php artisan migrate --force
 php artisan db:seed-if-empty
 

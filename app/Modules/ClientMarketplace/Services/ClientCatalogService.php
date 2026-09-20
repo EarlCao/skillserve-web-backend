@@ -155,6 +155,22 @@ class ClientCatalogService extends BaseService
      * the lowest price across their public services and the category they
      * offer most services in.
      */
+    /**
+     * Constrains a `users` query to accounts that may appear in public
+     * discovery: active, not deleted, and not hidden by the account's own
+     * "Private profile" setting.
+     */
+    private function applyDiscoverableUserFilters(Builder $query): Builder
+    {
+        return $query
+            ->where('status', 'active')
+            ->whereNull('deleted_at')
+            // No preferences row means the defaults, where the profile is
+            // public — so absence must not hide the provider.
+            ->whereDoesntHave('preferences', fn ($preferenceQuery) => $preferenceQuery
+                ->where('private_profile', true));
+    }
+
     private function publicProvidersQuery(): Builder
     {
         $primaryCategory = ServiceCategory::query()
@@ -177,9 +193,7 @@ class ClientCatalogService extends BaseService
             ->withMin(['services as starting_price' => fn ($query) => $this->applyPublicServiceFilters($query)], 'price')
             ->where('verification_status', 'verified')
             ->whereNull('suspended_at')
-            ->whereHas('user', fn ($query) => $query
-                ->where('status', 'active')
-                ->whereNull('deleted_at'));
+            ->whereHas('user', fn ($query) => $this->applyDiscoverableUserFilters($query));
     }
 
     public function applyPublicServiceFilters(Builder $query): Builder
@@ -197,9 +211,7 @@ class ClientCatalogService extends BaseService
                 $providerQuery
                     ->where('verification_status', 'verified')
                     ->whereNull('suspended_at')
-                    ->whereHas('user', fn ($userQuery) => $userQuery
-                        ->where('status', 'active')
-                        ->whereNull('deleted_at'));
+                    ->whereHas('user', fn ($userQuery) => $this->applyDiscoverableUserFilters($userQuery));
             });
     }
 

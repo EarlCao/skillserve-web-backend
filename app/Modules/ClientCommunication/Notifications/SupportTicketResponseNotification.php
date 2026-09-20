@@ -13,6 +13,15 @@ class SupportTicketResponseNotification extends BaseNotification
         private readonly SupportTicketMessage $message,
     ) {}
 
+    /**
+     * A staff reply on the user's own ticket, so it follows the "Messages"
+     * switch rather than "Announcements".
+     */
+    public function notificationCategory(): ?string
+    {
+        return 'message';
+    }
+
     public function toArray(object $notifiable): array
     {
         return [

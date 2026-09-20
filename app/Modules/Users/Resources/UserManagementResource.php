@@ -3,6 +3,7 @@
 namespace App\Modules\Users\Resources;
 
 use App\Modules\Authentication\Resources\UserResource;
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Enums\AccountRole;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
@@ -37,7 +38,7 @@ class UserManagementResource extends UserResource
             'birthday' => $this->birthday?->toDateString(),
             // Avatars arrive with the media/profile module — initials are used
             // until then.
-            'profile_photo_url' => null,
+            'profile_photo_url' => ClientProfileService::photoUrl($this->profile_photo_path),
             'status' => $this->status,
             'verification' => $this->email_verified_at ? 'verified' : 'unverified',
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),

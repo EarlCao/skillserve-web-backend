@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\ClientAuthentication\Requests\CancelClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
+use App\Modules\ClientAuthentication\Requests\CompleteGoogleRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\GoogleClientAuthRequest;
 use App\Modules\ClientAuthentication\Requests\RefreshClientTokenRequest;
@@ -14,13 +15,19 @@ use App\Modules\ClientAuthentication\Requests\RegisterClientRequest;
 use App\Modules\ClientAuthentication\Requests\RegisterProviderClientRequest;
 use App\Modules\ClientAuthentication\Requests\ResendClientOtpRequest;
 use App\Modules\ClientAuthentication\Requests\ResetClientPasswordRequest;
+use App\Modules\ClientAuthentication\Requests\UpdateClientProfilePhotoRequest;
+use App\Modules\ClientAuthentication\Requests\UpdateClientProfileRequest;
 use App\Modules\ClientAuthentication\Requests\VerifyClientOtpRequest;
 use App\Modules\ClientAuthentication\Resources\ClientAuthResource;
+use App\Modules\ClientAuthentication\Resources\ClientGoogleAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientUserResource;
+use App\Modules\ClientAuthentication\Resources\PendingRegistrationResource;
 use App\Modules\ClientAuthentication\Services\ClientAuthenticationService;
 use App\Modules\ClientAuthentication\Services\ClientEmailOtpService;
 use App\Modules\ClientAuthentication\Services\ClientGoogleAuthService;
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Modules\ClientAuthentication\Services\ClientProviderRegistrationService;
+use App\Modules\ClientAuthentication\Services\PendingRegistrationService;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -38,11 +45,14 @@ class ClientAuthController extends Controller
         private readonly ClientProviderRegistrationService $providerRegistrationService,
         private readonly ClientEmailOtpService $otpService,
         private readonly ClientGoogleAuthService $googleAuthService,
+        private readonly PendingRegistrationService $pendingRegistrations,
+        private readonly ClientProfileService $profileService,
     ) {}
 
     #[OA\Post(
         path: '/api/client/v1/auth/register',
-        summary: 'Register a customer account',
+        summary: 'Start a customer sign-up (no account until the email is verified)',
+        description: 'Parks the sign-up and emails a 6-digit code. The `users` row is created by POST /auth/verify-otp, so abandoning verification leaves the address free to register again.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['first_name', 'last_name', 'email', 'password', 'password_confirmation'],
@@ -55,22 +65,25 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 201, description: 'Registered and logged in; email verification is required before marketplace access', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 202, description: 'Verification code sent; confirm it to create the account', content: new OA\JsonContent(ref: '#/components/schemas/ClientPendingRegistrationEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'A code was sent moments ago; wait before retrying', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 503, description: 'The verification email could not be sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function register(RegisterClientRequest $request): JsonResponse
     {
         return $this->success(
-            new ClientAuthResource($this->authenticationService->register($request->validated())),
-            'Registered successfully.',
-            status: 201,
+            new PendingRegistrationResource($this->authenticationService->register($request->validated())),
+            'Verification code sent. Enter it to finish creating your account.',
+            status: 202,
         );
     }
 
     #[OA\Post(
         path: '/api/client/v1/auth/register-provider',
-        summary: 'Register a service provider account from the mobile app',
+        summary: 'Start a service provider sign-up from the mobile app',
+        description: 'Same deferred flow as customer registration: the provider account and its pending `provider_profiles` row are created by POST /auth/verify-otp.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['first_name', 'last_name', 'email', 'password', 'password_confirmation', 'specialization'],
@@ -87,22 +100,25 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 201, description: 'Provider registered and logged in; account awaits administrator verification', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 202, description: 'Verification code sent; confirm it to create the provider account', content: new OA\JsonContent(ref: '#/components/schemas/ClientPendingRegistrationEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'A code was sent moments ago; wait before retrying', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 503, description: 'The verification email could not be sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function registerProvider(RegisterProviderClientRequest $request): JsonResponse
     {
         return $this->success(
-            new ClientAuthResource($this->providerRegistrationService->register($request->validated())),
-            'Provider account registered successfully. It is now pending verification.',
-            status: 201,
+            new PendingRegistrationResource($this->providerRegistrationService->register($request->validated())),
+            'Verification code sent. Enter it to finish creating your provider account.',
+            status: 202,
         );
     }
 
     #[OA\Post(
         path: '/api/client/v1/auth/verify-otp',
-        summary: 'Verify a mobile account email with a 6-digit OTP',
+        summary: 'Confirm the 6-digit code, creating the account and signing in',
+        description: 'For a sign-up started by /auth/register or /auth/register-provider this creates the account and returns a session. Accounts registered before sign-ups were deferred are simply marked verified and signed in.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email', 'code'],
@@ -112,15 +128,32 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Email verified', content: new OA\JsonContent(ref: '#/components/schemas/ClientUserEnvelope')),
+            new OA\Response(response: 200, description: 'Email verified, account created and signed in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 403, description: 'Account is not active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 404, description: 'No sign-up or account found for this email', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 409, description: 'The email was registered by someone else while this code was outstanding', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Invalid or expired code', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 429, description: 'Too many attempts or resend cooldown', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'Too many incorrect attempts', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function verifyOtp(VerifyClientOtpRequest $request): JsonResponse
     {
+        $email = (string) $request->validated('email');
+        $code = (string) $request->validated('code');
+
+        // Normal path: the account does not exist yet and is created here.
+        $registration = $this->pendingRegistrations->findUnexpired($email);
+
+        if ($registration) {
+            return $this->success(
+                new ClientAuthResource($this->pendingRegistrations->complete($registration, $code)),
+                'Email verified. Welcome to SkillServe!',
+            );
+        }
+
+        // Legacy path: an account registered before sign-ups were deferred.
         $user = User::query()
-            ->where('email', $request->validated('email'))
+            ->where('email', $email)
             ->mobileAccounts()
             ->first();
 
@@ -128,14 +161,22 @@ class ClientAuthController extends Controller
             throw new ApiException('No account found for this email.', 404);
         }
 
-        $verified = $this->otpService->verify($user, (string) $request->validated('code'));
+        $verified = $this->otpService->verify($user, $code);
 
-        return $this->success(new ClientUserResource($verified), 'Email verified successfully.');
+        if (! $verified->isActive()) {
+            throw new ApiException('Your account is not active.', 403);
+        }
+
+        return $this->success(
+            new ClientAuthResource($this->authenticationService->issueSession($verified)),
+            'Email verified successfully.',
+        );
     }
 
     #[OA\Post(
         path: '/api/client/v1/auth/cancel-registration',
-        summary: 'Delete an unverified account after the user backs out of email verification',
+        summary: 'Discard a sign-up after the user backs out of email verification',
+        description: 'Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email', 'password'],
@@ -145,7 +186,7 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Unverified registration cancelled (always returned, even for unknown accounts, to prevent enumeration)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 200, description: 'Sign-up cancelled (always returned, even for unknown accounts, to prevent enumeration)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
@@ -160,7 +201,7 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/resend-otp',
-        summary: 'Resend the mobile account verification OTP',
+        summary: 'Resend the sign-up verification OTP',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email'],
@@ -169,8 +210,9 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
+            new OA\Response(response: 200, description: 'The email is already verified', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 202, description: 'A new code has been sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 404, description: 'No account found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 404, description: 'No sign-up or account found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 429, description: 'Resend cooldown active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
@@ -178,21 +220,26 @@ class ClientAuthController extends Controller
     {
         $email = (string) $request->validated('email');
 
-        $user = User::query()
-            ->where('email', $email)
-            ->mobileAccounts()
-            ->first();
+        $registration = $this->pendingRegistrations->findUnexpired($email);
 
-        if (! $user) {
+        $user = $registration
+            ? null
+            : User::query()->where('email', $email)->mobileAccounts()->first();
+
+        if (! $registration && ! $user) {
             throw new ApiException('No account found for this email.', 404);
         }
 
-        if ($user->hasVerifiedEmail()) {
+        if ($user?->hasVerifiedEmail()) {
             return $this->success([], 'Email is already verified.', status: 200);
         }
 
         try {
-            $this->otpService->issue($user);
+            $registration
+                ? $this->pendingRegistrations->resend($registration)
+                : $this->otpService->issue($user);
+        } catch (ApiException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             // Mail failures must be visible in the platform log stream
             // (the default channel writes inside the container where
@@ -210,7 +257,12 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/google',
-        summary: 'Sign in or sign up with a Google ID token (mobile)',
+        summary: 'Sign in with a Google ID token, or start a Google sign-up (mobile)',
+        description: <<<'TXT'
+            Resolves the Google identity against existing accounts:
+             * linked Google account, or an account owning the Google-verified email -> signed in (`registration_required: false`); the account is linked and its email marked verified.
+             * no account -> nothing is created. Responds with `registration_required: true` plus a name/email draft for the sign-up form, which is submitted to POST /auth/google/register.
+            TXT,
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['id_token'],
@@ -219,17 +271,55 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Authenticated with Google; account created on first sign-in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 200, description: 'Signed in, or a sign-up is required', content: new OA\JsonContent(ref: '#/components/schemas/ClientGoogleAuthEnvelope')),
             new OA\Response(response: 401, description: 'Invalid Google token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Account not active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Account not active, or the email belongs to an administrator', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function google(GoogleClientAuthRequest $request): JsonResponse
     {
+        $result = $this->googleAuthService->authenticate($request->validated('id_token'));
+
         return $this->success(
-            new ClientAuthResource($this->googleAuthService->authenticate($request->validated('id_token'))),
-            'Logged in with Google successfully.',
+            new ClientGoogleAuthResource($result),
+            $result['registration_required']
+                ? 'Tell us a little about yourself to finish signing up.'
+                : 'Logged in with Google successfully.',
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/google/register',
+        summary: 'Finish a Google sign-up with the details from the profile form',
+        description: 'Creates the customer or provider account for a Google identity that has none, and signs it in. The ID token is re-verified, so the email always comes from Google. Until this call succeeds nothing is written, so abandoning the form leaves no account behind.',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['id_token', 'first_name', 'last_name', 'role'],
+            properties: [
+                new OA\Property(property: 'id_token', type: 'string', description: 'The same Google ID token POST /auth/google was called with'),
+                new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
+                new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Customer'),
+                new OA\Property(property: 'role', type: 'string', enum: ['customer', 'provider'], example: 'customer'),
+                new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Alex Repairs'),
+                new OA\Property(property: 'specialization', type: 'string', maxLength: 255, nullable: true, description: 'Required when role is provider', example: 'Home Repair'),
+                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
+                new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Account created and signed in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 401, description: 'Invalid or expired Google token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Account not active, or the email belongs to an administrator', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function googleRegister(CompleteGoogleRegistrationRequest $request): JsonResponse
+    {
+        return $this->success(
+            new ClientAuthResource($this->googleAuthService->completeRegistration($request->validated())),
+            'Account created successfully.',
+            status: 201,
         );
     }
 
@@ -247,7 +337,7 @@ class ClientAuthController extends Controller
         responses: [
             new OA\Response(response: 200, description: 'Logged in successfully', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
             new OA\Response(response: 401, description: 'Invalid credentials', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Inactive or unverified customer account', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Inactive account, or a sign-up that has not been verified yet (`meta.verification_required`)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
@@ -296,6 +386,85 @@ class ClientAuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return $this->success(new ClientUserResource($request->user()), 'Authenticated customer.');
+    }
+
+    #[OA\Patch(
+        path: '/api/client/v1/auth/me',
+        summary: "Update the signed-in account's own profile",
+        description: 'Partial update: only the fields present in the body are changed. Email and role are not editable here — changing an address re-opens verification, and the role governs authorization.',
+        tags: ['Client Authentication'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Juan'),
+                new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Dela Cruz'),
+                new OA\Property(property: 'phone', type: 'string', maxLength: 30, nullable: true, example: '09171234567'),
+                new OA\Property(property: 'address', type: 'string', maxLength: 500, nullable: true, example: '123 Mabini St, Manila'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Updated profile', content: new OA\JsonContent(ref: '#/components/schemas/ClientUserEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated or expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Token is not a client token or account is inactive', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function updateProfile(UpdateClientProfileRequest $request): JsonResponse
+    {
+        return $this->success(
+            new ClientUserResource($this->profileService->update($request->user(), $request->validated())),
+            'Profile updated successfully.',
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/me/photo',
+        summary: 'Upload or replace the profile photo',
+        description: 'Multipart upload. The previous photo is deleted once the new one is stored. The response carries the new absolute URL in `profile_picture`.',
+        tags: ['Client Authentication'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(
+                required: ['photo'],
+                properties: [
+                    new OA\Property(property: 'photo', type: 'string', format: 'binary', description: 'JPG, PNG or WebP image, at most 5 MB'),
+                ],
+            ),
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Photo stored', content: new OA\JsonContent(ref: '#/components/schemas/ClientUserEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated or expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Token is not a client token or account is inactive', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Missing, oversized, or non-image file', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function updateProfilePhoto(UpdateClientProfilePhotoRequest $request): JsonResponse
+    {
+        return $this->success(
+            new ClientUserResource($this->profileService->updatePhoto($request->user(), $request->file('photo'))),
+            'Profile photo updated successfully.',
+        );
+    }
+
+    #[OA\Delete(
+        path: '/api/client/v1/auth/me/photo',
+        summary: 'Remove the profile photo',
+        description: 'Deletes the stored file and clears the reference. Succeeds even when no photo is set, so the call is safe to repeat.',
+        tags: ['Client Authentication'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Photo removed', content: new OA\JsonContent(ref: '#/components/schemas/ClientUserEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated or expired token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Token is not a client token or account is inactive', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function deleteProfilePhoto(Request $request): JsonResponse
+    {
+        return $this->success(
+            new ClientUserResource($this->profileService->removePhoto($request->user())),
+            'Profile photo removed successfully.',
+        );
     }
 
     #[OA\Get(

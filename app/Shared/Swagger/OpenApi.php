@@ -384,6 +384,67 @@ use OpenApi\Attributes as OA;
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientUser')])],
 )]
 #[OA\Schema(
+    schema: 'ClientPreference',
+    description: "A mobile account's notification, privacy and application settings.",
+    properties: [
+        new OA\Property(property: 'booking_notifications', type: 'boolean'),
+        new OA\Property(property: 'service_notifications', type: 'boolean'),
+        new OA\Property(property: 'message_notifications', type: 'boolean'),
+        new OA\Property(property: 'announcement_notifications', type: 'boolean'),
+        new OA\Property(property: 'private_profile', type: 'boolean'),
+        new OA\Property(property: 'activity_personalization', type: 'boolean'),
+        new OA\Property(property: 'reduce_motion', type: 'boolean'),
+        new OA\Property(property: 'theme', type: 'string', enum: ['light', 'dark', 'system']),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientPreferenceEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientPreference')])],
+)]
+#[OA\Schema(
+    schema: 'ClientPendingRegistration',
+    description: 'A mobile sign-up parked until its emailed code is confirmed. No account and no session exist yet.',
+    properties: [
+        new OA\Property(property: 'verification_required', type: 'boolean', example: true),
+        new OA\Property(property: 'email', type: 'string', format: 'email'),
+        new OA\Property(property: 'first_name', type: 'string'),
+        new OA\Property(property: 'last_name', type: 'string'),
+        new OA\Property(property: 'user_type', type: 'string', enum: ['customer', 'provider']),
+        new OA\Property(property: 'code_expires_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'registration_expires_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientPendingRegistrationEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientPendingRegistration')])],
+)]
+#[OA\Schema(
+    schema: 'ClientGoogleRegistrationDraft',
+    description: 'Prefill for the "complete your profile" screen shown when a Google account has no SkillServe account yet.',
+    properties: [
+        new OA\Property(property: 'registration_required', type: 'boolean', example: true),
+        new OA\Property(property: 'google', properties: [
+            new OA\Property(property: 'email', type: 'string', format: 'email'),
+            new OA\Property(property: 'first_name', type: 'string'),
+            new OA\Property(property: 'last_name', type: 'string'),
+            new OA\Property(property: 'picture', type: 'string', nullable: true),
+        ], type: 'object'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientGoogleAuthPayload',
+    description: 'Either an issued session (registration_required=false) or a sign-up draft (registration_required=true).',
+    oneOf: [
+        new OA\Schema(allOf: [new OA\Schema(ref: '#/components/schemas/ClientAuthPayload'), new OA\Schema(properties: [new OA\Property(property: 'registration_required', type: 'boolean', example: false)], type: 'object')]),
+        new OA\Schema(ref: '#/components/schemas/ClientGoogleRegistrationDraft'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientGoogleAuthEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientGoogleAuthPayload')])],
+)]
+#[OA\Schema(
     schema: 'ClientCategoryEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientCategory')])],
 )]

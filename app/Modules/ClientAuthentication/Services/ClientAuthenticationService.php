@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
+use App\Modules\ClientAuthentication\Models\PendingRegistration;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
 use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use App\Modules\Providers\Models\ProviderProfile;
@@ -12,7 +13,6 @@ use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 
@@ -21,51 +21,36 @@ class ClientAuthenticationService
     public function __construct(
         private readonly ClientSessionService $sessionService,
         private readonly ClientEmailOtpService $otpService,
+        private readonly PendingRegistrationService $pendingRegistrations,
     ) {}
 
     /**
+     * Start a customer sign-up. No `users` row is created yet: the account
+     * is written only once the emailed OTP is confirmed, so backing out of
+     * verification leaves the address free.
+     *
      * @param  array{first_name: string, last_name: string, email: string, password: string}  $validated
      */
-    public function register(array $validated): array
+    public function register(array $validated): PendingRegistration
     {
-        $session = DB::transaction(function () use ($validated): array {
-            $user = User::create([
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'name' => trim($validated['first_name'].' '.$validated['last_name']),
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-                'role_id' => AccountRole::Customer->value,
-                'status' => 'active',
-                'email_verified_at' => null,
-            ]);
-
-            return $this->sessionService->issue($user);
-        });
-
-        try {
-            $this->otpService->issue($session['user']);
-        } catch (\Throwable $e) {
-            Log::channel('stderr')->error('Failed to send verification OTP for client registration.', [
-                'user_id' => $session['user']->id,
-                'email' => $session['user']->email,
-                'error' => $e->getMessage(),
-            ]);
-        }
-
-        return $session;
+        return $this->pendingRegistrations->start($validated, AccountRole::Customer->value);
     }
 
     /**
-     * Hard-delete an UNVERIFIED mobile account (customer or provider) whose
-     * owner backed out of email verification. Guarded by the password set
-     * during registration. Verified accounts are never touched; failures
-     * are silent so the response cannot enumerate accounts.
+     * Drop a sign-up whose owner backed out of email verification.
+     *
+     * Normally this only removes the parked registration. Accounts created
+     * before sign-ups were deferred can still sit unverified in `users`,
+     * so those are hard-deleted here too. Both paths are guarded by the
+     * registration password, and failures are silent so the response cannot
+     * enumerate accounts.
      *
      * @param  array{email: string, password: string}  $validated
      */
     public function cancelUnverifiedRegistration(array $validated): void
     {
+        $this->pendingRegistrations->cancel($validated['email'], (string) $validated['password']);
+
         $user = User::query()
             ->where('email', $validated['email'])
             ->mobileAccounts()
@@ -93,6 +78,8 @@ class ClientAuthenticationService
             $user->notifications()->delete();
             $user->forceDelete();
         });
+
+        $this->otpService->clearCooldown($user->email);
     }
 
     /**
@@ -105,7 +92,16 @@ class ClientAuthenticationService
             ->mobileAccounts()
             ->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        if (! $user) {
+            // A sign-up that never confirmed its code has no account yet.
+            // Recognising it here turns a baffling "invalid credentials"
+            // into a prompt to finish verifying.
+            $this->assertNoPendingRegistration($validated['email'], $validated['password']);
+
+            throw new ApiException('Invalid email or password.', 401);
+        }
+
+        if (! Hash::check($validated['password'], $user->password)) {
             throw new ApiException('Invalid email or password.', 401);
         }
 
@@ -117,6 +113,17 @@ class ClientAuthenticationService
             throw new ApiException('Please verify your email address before signing in.', 403);
         }
 
+        return $this->sessionService->issue($user);
+    }
+
+    /**
+     * Issue a mobile session for an account that has just proved itself
+     * (for example by confirming an OTP on a pre-existing account).
+     *
+     * @return array<string, mixed>
+     */
+    public function issueSession(User $user): array
+    {
         return $this->sessionService->issue($user);
     }
 
@@ -233,10 +240,33 @@ class ClientAuthenticationService
         }
     }
 
+    /**
+     * Password reset covers every mobile account: providers sign in through
+     * the same endpoints as customers and must be able to reset too.
+     */
     private function clientQuery(): Builder
     {
         return User::query()
-            ->customers();
+            ->mobileAccounts();
+    }
+
+    /**
+     * Tell a half-finished sign-up apart from a wrong password. The status
+     * meta lets the app send the user straight back to the OTP screen.
+     */
+    private function assertNoPendingRegistration(string $email, string $password): void
+    {
+        $registration = $this->pendingRegistrations->findUnexpired($email);
+
+        if (! $registration || ! Hash::check($password, $registration->password)) {
+            return;
+        }
+
+        throw new ApiException(
+            'Please verify your email address to finish creating your account.',
+            403,
+            meta: ['verification_required' => true, 'email' => $registration->email],
+        );
     }
 
     private function invalidResetException(?string $status = null): ApiException
