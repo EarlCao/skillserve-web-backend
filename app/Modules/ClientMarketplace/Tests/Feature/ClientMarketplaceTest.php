@@ -5,6 +5,7 @@ namespace App\Modules\ClientMarketplace\Tests\Feature;
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientPreferences\Services\ClientPreferenceService;
+use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
@@ -60,7 +61,9 @@ class ClientMarketplaceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 1)
             ->assertJsonPath('data.0.id', $provider->id)
-            ->assertJsonMissingPath('data.0.verification_status')
+            // The catalog lists verified providers only, and says so, but it
+            // still never exposes the owning user account.
+            ->assertJsonPath('data.0.verification_status', 'verified')
             ->assertJsonMissingPath('data.0.user');
     }
 
@@ -349,6 +352,237 @@ class ClientMarketplaceTest extends TestCase
         $this->getJson('/api/client/v1/providers?per_page=10')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 2);
+    }
+
+    public function test_discovery_can_be_filtered_to_featured_providers(): void
+    {
+        [$featured] = $this->provider(['business_name' => 'Featured Co.', 'is_featured' => true]);
+        [$ordinary] = $this->provider(['business_name' => 'Ordinary Co.']);
+        $category = $this->category('Cleaning '.Str::random(5));
+        $this->service($featured, $category);
+        $this->service($ordinary, $category);
+
+        $all = collect($this->getJson('/api/client/v1/providers?per_page=10')->assertOk()->json('data'));
+        $this->assertCount(2, $all);
+
+        $onlyFeatured = collect(
+            $this->getJson('/api/client/v1/providers?featured=1&per_page=10')->assertOk()->json('data'),
+        );
+        $this->assertCount(1, $onlyFeatured);
+        $this->assertSame($featured->id, $onlyFeatured->first()['id']);
+        $this->assertTrue($onlyFeatured->first()['is_featured']);
+
+        // The flag is also usable in reverse.
+        $notFeatured = collect(
+            $this->getJson('/api/client/v1/providers?featured=0&per_page=10')->assertOk()->json('data'),
+        );
+        $this->assertSame([$ordinary->id], $notFeatured->pluck('id')->all());
+    }
+
+    public function test_the_featured_filter_rejects_a_non_boolean_value(): void
+    {
+        $this->getJson('/api/client/v1/providers?featured=maybe')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['featured']);
+    }
+
+    public function test_discovery_can_be_filtered_by_rating_and_bookable_availability(): void
+    {
+        [$highlyRated] = $this->provider(['business_name' => 'Five Star Co.', 'average_rating' => 4.8]);
+        [$lowRated] = $this->provider(['business_name' => 'Three Star Co.', 'average_rating' => 3.2]);
+        [$quoteOnly] = $this->provider(['business_name' => 'Quote Only Co.', 'average_rating' => 5.0]);
+        $category = $this->category('Cleaning '.Str::random(5));
+
+        $this->service($highlyRated, $category, ['title' => 'Top rated clean', 'price' => 900, 'average_rating' => 4.8]);
+        $this->service($lowRated, $category, ['title' => 'Budget clean', 'price' => 400, 'average_rating' => 3.2]);
+        // Custom-priced work cannot be booked online, so its provider is not
+        // "available" even though the service is published.
+        $this->service($quoteOnly, $category, ['title' => 'Bespoke clean', 'price' => null, 'price_type' => 'custom']);
+
+        $rated = collect($this->getJson('/api/client/v1/providers?min_rating=4.5&per_page=10')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing([$highlyRated->id, $quoteOnly->id], $rated->pluck('id')->all());
+
+        $available = collect($this->getJson('/api/client/v1/providers?available=1&per_page=10')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing([$highlyRated->id, $lowRated->id], $available->pluck('id')->all());
+
+        $unavailable = collect($this->getJson('/api/client/v1/providers?available=0&per_page=10')->assertOk()->json('data'));
+        $this->assertSame([$quoteOnly->id], $unavailable->pluck('id')->all());
+
+        $topRatedAndBookable = collect(
+            $this->getJson('/api/client/v1/providers?min_rating=4.5&available=1&sort=average_rating&direction=desc&per_page=10')
+                ->assertOk()
+                ->json('data'),
+        );
+        $this->assertSame([$highlyRated->id], $topRatedAndBookable->pluck('id')->all());
+
+        $services = collect($this->getJson('/api/client/v1/services?min_rating=4.5&per_page=10')->assertOk()->json('data'));
+        $this->assertSame(['Top rated clean'], $services->pluck('title')->all());
+    }
+
+    public function test_the_discovery_filters_reject_out_of_range_values(): void
+    {
+        $this->getJson('/api/client/v1/providers?min_rating=9')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['min_rating']);
+
+        $this->getJson('/api/client/v1/providers?available=sometimes')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['available']);
+
+        $this->getJson('/api/client/v1/providers?available_day=9')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['available_day']);
+    }
+
+    public function test_availability_narrows_discovery_and_is_published_on_the_profile(): void
+    {
+        [$weekdayPro] = $this->provider(['business_name' => 'Weekday Co.']);
+        [$weekendPro] = $this->provider(['business_name' => 'Weekend Co.']);
+        [$paused] = $this->provider(['business_name' => 'Paused Co.', 'is_accepting_bookings' => false]);
+        $category = $this->category('Cleaning '.Str::random(5));
+
+        foreach ([$weekdayPro, $weekendPro, $paused] as $profile) {
+            $this->service($profile, $category);
+        }
+
+        $weekdayPro->availabilities()->createMany([
+            ['day_of_week' => 1, 'start_time' => '09:00', 'end_time' => '17:00'],
+            ['day_of_week' => 2, 'start_time' => '09:00', 'end_time' => '17:00'],
+        ]);
+        $weekendPro->availabilities()->create([
+            'day_of_week' => 6, 'start_time' => '08:00', 'end_time' => '12:00',
+        ]);
+
+        // A provider who is not taking bookings is not "available", even with
+        // a bookable service.
+        $available = collect($this->getJson('/api/client/v1/providers?available=1&per_page=10')->assertOk()->json('data'));
+        $this->assertEqualsCanonicalizing([$weekdayPro->id, $weekendPro->id], $available->pluck('id')->all());
+
+        $unavailable = collect($this->getJson('/api/client/v1/providers?available=0&per_page=10')->assertOk()->json('data'));
+        $this->assertSame([$paused->id], $unavailable->pluck('id')->all());
+
+        $saturday = collect($this->getJson('/api/client/v1/providers?available_day=6&per_page=10')->assertOk()->json('data'));
+        $this->assertSame([$weekendPro->id], $saturday->pluck('id')->all());
+
+        // The list stays lean; the windows come with the detail response.
+        $listed = $available->firstWhere('id', $weekdayPro->id);
+        $this->assertArrayNotHasKey('availability', $listed);
+        $this->assertTrue($listed['is_accepting_bookings']);
+
+        $detail = $this->getJson("/api/client/v1/providers/{$weekdayPro->id}")->assertOk()->json('data');
+        $this->assertSame(
+            [['day_of_week' => 1, 'day' => 'Monday', 'start_time' => '09:00', 'end_time' => '17:00'],
+                ['day_of_week' => 2, 'day' => 'Tuesday', 'start_time' => '09:00', 'end_time' => '17:00']],
+            $detail['availability'],
+        );
+    }
+
+    public function test_bookings_respect_the_provider_schedule_and_the_accepting_flag(): void
+    {
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->service($provider, $this->category('Schedule '.Str::random(5)), [
+            'duration' => '2 hours',
+        ]);
+        $token = $this->clientToken($client);
+
+        // Next Monday, so the weekday is deterministic regardless of today.
+        $monday = now()->addWeek()->startOfWeek();
+        $provider->availabilities()->create([
+            'day_of_week' => 1, 'start_time' => '09:00', 'end_time' => '17:00',
+        ]);
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => $monday->copy()->setTime(16, 0)->toISOString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.scheduled_date.0', 'The provider works Mondays from 09:00 to 17:00.');
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => $monday->copy()->addDay()->setTime(10, 0)->toISOString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.scheduled_date.0', 'The provider does not publish hours on Tuesdays.');
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => $monday->copy()->setTime(10, 0)->toISOString(),
+            ])
+            ->assertCreated();
+
+        // Pausing new bookings closes the door regardless of the schedule.
+        $provider->update(['is_accepting_bookings' => false]);
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => $monday->copy()->addWeek()->setTime(10, 0)->toISOString(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.service_id.0', 'The provider is not accepting new bookings.');
+
+        $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_a_provider_without_published_hours_can_still_be_booked_at_any_time(): void
+    {
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->service($provider, $this->category('Anytime '.Str::random(5)));
+
+        $this->withToken($this->clientToken($client))
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => now()->addWeek()->startOfWeek()->setTime(23, 0)->toISOString(),
+            ])
+            ->assertCreated();
+    }
+
+    public function test_a_public_provider_profile_carries_its_badges_and_portfolio(): void
+    {
+        [$provider, $providerUser] = $this->provider();
+        $category = $this->category('Cleaning '.Str::random(5));
+        $this->service($provider, $category);
+
+        $badge = ProviderBadge::create([
+            'name' => 'Top Rated',
+            'slug' => 'top_rated',
+            'description' => 'Maintain a high rating.',
+            'color' => 'primary',
+            'is_active' => true,
+        ]);
+        ProviderBadge::create(['name' => 'Retired', 'slug' => 'retired', 'is_active' => false]);
+        $provider->badges()->attach($badge->id, ['assigned_at' => now()]);
+
+        $provider->portfolioItems()->create([
+            'title' => 'Deep clean',
+            'description' => 'Three-bedroom condo.',
+            'image_path' => 'portfolio/sample.jpg',
+        ]);
+
+        $detail = $this->getJson("/api/client/v1/providers/{$provider->id}")->assertOk()->json('data');
+
+        $this->assertCount(1, $detail['badges']);
+        $this->assertSame('top_rated', $detail['badges'][0]['key']);
+        $this->assertTrue($detail['badges'][0]['earned']);
+
+        $this->assertCount(1, $detail['portfolio']);
+        $this->assertSame('Deep clean', $detail['portfolio'][0]['title']);
+        $this->assertNotNull($detail['portfolio'][0]['image']);
+
+        // The list stays lean: neither is loaded per row.
+        $listed = $this->getJson('/api/client/v1/providers?per_page=10')->assertOk()->json('data.0');
+        $this->assertArrayNotHasKey('badges', $listed);
+        $this->assertArrayNotHasKey('portfolio', $listed);
+
+        // A hidden provider exposes nothing, badges and portfolio included.
+        app(ClientPreferenceService::class)->update($providerUser, ['private_profile' => true]);
+        $this->getJson("/api/client/v1/providers/{$provider->id}")->assertNotFound();
     }
 
     private function provider(array $attributes = []): array

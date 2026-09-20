@@ -15,7 +15,7 @@ class ProviderProfileResource extends ClientProviderResource
             'verification_status' => $this->verification_status,
             'verified_at' => $this->verified_at?->toIso8601String(),
             'rejection_reason' => $this->rejection_reason,
-            'is_featured' => (bool) $this->is_featured,
+            // is_featured comes from the parent resource.
             'is_suspended' => $this->suspended_at !== null,
         ]);
     }

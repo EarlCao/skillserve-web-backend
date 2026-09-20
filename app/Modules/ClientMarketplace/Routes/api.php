@@ -33,9 +33,21 @@ Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): voi
     });
 });
 
-/* The signed-in provider's own profile (verification status and stats). */
-Route::get('/provider/profile', [ProviderProfileController::class, 'show'])
-    ->middleware(['auth:sanctum', EnsureProvider::class]);
+/* The signed-in provider's own account: profile, portfolio and badges. */
+Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): void {
+    Route::get('/provider/profile', [ProviderProfileController::class, 'show']);
+    Route::patch('/provider/profile', [ProviderProfileController::class, 'update']);
+
+    Route::get('/provider/portfolio', [ProviderProfileController::class, 'portfolio']);
+    Route::post('/provider/portfolio', [ProviderProfileController::class, 'storePortfolioItem']);
+    Route::delete('/provider/portfolio/{item}', [ProviderProfileController::class, 'destroyPortfolioItem'])
+        ->whereNumber('item');
+
+    Route::get('/provider/availability', [ProviderProfileController::class, 'availability']);
+    Route::put('/provider/availability', [ProviderProfileController::class, 'updateAvailability']);
+
+    Route::get('/provider/badges', [ProviderProfileController::class, 'badges']);
+});
 
 /* Providers manage their own services; changes await administrator approval. */
 Route::prefix('provider/services')->middleware(['auth:sanctum', EnsureProvider::class])->group(function (): void {

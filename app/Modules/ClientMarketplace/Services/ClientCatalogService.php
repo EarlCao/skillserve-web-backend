@@ -87,6 +87,33 @@ class ClientCatalogService extends BaseService
             });
         }
 
+        if (array_key_exists('featured', $filters) && $filters['featured'] !== null) {
+            $query->where('is_featured', (bool) $filters['featured']);
+        }
+
+        $this->applyRatingFilter($query, $filters);
+
+        // "Available" means the provider is taking new bookings and has at
+        // least one service a client can book online — the same two rules
+        // the booking flow enforces when the booking is actually created.
+        if (array_key_exists('available', $filters) && $filters['available'] !== null) {
+            $bookable = fn ($serviceQuery) => $this->applyBookableServiceFilters($serviceQuery);
+
+            $filters['available']
+                ? $query->where('is_accepting_bookings', true)->whereHas('services', $bookable)
+                : $query->where(fn ($builder) => $builder
+                    ->where('is_accepting_bookings', false)
+                    ->orWhereDoesntHave('services', $bookable));
+        }
+
+        // Providers who publish hours on a given weekday. Providers with no
+        // published schedule are excluded here: they can be booked at any
+        // time, but they have not claimed to work that day.
+        if (($filters['available_day'] ?? null) !== null) {
+            $query->whereHas('availabilities', fn ($availabilityQuery) => $availabilityQuery
+                ->where('day_of_week', (int) $filters['available_day']));
+        }
+
         if (! empty($filters['category_id'])) {
             $query->whereHas('services', fn ($serviceQuery) => $this->applyPublicServiceFilters(
                 $serviceQuery->where('category_id', $filters['category_id']),
@@ -112,6 +139,12 @@ class ClientCatalogService extends BaseService
         return $this->publicProvidersQuery()
             ->whereKey($provider->id)
             ->with([
+                // The public profile shows work samples and badges; both are
+                // eager-loaded here so the detail page is a single round trip.
+                'portfolioItems' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id'),
+                // The profile shows the provider's published weekly hours.
+                'availabilities',
+                'badges' => fn ($query) => $query->where('is_active', true)->orderBy('name'),
                 'services' => fn ($query) => $this->applyPublicServiceFilters($query->getQuery())
                     ->with(['category:id,name', 'subcategory:id,name']),
                 'reviews' => fn ($query) => $query
@@ -232,6 +265,31 @@ class ClientCatalogService extends BaseService
                 $query->where($field, $filters[$field]);
             }
         }
+
+        $this->applyRatingFilter($query, $filters);
+    }
+
+    /**
+     * Narrows a services or providers query to results rated at or above the
+     * requested number of stars. Both tables carry an `average_rating`.
+     */
+    private function applyRatingFilter(Builder $query, array $filters): void
+    {
+        if (($filters['min_rating'] ?? null) !== null) {
+            $query->where('average_rating', '>=', (float) $filters['min_rating']);
+        }
+    }
+
+    /**
+     * Public services that also carry a price a client can be charged —
+     * mirrors the guard in bookableService().
+     */
+    private function applyBookableServiceFilters(Builder $query): Builder
+    {
+        return $this->applyPublicServiceFilters($query)
+            ->whereNotNull('price')
+            ->where('price', '>', 0)
+            ->where('price_type', '!=', 'custom');
     }
 
     private function perPage(array $filters): int

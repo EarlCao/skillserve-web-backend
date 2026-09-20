@@ -8,6 +8,7 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientMarketplace\Actions\CancelClientBookingAction;
 use App\Modules\ClientMarketplace\Actions\CreateClientBookingAction;
+use App\Modules\Providers\Models\ProviderAvailability;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Models\Service;
 use App\Shared\Exceptions\ApiException;
@@ -74,11 +75,12 @@ class ClientBookingService extends BaseService
 
                 // Lock the provider row so two concurrent requests cannot both
                 // pass the overlap check before either booking is inserted.
-                ProviderProfile::query()
+                $provider = ProviderProfile::query()
                     ->whereKey($service->provider_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                $this->assertProviderIsBookable($provider, $data['scheduled_date'], $scheduledEnd);
                 $this->assertNoOverlap($service->provider_id, $data['scheduled_date'], $scheduledEnd);
 
                 $booking = $this->createBookingAction->handle(
@@ -181,6 +183,60 @@ class ClientBookingService extends BaseService
             'day' => $start->addDays((int) ceil($amount)),
             default => $start->addMinutes((int) ceil($amount * 60)),
         };
+    }
+
+    /**
+     * The provider must be taking new bookings, and — when they publish
+     * weekly hours — the whole booking must fall inside that day's window.
+     *
+     * A provider with no published hours is unconstrained, which is how
+     * every provider behaved before schedules existed. Times are compared
+     * as wall clock, the same basis `scheduled_date` is recorded in.
+     */
+    private function assertProviderIsBookable(ProviderProfile $provider, string $scheduledDate, Carbon $scheduledEnd): void
+    {
+        if (! $provider->is_accepting_bookings) {
+            throw new ApiException(
+                'This provider is not accepting new bookings right now.',
+                422,
+                errors: ['service_id' => ['The provider is not accepting new bookings.']],
+            );
+        }
+
+        $schedule = $provider->availabilities()->get();
+
+        if ($schedule->isEmpty()) {
+            return;
+        }
+
+        $start = Carbon::parse($scheduledDate);
+        $window = $schedule->firstWhere('day_of_week', $start->dayOfWeek);
+
+        if ($window === null) {
+            throw new ApiException(
+                'The provider does not work on the requested day.',
+                422,
+                errors: ['scheduled_date' => [
+                    'The provider does not publish hours on '.ProviderAvailability::DAYS[$start->dayOfWeek].'s.',
+                ]],
+            );
+        }
+
+        $startMinutes = ($start->hour * 60) + $start->minute;
+        // Measured from the start of the booking's day, so a booking that
+        // runs past midnight lands beyond the window end and is refused.
+        $endMinutes = (int) $start->copy()->startOfDay()->diffInMinutes($scheduledEnd, false);
+
+        if ($startMinutes < ProviderAvailability::minutes($window->start_time)
+            || $endMinutes > ProviderAvailability::minutes($window->end_time)) {
+            throw new ApiException(
+                'The provider is not available at the requested time.',
+                422,
+                errors: ['scheduled_date' => [
+                    'The provider works '.$window->dayName().'s from '.$window->startsAt().' to '.$window->endsAt().'.',
+                ]],
+            );
+        }
     }
 
     private function assertNoOverlap(int $providerId, string $scheduledDate, Carbon $scheduledEnd): void

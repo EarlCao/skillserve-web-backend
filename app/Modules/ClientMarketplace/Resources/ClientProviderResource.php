@@ -18,7 +18,6 @@ class ClientProviderResource extends BaseResource
             'location' => $this->location,
             'website' => $this->website,
             'social_links' => $this->social_links,
-            'portfolio' => $this->portfolio,
             'skills' => $this->skills,
             'certifications' => $this->certifications,
             'languages' => $this->languages,
@@ -26,6 +25,29 @@ class ClientProviderResource extends BaseResource
             'total_reviews' => $this->total_reviews,
             'total_bookings' => $this->total_bookings,
             'completed_bookings' => $this->completed_bookings,
+            'is_featured' => (bool) $this->is_featured,
+            'is_accepting_bookings' => (bool) $this->is_accepting_bookings,
+            // Published weekly hours, on the detail response only. Empty
+            // means the provider publishes none, which does not restrict
+            // when they can be booked.
+            'availability' => $this->whenLoaded(
+                'availabilities',
+                fn () => ProviderAvailabilityResource::collection($this->availabilities),
+            ),
+            // The public catalog only lists verified providers, but the app
+            // shows the verification state explicitly rather than implying it.
+            'verification_status' => $this->verification_status,
+            'verified_at' => $this->verified_at?->toIso8601String(),
+            // Work samples and recognition badges, loaded on the detail
+            // endpoint only — the list would issue a query per provider.
+            'portfolio' => $this->whenLoaded(
+                'portfolioItems',
+                fn () => ClientPortfolioItemResource::collection($this->portfolioItems),
+            ),
+            'badges' => $this->whenLoaded(
+                'badges',
+                fn () => ClientBadgeResource::collection($this->badges),
+            ),
             // Catalog summary, present on the public provider list and detail.
             'starting_price' => $this->when(
                 array_key_exists('starting_price', $this->resource->getAttributes()),

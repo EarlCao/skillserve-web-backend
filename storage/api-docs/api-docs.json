@@ -5957,6 +5957,17 @@
                         }
                     },
                     {
+                        "name": "min_rating",
+                        "in": "query",
+                        "description": "Lowest average rating a service may carry",
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "maximum": 5,
+                            "minimum": 0
+                        }
+                    },
+                    {
                         "name": "sort",
                         "in": "query",
                         "schema": {
@@ -6065,6 +6076,43 @@
                         "in": "query",
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "featured",
+                        "in": "query",
+                        "description": "Only providers administrators have featured",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "min_rating",
+                        "in": "query",
+                        "description": "Lowest average rating a provider may carry",
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "maximum": 5,
+                            "minimum": 0
+                        }
+                    },
+                    {
+                        "name": "available",
+                        "in": "query",
+                        "description": "Only providers taking new bookings who have at least one service that can be booked online",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "available_day",
+                        "in": "query",
+                        "description": "Only providers publishing hours on this weekday (0 = Sunday … 6 = Saturday)",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 6,
+                            "minimum": 0
                         }
                     },
                     {
@@ -6352,6 +6400,437 @@
                     },
                     "403": {
                         "description": "Active, verified-email provider account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Update the authenticated provider's own professional profile",
+                "description": "Partial update. Verification status, featured flag and rating counters are not editable here — they are set by administrators or earned.",
+                "operationId": "09e65816dad2436344af29b0e2b0eec9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "business_name": {
+                                        "type": "string",
+                                        "example": "Dela Cruz Home Services",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    },
+                                    "specialization": {
+                                        "type": "string",
+                                        "example": "Plumbing",
+                                        "maxLength": 255
+                                    },
+                                    "experience_years": {
+                                        "type": "integer",
+                                        "example": 5,
+                                        "maximum": 80,
+                                        "minimum": 0
+                                    },
+                                    "hourly_rate": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 450,
+                                        "nullable": true
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "example": "Quezon City",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "website": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "nullable": true
+                                    },
+                                    "skills": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "certifications": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    },
+                                    "languages": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderProfileEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/availability": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Get the authenticated provider's published weekly hours",
+                "operationId": "883ca435b78b70fc69acb408aa00754e",
+                "responses": {
+                    "200": {
+                        "description": "Weekly schedule and booking availability",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderAvailabilityEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Replace the authenticated provider's weekly hours",
+                "description": "Sending `availability` replaces the whole schedule; an empty array clears it, which means the provider publishes no hours rather than being unavailable. A provider with no published hours can be booked at any time.",
+                "operationId": "25765cc3e15f580d2775183f67dd87b2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "is_accepting_bookings": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "availability": {
+                                        "description": "At most one window per weekday",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "day_of_week",
+                                                "start_time",
+                                                "end_time"
+                                            ],
+                                            "properties": {
+                                                "day_of_week": {
+                                                    "description": "0 = Sunday … 6 = Saturday",
+                                                    "type": "integer",
+                                                    "example": 1,
+                                                    "maximum": 6,
+                                                    "minimum": 0
+                                                },
+                                                "start_time": {
+                                                    "type": "string",
+                                                    "example": "09:00"
+                                                },
+                                                "end_time": {
+                                                    "type": "string",
+                                                    "example": "17:00"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "maxItems": 7
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Updated schedule",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderAvailabilityEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/portfolio": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "List the authenticated provider's own work samples",
+                "operationId": "6d7fac4b8d5dffbcf269c6f9ff270052",
+                "responses": {
+                    "200": {
+                        "description": "Portfolio items, newest first",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPortfolioListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Add a work sample to the provider's own portfolio",
+                "operationId": "889af871637de0881f88cf506b95a759",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "title",
+                                    "image"
+                                ],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Bathroom repipe",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    },
+                                    "image": {
+                                        "description": "JPG, PNG or WebP, at most 5 MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Item added",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPortfolioEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/portfolio/{item}": {
+            "delete": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Remove one of the provider's own work samples",
+                "operationId": "9060ab2a37970cc926a4f16b0f890b5c",
+                "parameters": [
+                    {
+                        "name": "item",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Item removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Item not found, or it belongs to another provider"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/badges": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "The authenticated provider's recognition badges",
+                "description": "Returns the badges this provider has earned and the active badges still available, so the app can show progress toward the rest.",
+                "operationId": "50702a53b789196747c24fc4f5b28ad0",
+                "responses": {
+                    "200": {
+                        "description": "Earned and available badges",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBadgeSetEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
                     }
                 },
                 "security": [
@@ -15730,9 +16209,18 @@
                         "additionalProperties": true
                     },
                     "portfolio": {
+                        "description": "Work samples, present on the provider detail response",
                         "type": "array",
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/ClientPortfolioItem"
+                        },
+                        "nullable": true
+                    },
+                    "badges": {
+                        "description": "Recognition badges, present on the provider detail response",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClientBadge"
                         },
                         "nullable": true
                     },
@@ -15769,6 +16257,31 @@
                     },
                     "completed_bookings": {
                         "type": "integer"
+                    },
+                    "is_featured": {
+                        "description": "Highlighted by administrators",
+                        "type": "boolean"
+                    },
+                    "is_accepting_bookings": {
+                        "description": "Whether the provider is taking new bookings",
+                        "type": "boolean"
+                    },
+                    "availability": {
+                        "description": "Published weekly hours, present on the provider detail response. An empty array means no published hours, which does not restrict booking times.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProviderAvailabilityWindow"
+                        },
+                        "nullable": true
+                    },
+                    "verification_status": {
+                        "type": "string",
+                        "example": "verified"
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "starting_price": {
                         "description": "Lowest price (PHP) across the provider's public services",
@@ -16228,6 +16741,177 @@
                         "properties": {
                             "data": {
                                 "$ref": "#/components/schemas/ClientUser"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientPortfolioItem": {
+                "description": "A work sample on a provider's public profile.",
+                "properties": {
+                    "portfolio_id": {
+                        "type": "integer"
+                    },
+                    "provider_id": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "image": {
+                        "description": "Absolute image URL",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientPortfolioEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientPortfolioItem"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientPortfolioListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientPortfolioItem"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderAvailabilityWindow": {
+                "description": "One weekday window of a provider's published hours. Times are wall clock in the platform's timezone.",
+                "properties": {
+                    "day_of_week": {
+                        "description": "0 = Sunday … 6 = Saturday",
+                        "type": "integer",
+                        "maximum": 6,
+                        "minimum": 0
+                    },
+                    "day": {
+                        "type": "string",
+                        "example": "Monday"
+                    },
+                    "start_time": {
+                        "type": "string",
+                        "example": "09:00"
+                    },
+                    "end_time": {
+                        "type": "string",
+                        "example": "17:00"
+                    }
+                },
+                "type": "object"
+            },
+            "ProviderAvailabilityEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "properties": {
+                                    "is_accepting_bookings": {
+                                        "type": "boolean"
+                                    },
+                                    "availability": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/ProviderAvailabilityWindow"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientBadge": {
+                "description": "A recognition badge. `earned` is false for badges the provider has not been awarded yet.",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "example": "top_rated"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Top Rated"
+                    },
+                    "criteria": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "color": {
+                        "type": "string",
+                        "example": "primary"
+                    },
+                    "earned": {
+                        "type": "boolean"
+                    },
+                    "earned_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ClientBadgeSetEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "properties": {
+                                    "earned": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/ClientBadge"
+                                        }
+                                    },
+                                    "available": {
+                                        "type": "array",
+                                        "items": {
+                                            "$ref": "#/components/schemas/ClientBadge"
+                                        }
+                                    }
+                                },
+                                "type": "object"
                             }
                         },
                         "type": "object"

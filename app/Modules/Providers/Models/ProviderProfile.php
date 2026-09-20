@@ -40,6 +40,7 @@ class ProviderProfile extends Model
         'verified_by',
         'rejection_reason',
         'suspension_reason', 'is_featured',
+        'is_accepting_bookings',
         'suspended_at',
         'suspended_by',
     ];
@@ -55,6 +56,7 @@ class ProviderProfile extends Model
         'verified_at' => 'datetime',
         'suspended_at' => 'datetime',
         'is_featured' => 'boolean',
+        'is_accepting_bookings' => 'boolean',
     ];
 
     /**
@@ -105,6 +107,22 @@ class ProviderProfile extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(Review::class, 'provider_id');
+    }
+
+    /** Work samples shown on the provider's public profile. */
+    public function portfolioItems(): HasMany
+    {
+        return $this->hasMany(ProviderPortfolioItem::class, 'provider_profile_id');
+    }
+
+    /**
+     * The weekly hours the provider publishes, ordered as the week reads.
+     */
+    public function availabilities(): HasMany
+    {
+        return $this->hasMany(ProviderAvailability::class, 'provider_profile_id')
+            ->orderBy('day_of_week')
+            ->orderBy('start_time');
     }
 
     public function badges(): BelongsToMany

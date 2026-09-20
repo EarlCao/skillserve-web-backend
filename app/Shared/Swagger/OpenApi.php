@@ -240,7 +240,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'location', type: 'string', nullable: true),
         new OA\Property(property: 'website', type: 'string', nullable: true),
         new OA\Property(property: 'social_links', type: 'object', nullable: true, additionalProperties: true),
-        new OA\Property(property: 'portfolio', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
+        new OA\Property(property: 'portfolio', type: 'array', nullable: true, description: 'Work samples, present on the provider detail response', items: new OA\Items(ref: '#/components/schemas/ClientPortfolioItem')),
+        new OA\Property(property: 'badges', type: 'array', nullable: true, description: 'Recognition badges, present on the provider detail response', items: new OA\Items(ref: '#/components/schemas/ClientBadge')),
         new OA\Property(property: 'skills', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
         new OA\Property(property: 'certifications', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
         new OA\Property(property: 'languages', type: 'array', nullable: true, items: new OA\Items(type: 'string')),
@@ -248,6 +249,11 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'total_reviews', type: 'integer'),
         new OA\Property(property: 'total_bookings', type: 'integer'),
         new OA\Property(property: 'completed_bookings', type: 'integer'),
+        new OA\Property(property: 'is_featured', type: 'boolean', description: 'Highlighted by administrators'),
+        new OA\Property(property: 'is_accepting_bookings', type: 'boolean', description: 'Whether the provider is taking new bookings'),
+        new OA\Property(property: 'availability', type: 'array', nullable: true, description: 'Published weekly hours, present on the provider detail response. An empty array means no published hours, which does not restrict booking times.', items: new OA\Items(ref: '#/components/schemas/ProviderAvailabilityWindow')),
+        new OA\Property(property: 'verification_status', type: 'string', example: 'verified'),
+        new OA\Property(property: 'verified_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'starting_price', type: 'string', nullable: true, example: '1500.00', description: 'Lowest price (PHP) across the provider\'s public services'),
         new OA\Property(property: 'primary_category', type: 'string', nullable: true, example: 'Appliance Repair', description: 'Category with the most public services'),
         new OA\Property(property: 'services', type: 'array', nullable: true, items: new OA\Items(ref: '#/components/schemas/ClientService')),
@@ -382,6 +388,62 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(
     schema: 'ClientUserEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientUser')])],
+)]
+#[OA\Schema(
+    schema: 'ClientPortfolioItem',
+    description: "A work sample on a provider's public profile.",
+    properties: [
+        new OA\Property(property: 'portfolio_id', type: 'integer'),
+        new OA\Property(property: 'provider_id', type: 'integer'),
+        new OA\Property(property: 'title', type: 'string'),
+        new OA\Property(property: 'description', type: 'string', nullable: true),
+        new OA\Property(property: 'image', type: 'string', nullable: true, description: 'Absolute image URL'),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientPortfolioEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientPortfolioItem')])],
+)]
+#[OA\Schema(
+    schema: 'ClientPortfolioListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientPortfolioItem'))])],
+)]
+#[OA\Schema(
+    schema: 'ProviderAvailabilityWindow',
+    description: "One weekday window of a provider's published hours. Times are wall clock in the platform's timezone.",
+    properties: [
+        new OA\Property(property: 'day_of_week', type: 'integer', minimum: 0, maximum: 6, description: '0 = Sunday … 6 = Saturday'),
+        new OA\Property(property: 'day', type: 'string', example: 'Monday'),
+        new OA\Property(property: 'start_time', type: 'string', example: '09:00'),
+        new OA\Property(property: 'end_time', type: 'string', example: '17:00'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ProviderAvailabilityEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', properties: [
+        new OA\Property(property: 'is_accepting_bookings', type: 'boolean'),
+        new OA\Property(property: 'availability', type: 'array', items: new OA\Items(ref: '#/components/schemas/ProviderAvailabilityWindow')),
+    ], type: 'object')])],
+)]
+#[OA\Schema(
+    schema: 'ClientBadge',
+    description: 'A recognition badge. `earned` is false for badges the provider has not been awarded yet.',
+    properties: [
+        new OA\Property(property: 'key', type: 'string', example: 'top_rated'),
+        new OA\Property(property: 'title', type: 'string', example: 'Top Rated'),
+        new OA\Property(property: 'criteria', type: 'string', nullable: true),
+        new OA\Property(property: 'color', type: 'string', example: 'primary'),
+        new OA\Property(property: 'earned', type: 'boolean'),
+        new OA\Property(property: 'earned_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientBadgeSetEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', properties: [
+        new OA\Property(property: 'earned', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientBadge')),
+        new OA\Property(property: 'available', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientBadge')),
+    ], type: 'object')])],
 )]
 #[OA\Schema(
     schema: 'ClientPreference',
