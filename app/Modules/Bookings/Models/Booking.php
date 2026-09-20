@@ -4,11 +4,13 @@ namespace App\Modules\Bookings\Models;
 
 use App\Models\User;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -16,6 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'service_id', 'client_id', 'provider_id', 'booking_number', 'status',
     'payment_status', 'total_price', 'service_price', 'platform_fee', 'currency',
     'payment_method', 'payment_reference', 'client_notes', 'provider_notes',
+    'service_address', 'contact_phone',
     'cancellation_reason', 'scheduled_date', 'scheduled_end_date',
     'confirmed_at', 'started_at', 'completed_at', 'cancelled_at',
     'dispute_reason', 'disputed_at', 'dispute_status', 'dispute_resolution',
@@ -44,6 +47,27 @@ class Booking extends Model
     public function review(): HasOne
     {
         return $this->hasOne(Review::class, 'booking_id');
+    }
+
+    /**
+     * Messages exchanged on this booking. A booking is the conversation: the
+     * client and the provider only ever message each other about a job.
+     */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'booking_id');
+    }
+
+    /**
+     * The newest message still visible, used for conversation previews. Ties
+     * on created_at break by id so the preview is deterministic.
+     */
+    public function latestMessage(): HasOne
+    {
+        return $this->hasOne(Message::class, 'booking_id')->ofMany(
+            ['created_at' => 'max', 'id' => 'max'],
+            fn ($query) => $query->where('status', 'active'),
+        );
     }
 
     public function cancelledByUser(): BelongsTo

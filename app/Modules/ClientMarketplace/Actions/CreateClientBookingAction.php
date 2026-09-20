@@ -30,6 +30,8 @@ final class CreateClientBookingAction extends BaseAction
             'currency' => $service->currency,
             'payment_method' => $data['payment_method'] ?? null,
             'client_notes' => $data['client_notes'] ?? null,
+            'service_address' => $data['service_address'] ?? null,
+            'contact_phone' => $data['contact_phone'] ?? null,
             'scheduled_date' => $data['scheduled_date'],
             'scheduled_end_date' => $data['scheduled_end_date'],
             'client_idempotency_key' => $idempotencyKey,

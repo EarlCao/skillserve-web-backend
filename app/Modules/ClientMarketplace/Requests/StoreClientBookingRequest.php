@@ -27,6 +27,8 @@ class StoreClientBookingRequest extends BaseFormRequest
             // When omitted, the service duration determines the end time.
             'scheduled_end_date' => ['sometimes', 'nullable', 'date', 'after:scheduled_date'],
             'client_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            'service_address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'contact_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
             'payment_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYMENT_METHODS)],
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];

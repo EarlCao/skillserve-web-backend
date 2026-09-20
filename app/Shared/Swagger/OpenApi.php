@@ -303,6 +303,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'payment_method', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_payment_policy', type: 'string', nullable: true),
         new OA\Property(property: 'client_notes', type: 'string', nullable: true),
+        new OA\Property(property: 'service_address', type: 'string', nullable: true),
+        new OA\Property(property: 'contact_phone', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
         new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true),
@@ -319,6 +321,47 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ProviderBookingClient',
+    description: 'The customer a job is for, as its provider may see them.',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'name', type: 'string'),
+        new OA\Property(property: 'phone', type: 'string', nullable: true, description: 'The booking contact number, falling back to the account phone'),
+        new OA\Property(property: 'profile_picture', type: 'string', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ProviderBooking',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'booking_number', type: 'string'),
+        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'disputed']),
+        new OA\Property(property: 'payment_status', type: 'string'),
+        new OA\Property(property: 'service_price', type: 'string', example: '1500.00'),
+        new OA\Property(property: 'total_price', type: 'string', example: '1500.00'),
+        new OA\Property(property: 'platform_fee', type: 'string', example: '150.00'),
+        new OA\Property(property: 'currency', type: 'string'),
+        new OA\Property(property: 'payment_method', type: 'string', nullable: true),
+        new OA\Property(property: 'client_notes', type: 'string', nullable: true),
+        new OA\Property(property: 'provider_notes', type: 'string', nullable: true),
+        new OA\Property(property: 'service_address', type: 'string', nullable: true),
+        new OA\Property(property: 'contact_phone', type: 'string', nullable: true),
+        new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
+        new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'confirmed_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'started_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'completed_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'cancelled_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'is_reviewed', type: 'boolean'),
+        new OA\Property(property: 'service', ref: '#/components/schemas/ClientService', nullable: true),
+        new OA\Property(property: 'client', ref: '#/components/schemas/ProviderBookingClient', nullable: true),
+        new OA\Property(property: 'review', ref: '#/components/schemas/ClientReview', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
     schema: 'BookingMessage',
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
@@ -328,6 +371,35 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'receiver', ref: '#/components/schemas/ClientPerson', nullable: true),
         new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ConversationCounterpart',
+    description: 'The other party on the booking, resolved against the signed-in account.',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', description: 'Their user id'),
+        new OA\Property(property: 'name', type: 'string', description: 'A provider\'s business name, or a customer\'s name'),
+        new OA\Property(property: 'profile_picture', type: 'string', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'Conversation',
+    description: 'One booking message thread in the Messages inbox.',
+    properties: [
+        new OA\Property(property: 'booking_id', type: 'integer', description: 'Addresses the thread: a booking is the conversation'),
+        new OA\Property(property: 'booking_number', type: 'string'),
+        new OA\Property(property: 'booking_status', type: 'string'),
+        new OA\Property(property: 'service_title', type: 'string', nullable: true),
+        new OA\Property(property: 'counterpart', ref: '#/components/schemas/ConversationCounterpart', nullable: true),
+        new OA\Property(property: 'last_message', type: 'object', nullable: true, properties: [
+            new OA\Property(property: 'id', type: 'integer'),
+            new OA\Property(property: 'content', type: 'string'),
+            new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+            new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
+            new OA\Property(property: 'is_mine', type: 'boolean', description: 'Whether the signed-in account sent it'),
+        ]),
+        new OA\Property(property: 'unread_count', type: 'integer', description: 'Unread messages in this thread addressed to the signed-in account'),
+        new OA\Property(property: 'last_message_at', type: 'string', format: 'date-time', nullable: true),
     ],
 )]
 #[OA\Schema(
@@ -539,6 +611,14 @@ use OpenApi\Attributes as OA;
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientBooking')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
 )]
 #[OA\Schema(
+    schema: 'ProviderBookingEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderBooking')])],
+)]
+#[OA\Schema(
+    schema: 'ProviderBookingListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ProviderBooking')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
     schema: 'ClientReviewEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientReview')])],
 )]
@@ -569,6 +649,14 @@ use OpenApi\Attributes as OA;
 #[OA\Schema(
     schema: 'ClientNotificationListEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientNotification')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'ConversationListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/Conversation')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'UnreadMessageCountEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'object', properties: [new OA\Property(property: 'unread_count', type: 'integer')])])],
 )]
 #[OA\Schema(
     schema: 'ClientUnreadCountEnvelope',

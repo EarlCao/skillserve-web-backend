@@ -2,9 +2,17 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Resources\BaseResource;
 
-class ClientBookingResource extends BaseResource
+/**
+ * A booking as its provider sees it.
+ *
+ * Mirrors {@see ClientBookingResource} but swaps the provider block for the
+ * customer the job is for: the provider needs the name, the number to call
+ * and the address to show up, and nothing else from that account.
+ */
+class ProviderBookingResource extends BaseResource
 {
     public function toArray($request): array
     {
@@ -15,10 +23,11 @@ class ClientBookingResource extends BaseResource
             'payment_status' => $this->payment_status,
             'service_price' => $this->service_price,
             'total_price' => $this->total_price,
+            'platform_fee' => $this->platform_fee,
             'currency' => $this->currency,
             'payment_method' => $this->payment_method,
-            'cancellation_payment_policy' => $this->when($this->isCancelled(), fn () => $this->cancellationPaymentPolicy()),
             'client_notes' => $this->client_notes,
+            'provider_notes' => $this->provider_notes,
             'service_address' => $this->service_address,
             'contact_phone' => $this->contact_phone,
             'cancellation_reason' => $this->cancellation_reason,
@@ -30,10 +39,13 @@ class ClientBookingResource extends BaseResource
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'is_reviewed' => $this->is_reviewed,
             'service' => $this->whenLoaded('service', fn () => new ClientServiceResource($this->service)),
-            'provider' => $this->whenLoaded('provider', fn () => $this->provider ? [
-                'id' => $this->provider->id,
-                'business_name' => $this->provider->business_name,
-                'average_rating' => $this->provider->average_rating,
+            'client' => $this->whenLoaded('client', fn () => $this->client ? [
+                'id' => $this->client->id,
+                'name' => $this->client->name,
+                // The booking's own contact number wins; the account phone is
+                // the fallback when the customer left the form field empty.
+                'phone' => $this->contact_phone ?: $this->client->phone,
+                'profile_picture' => ClientProfileService::photoUrl($this->client->profile_photo_path),
             ] : null),
             'review' => $this->whenLoaded('review', fn () => $this->review
                 ? new ClientReviewResource($this->review)

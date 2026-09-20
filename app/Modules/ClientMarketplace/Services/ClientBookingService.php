@@ -151,6 +151,8 @@ class ClientBookingService extends BaseService
             || ($scheduledEnd !== null && ($booking->scheduled_end_date === null
                 || abs($booking->scheduled_end_date->getTimestamp() - $scheduledEnd->getTimestamp()) > 1))
             || $booking->client_notes !== ($data['client_notes'] ?? null)
+            || $booking->service_address !== ($data['service_address'] ?? null)
+            || $booking->contact_phone !== ($data['contact_phone'] ?? null)
             || $booking->payment_method !== ($data['payment_method'] ?? null)) {
             throw new ApiException(
                 'This idempotency key was already used for a different booking request.',

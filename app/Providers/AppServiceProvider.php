@@ -26,6 +26,7 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
+use App\Modules\Bookings\Listeners\NotifyBookingParticipants;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
@@ -255,6 +256,9 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(BookingStatusChanged::class, LogBookingActivity::class);
         Event::listen(BookingCancelled::class, LogBookingActivity::class);
         Event::listen(BookingDisputeManaged::class, LogBookingActivity::class);
+
+        // Every status change tells the other party in the mobile app.
+        Event::listen(BookingStatusChanged::class, NotifyBookingParticipants::class);
 
         // Booking Management module policies.
         Gate::policy(Booking::class, BookingPolicy::class);

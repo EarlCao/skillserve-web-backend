@@ -183,6 +183,49 @@ class ClientMarketplaceTest extends TestCase
         ]);
     }
 
+    public function test_a_booking_keeps_the_job_address_and_contact_number(): void
+    {
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->service($provider, $this->category('Booking '.Str::random(5)), ['currency' => 'PHP']);
+        $token = $this->clientToken($client);
+        $payload = [
+            'service_id' => $service->id,
+            'scheduled_date' => now()->addDay()->toISOString(),
+            'service_address' => '12 Mabini St, Quezon City',
+            'contact_phone' => '09171234567',
+        ];
+
+        $created = $this->withToken($token)
+            ->withHeader('Idempotency-Key', 'booking-address-1')
+            ->postJson('/api/client/v1/bookings', $payload)
+            ->assertCreated()
+            ->assertJsonPath('data.service_address', '12 Mabini St, Quezon City')
+            ->assertJsonPath('data.contact_phone', '09171234567');
+
+        $this->assertDatabaseHas('bookings', [
+            'id' => $created->json('data.id'),
+            'service_address' => '12 Mabini St, Quezon City',
+            'contact_phone' => '09171234567',
+        ]);
+
+        // A replayed key with a different address is a different request.
+        $this->withToken($token)
+            ->withHeader('Idempotency-Key', 'booking-address-1')
+            ->postJson('/api/client/v1/bookings', [...$payload, 'service_address' => 'Somewhere else'])
+            ->assertStatus(409);
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', [
+                'service_id' => $service->id,
+                'scheduled_date' => now()->addDays(3)->toISOString(),
+                'service_address' => str_repeat('a', 256),
+            ])
+            ->assertStatus(422);
+
+        $this->assertDatabaseCount('bookings', 1);
+    }
+
     public function test_booking_creation_rejects_an_overlapping_provider_window(): void
     {
         $firstClient = $this->customer();

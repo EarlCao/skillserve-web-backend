@@ -3,6 +3,7 @@
 use App\Modules\ClientMarketplace\Controllers\ClientBookingController;
 use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
+use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
 use App\Modules\ClientMarketplace\Middleware\EnsureClient;
@@ -47,6 +48,16 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
     Route::put('/provider/availability', [ProviderProfileController::class, 'updateAvailability']);
 
     Route::get('/provider/badges', [ProviderProfileController::class, 'badges']);
+});
+
+/* The provider's jobs: the bookings placed with them and their lifecycle. */
+Route::prefix('provider/bookings')->middleware(['auth:sanctum', EnsureProvider::class])->group(function (): void {
+    Route::get('/', [ProviderBookingController::class, 'index']);
+    Route::get('/{booking}', [ProviderBookingController::class, 'show'])->whereNumber('booking');
+    Route::patch('/{booking}/confirm', [ProviderBookingController::class, 'confirm'])->whereNumber('booking');
+    Route::patch('/{booking}/decline', [ProviderBookingController::class, 'decline'])->whereNumber('booking');
+    Route::patch('/{booking}/start', [ProviderBookingController::class, 'start'])->whereNumber('booking');
+    Route::patch('/{booking}/complete', [ProviderBookingController::class, 'complete'])->whereNumber('booking');
 });
 
 /* Providers manage their own services; changes await administrator approval. */

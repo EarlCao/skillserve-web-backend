@@ -4,7 +4,10 @@ namespace App\Modules\ClientCommunication\Services;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientCommunication\Events\ClientMessageCreated;
+use App\Modules\ClientCommunication\Notifications\BookingMessageNotification;
 use App\Modules\ClientCommunication\Policies\BookingMessagePolicy;
+use App\Modules\ClientCommunication\Resources\BookingMessageResource;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
@@ -53,7 +56,7 @@ class BookingMessageService extends BaseService
         }
 
         try {
-            return $this->transaction(function () use ($booking, $user, $receiverId, $content, $idempotencyKey): Message {
+            $message = $this->transaction(function () use ($booking, $user, $receiverId, $content, $idempotencyKey): Message {
                 if ($idempotencyKey) {
                     $existing = Message::query()
                         ->where('booking_id', $booking->id)
@@ -78,6 +81,10 @@ class BookingMessageService extends BaseService
                     'client_idempotency_key' => $idempotencyKey,
                 ])->load(['sender:id,name', 'receiver:id,name']);
             });
+
+            $this->deliver($message);
+
+            return $message;
         } catch (QueryException $exception) {
             if (! $idempotencyKey) {
                 throw $exception;
@@ -97,6 +104,35 @@ class BookingMessageService extends BaseService
 
             return $existing->load(['sender:id,name', 'receiver:id,name']);
         }
+    }
+
+    /**
+     * Push a freshly written message to its receiver: a realtime event so an
+     * open chat updates at once, and a notification for the feed and banner.
+     *
+     * Runs after the transaction commits, so a slow or failing queue write can
+     * never roll back a message the sender already saw accepted. A replayed
+     * idempotency key delivers nothing, because nothing was written.
+     */
+    private function deliver(Message $message): void
+    {
+        if (! $message->wasRecentlyCreated) {
+            return;
+        }
+
+        event(new ClientMessageCreated(
+            receiverId: (int) $message->receiver_id,
+            bookingId: (int) $message->booking_id,
+            message: (new BookingMessageResource($message))->resolve(),
+        ));
+
+        // Load the whole account rather than use the eager-loaded relation:
+        // messages load their parties as id+name only, which would hide
+        // role_id and make the realtime push skip a genuine mobile account.
+        User::query()->find($message->receiver_id)?->notify(new BookingMessageNotification(
+            $message,
+            $message->sender?->name ?? 'Someone',
+        ));
     }
 
     private function assertSameIdempotentRequest(Message $message, int $receiverId, string $content): void
