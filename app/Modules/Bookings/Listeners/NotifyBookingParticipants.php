@@ -50,6 +50,11 @@ class NotifyBookingParticipants
                 "The booking for {$name} was cancelled.".($reason ? " Reason: {$reason}" : ''),
                 $reason,
             ),
+            'disputed' => new BookingStatusNotification(
+                $booking, 'disputed', 'Booking disputed',
+                "A dispute was raised on the booking for {$name}. Our support team will review it.",
+                $booking->dispute_reason,
+            ),
             default => null,
         };
 
@@ -57,8 +62,9 @@ class NotifyBookingParticipants
             return;
         }
 
-        // A cancellation concerns both sides; the rest are the customer's news.
-        $recipients = $event->newStatus === 'cancelled'
+        // A cancellation or a dispute concerns both sides; the rest are the
+        // customer's news.
+        $recipients = in_array($event->newStatus, ['cancelled', 'disputed'], true)
             ? [$client, $providerUser]
             : [$client];
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\ClientMarketplace\Controllers\BookingDisputeController;
 use App\Modules\ClientMarketplace\Controllers\ClientBookingController;
 use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
@@ -7,6 +8,7 @@ use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
 use App\Modules\ClientMarketplace\Middleware\EnsureClient;
+use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
 use App\Modules\ClientMarketplace\Middleware\EnsureProvider;
 use Illuminate\Support\Facades\Route;
 
@@ -48,6 +50,16 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
     Route::put('/provider/availability', [ProviderProfileController::class, 'updateAvailability']);
 
     Route::get('/provider/badges', [ProviderProfileController::class, 'badges']);
+});
+
+/* Disputes belong to both parties on a booking, so they sit outside the
+   customer-only and provider-only groups and authorize the participant. */
+Route::middleware(['auth:sanctum', EnsureMobileAccount::class])->group(function (): void {
+    Route::get('/disputes', [BookingDisputeController::class, 'index']);
+    Route::patch('/bookings/{booking}/dispute', [BookingDisputeController::class, 'store'])
+        ->whereNumber('booking');
+    Route::post('/bookings/{booking}/dispute/evidence', [BookingDisputeController::class, 'storeEvidence'])
+        ->whereNumber('booking');
 });
 
 /* The provider's jobs: the bookings placed with them and their lifecycle. */

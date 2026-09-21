@@ -14,7 +14,9 @@ use App\Modules\Bookings\Services\DisputeService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Disputes', description: 'Review and manage booking disputes')]
 class DisputeController extends Controller
@@ -135,5 +137,37 @@ class DisputeController extends Controller
         $this->authorize('manageDispute', $booking);
 
         return $this->success(new BookingResource($this->disputeService->close($booking, $request->user(), $request->validated('note'))), 'Dispute closed.');
+    }
+
+    #[OA\Get(
+        path: '/api/disputes/{booking}/evidence/{evidence}',
+        summary: 'Download a photo a party attached to a dispute',
+        description: 'Served from private storage after checking the view-disputes permission. The evidence id comes from the booking\'s dispute_evidence list.',
+        tags: ['Disputes'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'evidence', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'The evidence file'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the view-disputes permission'),
+            new OA\Response(response: 404, description: 'Evidence or file not found'),
+        ],
+    )]
+    public function downloadEvidence(Booking $booking, string $evidence): StreamedResponse
+    {
+        $this->authorize('viewDisputes', Booking::class);
+
+        $item = collect($booking->dispute_evidence ?? [])->firstWhere('id', $evidence);
+        abort_unless(is_array($item) && ! empty($item['path']), 404);
+
+        $disk = Storage::disk('dispute_evidence');
+        abort_unless($disk->exists($item['path']), 404);
+
+        return $disk->download($item['path'], basename($item['path']), [
+            'Content-Type' => $item['mime_type'] ?? 'application/octet-stream',
+        ]);
     }
 }

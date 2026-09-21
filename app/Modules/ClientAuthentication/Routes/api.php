@@ -30,6 +30,8 @@ Route::middleware(['auth:sanctum', EnsureActiveClient::class])->group(function (
     Route::patch('/me', [ClientAuthController::class, 'updateProfile']);
     Route::post('/me/photo', [ClientAuthController::class, 'updateProfilePhoto']);
     Route::delete('/me/photo', [ClientAuthController::class, 'deleteProfilePhoto']);
+    Route::get('/me/data-export', [ClientAuthController::class, 'exportData']);
+    Route::delete('/me', [ClientAuthController::class, 'deleteAccount']);
     Route::post('/logout', [ClientAuthController::class, 'logout']);
     Route::post('/change-password', [ClientAuthController::class, 'changePassword']);
     Route::post('/verification-notification', [ClientAuthController::class, 'sendVerificationNotification']);

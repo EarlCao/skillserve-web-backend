@@ -23,7 +23,7 @@ class ClientSupportTicketController extends Controller
 
     #[OA\Get(
         path: '/api/client/v1/support/tickets',
-        summary: 'List the authenticated customer support tickets',
+        summary: 'List the signed-in account\'s support tickets',
         tags: ['Client Support'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -31,7 +31,7 @@ class ClientSupportTicketController extends Controller
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15)),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
         ],
-        responses: [new OA\Response(response: 200, description: 'Paginated customer tickets', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketListEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required'), new OA\Response(response: 422, description: 'Invalid filter')],
+        responses: [new OA\Response(response: 200, description: 'Paginated tickets raised by the account', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketListEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 422, description: 'Invalid filter')],
     )]
     public function index(ClientSupportTicketIndexRequest $request): JsonResponse
     {
@@ -44,7 +44,7 @@ class ClientSupportTicketController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/support/tickets',
-        summary: 'Create a support ticket for the authenticated customer',
+        summary: 'Raise a support ticket as a customer or provider',
         tags: ['Client Support'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['subject', 'description'], properties: [
@@ -52,7 +52,7 @@ class ClientSupportTicketController extends Controller
             new OA\Property(property: 'description', type: 'string', maxLength: 10000),
             new OA\Property(property: 'category', type: 'string', maxLength: 40, nullable: true),
         ])),
-        responses: [new OA\Response(response: 201, description: 'Support ticket created', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required'), new OA\Response(response: 422, description: 'Validation error')],
+        responses: [new OA\Response(response: 201, description: 'Support ticket created', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 422, description: 'Validation error')],
     )]
     public function store(StoreClientSupportTicketRequest $request): JsonResponse
     {
@@ -65,11 +65,11 @@ class ClientSupportTicketController extends Controller
 
     #[OA\Get(
         path: '/api/client/v1/support/tickets/{ticket}',
-        summary: 'Get an owned customer support ticket',
+        summary: 'Get a support ticket the account raised',
         tags: ['Client Support'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
-        responses: [new OA\Response(response: 200, description: 'Support ticket details', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required'), new OA\Response(response: 404, description: 'Ticket not found')],
+        responses: [new OA\Response(response: 200, description: 'Support ticket details', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 404, description: 'Ticket not found')],
     )]
     public function show(Request $request, SupportTicket $ticket): JsonResponse
     {
@@ -78,12 +78,12 @@ class ClientSupportTicketController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/support/tickets/{ticket}/replies',
-        summary: 'Reply to an owned customer support ticket',
+        summary: 'Reply to a support ticket the account raised',
         tags: ['Client Support'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['body'], properties: [new OA\Property(property: 'body', type: 'string', maxLength: 5000)])),
-        responses: [new OA\Response(response: 200, description: 'Reply added', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified client access required'), new OA\Response(response: 404, description: 'Ticket not found'), new OA\Response(response: 422, description: 'Validation error or resolved ticket')],
+        responses: [new OA\Response(response: 200, description: 'Reply added', content: new OA\JsonContent(ref: '#/components/schemas/ClientSupportTicketEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 404, description: 'Ticket not found'), new OA\Response(response: 422, description: 'Validation error or resolved ticket')],
     )]
     public function reply(StoreSupportTicketResponseRequest $request, SupportTicket $ticket): JsonResponse
     {

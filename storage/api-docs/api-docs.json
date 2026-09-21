@@ -3617,6 +3617,54 @@
                 ]
             }
         },
+        "/api/disputes/{booking}/evidence/{evidence}": {
+            "get": {
+                "tags": [
+                    "Disputes"
+                ],
+                "summary": "Download a photo a party attached to a dispute",
+                "description": "Served from private storage after checking the view-disputes permission. The evidence id comes from the booking's dispute_evidence list.",
+                "operationId": "3f8abf39baa7468f339399552cef9072",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "evidence",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The evidence file"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view-disputes permission"
+                    },
+                    "404": {
+                        "description": "Evidence or file not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/auth/register": {
             "post": {
                 "tags": [
@@ -4438,6 +4486,57 @@
                     }
                 ]
             },
+            "delete": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Delete the signed-in account",
+                "description": "Confirmed with the account password. Refused while the account still has open bookings, so the other party is never left mid-job. The account is soft-deleted and every device is signed out; an administrator can restore it from Data Management. There is no separate \"pending deletion\" state.",
+                "operationId": "40600885410e53f3faa51a2e194fb098",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "password"
+                                ],
+                                "properties": {
+                                    "password": {
+                                        "description": "The account's current password",
+                                        "type": "string"
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Account deleted and sessions revoked"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active mobile account required"
+                    },
+                    "422": {
+                        "description": "Wrong password, or open bookings remain"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
             "patch": {
                 "tags": [
                     "Client Authentication"
@@ -4641,6 +4740,39 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/auth/me/data-export": {
+            "get": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Take a copy of everything the platform holds about this account",
+                "description": "Own data only: profile, preferences, provider profile, bookings, reviews, reports filed and support tickets.",
+                "operationId": "cd18f2fe871faf733868398defce5270",
+                "responses": {
+                    "200": {
+                        "description": "The account's data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AccountDataExportEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active mobile account required"
                     }
                 },
                 "security": [
@@ -5164,6 +5296,52 @@
                 ]
             }
         },
+        "/api/client/v1/bookings/{booking}/messages/read": {
+            "post": {
+                "tags": [
+                    "Booking Messages"
+                ],
+                "summary": "Mark the messages received on a booking as read",
+                "description": "For an open conversation that already shows a pushed message: clears its unread state without re-reading the thread, and returns the account's remaining unread total for the Messages badge.",
+                "operationId": "5416d6a18643569c796e52ddf24180c5",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessagesMarkedReadEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Booking participant access required"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/notifications": {
             "get": {
                 "tags": [
@@ -5322,12 +5500,207 @@
                 ]
             }
         },
+        "/api/client/v1/reports": {
+            "get": {
+                "tags": [
+                    "Client Reports"
+                ],
+                "summary": "List the reports the signed-in account has filed",
+                "operationId": "9598e59a4be854eb16b94109b5308fd3",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "investigating",
+                                "resolved",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reports filed by the account",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReportListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active customer or provider account required"
+                    },
+                    "422": {
+                        "description": "Invalid filter"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Client Reports"
+                ],
+                "summary": "Report a person, a review or a message",
+                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received. Moderators review every report from the admin console. One open report per subject per reporter.",
+                "operationId": "c7856bfbe60e0f4d287c6af7118453dd",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "booking_id": {
+                                        "description": "Report the other party on this booking",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "review_id": {
+                                        "description": "Report this published review",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "message_id": {
+                                        "description": "Report this message the caller received",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "enum": [
+                                            "service_quality",
+                                            "no_show",
+                                            "safety_concern",
+                                            "payment_dispute",
+                                            "misleading_information",
+                                            "harassment",
+                                            "inappropriate_content",
+                                            "spam",
+                                            "other"
+                                        ]
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "maxLength": 2000,
+                                        "minLength": 10
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Report filed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReportEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active customer or provider account required"
+                    },
+                    "404": {
+                        "description": "Subject not found, or not one the caller may report"
+                    },
+                    "409": {
+                        "description": "An earlier report about this subject is still open"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/reports/{report}": {
+            "get": {
+                "tags": [
+                    "Client Reports"
+                ],
+                "summary": "Get a report the signed-in account filed",
+                "operationId": "fcb69362ae55a6917ed66c7bc5c8397e",
+                "parameters": [
+                    {
+                        "name": "report",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Report details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReportEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not filed by the caller"
+                    },
+                    "404": {
+                        "description": "Report not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/support/tickets": {
             "get": {
                 "tags": [
                     "Client Support"
                 ],
-                "summary": "List the authenticated customer support tickets",
+                "summary": "List the signed-in account's support tickets",
                 "operationId": "a170f872fa967a3419b15b1fddcc7b56",
                 "parameters": [
                     {
@@ -5366,7 +5739,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Paginated customer tickets",
+                        "description": "Paginated tickets raised by the account",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5376,7 +5749,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "422": {
                         "description": "Invalid filter"
@@ -5392,7 +5765,7 @@
                 "tags": [
                     "Client Support"
                 ],
-                "summary": "Create a support ticket for the authenticated customer",
+                "summary": "Raise a support ticket as a customer or provider",
                 "operationId": "111d45bdedbc95a634c281d8a8253958",
                 "requestBody": {
                     "required": true,
@@ -5435,7 +5808,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "422": {
                         "description": "Validation error"
@@ -5453,7 +5826,7 @@
                 "tags": [
                     "Client Support"
                 ],
-                "summary": "Get an owned customer support ticket",
+                "summary": "Get a support ticket the account raised",
                 "operationId": "1e5b5e804d93e6740b390ef153098007",
                 "parameters": [
                     {
@@ -5477,7 +5850,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "404": {
                         "description": "Ticket not found"
@@ -5495,7 +5868,7 @@
                 "tags": [
                     "Client Support"
                 ],
-                "summary": "Reply to an owned customer support ticket",
+                "summary": "Reply to a support ticket the account raised",
                 "operationId": "bf72a8d1f5de4ecb4424ace803421d20",
                 "parameters": [
                     {
@@ -5538,7 +5911,7 @@
                         }
                     },
                     "403": {
-                        "description": "Active, verified client access required"
+                        "description": "Active, verified customer or provider account required"
                     },
                     "404": {
                         "description": "Ticket not found"
@@ -5625,6 +5998,213 @@
                     },
                     "403": {
                         "description": "Active, verified customer or provider account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/disputes": {
+            "get": {
+                "tags": [
+                    "Booking Disputes"
+                ],
+                "summary": "List the disputes on the signed-in account's bookings",
+                "operationId": "b1b41eb89e01e552474d028a71554409",
+                "parameters": [
+                    {
+                        "name": "dispute_status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "investigated",
+                                "resolved",
+                                "rejected",
+                                "closed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 20,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Disputes",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingDisputeListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active customer or provider account required"
+                    },
+                    "422": {
+                        "description": "Invalid filter"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/dispute": {
+            "patch": {
+                "tags": [
+                    "Booking Disputes"
+                ],
+                "summary": "Raise a dispute on a booking",
+                "description": "Opens a case for administrators to review. Only a job in progress or completed can be disputed, and only once. The booking moves to the \"disputed\" status and the other party is notified.",
+                "operationId": "76f5ae39ec28b5925d67d25b86e93ba0",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 2000,
+                                        "minLength": 10
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Dispute raised",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingDisputeEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not a party to this booking"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Already under dispute"
+                    },
+                    "422": {
+                        "description": "Booking cannot be disputed in its current status"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/dispute/evidence": {
+            "post": {
+                "tags": [
+                    "Booking Disputes"
+                ],
+                "summary": "Attach a photo to an open dispute",
+                "description": "Either party may add evidence while the dispute is pending or under investigation, up to 5 photos per dispute. Files are kept in private storage; only administrators reviewing the case can open them.",
+                "operationId": "a0ca654d46f9ab54680c2b371aa700fb",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "image"
+                                ],
+                                "properties": {
+                                    "image": {
+                                        "description": "JPG, PNG or WebP, up to 5 MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "caption": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Evidence attached",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingDisputeEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not a party to this booking"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "422": {
+                        "description": "No open dispute, the evidence limit is reached, or the image is invalid"
                     }
                 },
                 "security": [
@@ -17217,6 +17797,142 @@
                 },
                 "type": "object"
             },
+            "ClientReport": {
+                "description": "A complaint as the person who filed it sees it. Moderation internals — investigation notes, the moderators involved and what was done to the other account — are deliberately absent.",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "subject_type": {
+                        "type": "string",
+                        "enum": [
+                            "user",
+                            "review",
+                            "message"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "enum": [
+                            "service_quality",
+                            "no_show",
+                            "safety_concern",
+                            "payment_dispute",
+                            "misleading_information",
+                            "harassment",
+                            "inappropriate_content",
+                            "spam",
+                            "other"
+                        ]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "investigating",
+                            "resolved",
+                            "rejected"
+                        ]
+                    },
+                    "reported": {
+                        "properties": {
+                            "name": {
+                                "description": "The person, or the author of the review or message",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "excerpt": {
+                                "description": "The reported review or message text",
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "outcome": {
+                        "description": "The resolution note once upheld, or the rejection reason; null while still under review",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "resolved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "rejected_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BookingDispute": {
+                "description": "A dispute on a booking, as its two parties see it. The administrators' internal dispute notes are not exposed.",
+                "properties": {
+                    "booking_id": {
+                        "type": "integer"
+                    },
+                    "booking_number": {
+                        "type": "string"
+                    },
+                    "booking_status": {
+                        "type": "string"
+                    },
+                    "service_title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "provider_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dispute_status": {
+                        "type": "string",
+                        "nullable": true,
+                        "enum": [
+                            "pending",
+                            "investigated",
+                            "resolved",
+                            "rejected",
+                            "closed"
+                        ]
+                    },
+                    "resolution": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "disputed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "closed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "ClientSupportTicket": {
                 "properties": {
                     "id": {
@@ -18082,6 +18798,134 @@
                     }
                 ]
             },
+            "AccountDataExportEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "description": "The account's own data.",
+                                "properties": {
+                                    "exported_at": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    },
+                                    "account": {
+                                        "type": "object"
+                                    },
+                                    "preferences": {
+                                        "type": "object"
+                                    },
+                                    "provider_profile": {
+                                        "type": "object",
+                                        "nullable": true
+                                    },
+                                    "bookings": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "reviews": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "reports_filed": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "support_tickets": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientReportEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ClientReport"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ClientReportListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientReport"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "BookingDisputeEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/BookingDispute"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "BookingDisputeListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/BookingDispute"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ConversationListEnvelope": {
                 "allOf": [
                     {
@@ -18097,6 +18941,31 @@
                             },
                             "meta": {
                                 "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "MessagesMarkedReadEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "properties": {
+                                    "marked_read": {
+                                        "description": "Messages in this thread newly marked read",
+                                        "type": "integer"
+                                    },
+                                    "unread_count": {
+                                        "description": "Unread messages left across every thread",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
                             }
                         },
                         "type": "object"
@@ -18467,12 +19336,20 @@
             "description": "Customer notification inbox and read state"
         },
         {
+            "name": "Client Reports",
+            "description": "Complaints filed from the mobile app"
+        },
+        {
             "name": "Client Support",
             "description": "Customer-owned support tickets and replies"
         },
         {
             "name": "Conversations",
             "description": "The signed-in account's booking message threads"
+        },
+        {
+            "name": "Booking Disputes",
+            "description": "Disputes raised by a booking's customer or provider"
         },
         {
             "name": "Client Bookings",

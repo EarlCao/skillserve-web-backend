@@ -205,6 +205,50 @@ class ConversationTest extends TestCase
         Notification::assertNothingSentTo($providerUser);
     }
 
+    public function test_an_open_thread_is_marked_read_without_re_reading_it(): void
+    {
+        $client = $this->customer();
+        [$providerA, $providerUserA] = $this->provider();
+        [$providerB, $providerUserB] = $this->provider();
+        $open = $this->booking($client, $providerA);
+        $other = $this->booking($client, $providerB);
+
+        $this->message($open, $providerUserA, $client, 'One.');
+        $this->message($open, $providerUserA, $client, 'Two.');
+        $this->message($other, $providerUserB, $client, 'Elsewhere.');
+        // A message the caller sent is never "received" by them.
+        $this->message($open, $client, $providerUserA, 'Mine.');
+
+        $this->withToken($this->clientToken($client))
+            ->postJson("/api/client/v1/bookings/{$open->id}/messages/read")
+            ->assertOk()
+            ->assertJsonPath('data.marked_read', 2)
+            // What is left is the other thread, for the tab badge.
+            ->assertJsonPath('data.unread_count', 1);
+
+        $this->assertSame(0, Message::query()
+            ->where('booking_id', $open->id)
+            ->where('receiver_id', $client->id)
+            ->whereNull('read_at')
+            ->count());
+        // The provider's copy of the caller's own message is untouched.
+        $this->assertNull(Message::query()->where('content', 'Mine.')->value('read_at'));
+    }
+
+    public function test_only_a_participant_can_mark_a_thread_read(): void
+    {
+        $client = $this->customer();
+        [$provider, $providerUser] = $this->provider();
+        $booking = $this->booking($client, $provider);
+        $this->message($booking, $providerUser, $client, 'Private.');
+
+        $this->withToken($this->clientToken($this->customer()))
+            ->postJson("/api/client/v1/bookings/{$booking->id}/messages/read")
+            ->assertForbidden();
+
+        $this->assertNull(Message::query()->where('content', 'Private.')->value('read_at'));
+    }
+
     public function test_the_inbox_rejects_administrators_and_unauthenticated_callers(): void
     {
         $this->getJson('/api/client/v1/conversations')->assertUnauthorized();

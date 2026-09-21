@@ -27,6 +27,7 @@ Route::prefix('disputes')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [DisputeController::class, 'index']);
     Route::get('/{booking}', [DisputeController::class, 'show']);
     Route::get('/{booking}/history', [DisputeController::class, 'history']);
+    Route::get('/{booking}/evidence/{evidence}', [DisputeController::class, 'downloadEvidence']);
     Route::patch('/{booking}/investigate', [DisputeController::class, 'investigate']);
     Route::patch('/{booking}/notes', [DisputeController::class, 'addNote']);
     Route::patch('/{booking}/resolve', [DisputeController::class, 'resolve']);

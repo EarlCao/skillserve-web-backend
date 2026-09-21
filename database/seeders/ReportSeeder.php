@@ -69,13 +69,26 @@ class ReportSeeder extends Seeder
             };
 
             $status = $this->pickStatus($i);
+            $reporterId = $reporters->random()->id;
+
+            // One open report per reporter per subject is enforced by a unique
+            // index, so a random pair that already has one is skipped.
+            if (in_array($status, ['pending', 'investigating'], true) && Report::query()
+                ->where('reporter_id', $reporterId)
+                ->where('reportable_type', $target->getMorphClass())
+                ->where('reportable_id', $target->id)
+                ->whereIn('status', ['pending', 'investigating'])
+                ->exists()) {
+                continue;
+            }
+
             $reviewed = in_array($status, ['investigating', 'resolved', 'rejected'], true);
             $actionTaken = $status === 'resolved' && $this->hasApplicableAction($type);
 
             Report::create([
                 'reportable_type' => $target->getMorphClass(),
                 'reportable_id' => $target->id,
-                'reporter_id' => $reporters->random()->id,
+                'reporter_id' => $reporterId,
                 'reason' => fake()->randomElement(self::REASONS),
                 'description' => fake()->boolean(70) ? fake()->sentence(8) : null,
                 'status' => $status,

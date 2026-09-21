@@ -29,11 +29,7 @@ class BookingMessageService extends BaseService
     {
         $this->authorizeParticipant($user, $booking);
 
-        Message::query()
-            ->where('booking_id', $booking->id)
-            ->where('receiver_id', $user->id)
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+        $this->markThreadRead($user, $booking);
 
         return Message::query()
             ->where('booking_id', $booking->id)
@@ -41,6 +37,29 @@ class BookingMessageService extends BaseService
             ->with(['sender:id,name', 'receiver:id,name'])
             ->oldest()
             ->paginate(50);
+    }
+
+    /**
+     * Marks what this participant received on the booking as read, without
+     * returning the thread — for an app that already shows the message it was
+     * pushed and only needs the read state to catch up.
+     *
+     * @return int how many messages were newly marked read
+     */
+    public function markRead(User $user, Booking $booking): int
+    {
+        $this->authorizeParticipant($user, $booking);
+
+        return $this->markThreadRead($user, $booking);
+    }
+
+    private function markThreadRead(User $user, Booking $booking): int
+    {
+        return Message::query()
+            ->where('booking_id', $booking->id)
+            ->where('receiver_id', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
     }
 
     public function create(User $user, Booking $booking, string $content, ?string $idempotencyKey): Message

@@ -403,6 +403,42 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ClientReport',
+    description: 'A complaint as the person who filed it sees it. Moderation internals — investigation notes, the moderators involved and what was done to the other account — are deliberately absent.',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'subject_type', type: 'string', enum: ['user', 'review', 'message']),
+        new OA\Property(property: 'reason', type: 'string', enum: ['service_quality', 'no_show', 'safety_concern', 'payment_dispute', 'misleading_information', 'harassment', 'inappropriate_content', 'spam', 'other']),
+        new OA\Property(property: 'description', type: 'string'),
+        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'investigating', 'resolved', 'rejected']),
+        new OA\Property(property: 'reported', type: 'object', nullable: true, properties: [
+            new OA\Property(property: 'name', type: 'string', nullable: true, description: 'The person, or the author of the review or message'),
+            new OA\Property(property: 'excerpt', type: 'string', nullable: true, description: 'The reported review or message text'),
+        ]),
+        new OA\Property(property: 'outcome', type: 'string', nullable: true, description: 'The resolution note once upheld, or the rejection reason; null while still under review'),
+        new OA\Property(property: 'resolved_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'rejected_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'BookingDispute',
+    description: 'A dispute on a booking, as its two parties see it. The administrators\' internal dispute notes are not exposed.',
+    properties: [
+        new OA\Property(property: 'booking_id', type: 'integer'),
+        new OA\Property(property: 'booking_number', type: 'string'),
+        new OA\Property(property: 'booking_status', type: 'string'),
+        new OA\Property(property: 'service_title', type: 'string', nullable: true),
+        new OA\Property(property: 'provider_name', type: 'string', nullable: true),
+        new OA\Property(property: 'reason', type: 'string', nullable: true),
+        new OA\Property(property: 'dispute_status', type: 'string', nullable: true, enum: ['pending', 'investigated', 'resolved', 'rejected', 'closed']),
+        new OA\Property(property: 'resolution', type: 'string', nullable: true),
+        new OA\Property(property: 'disputed_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'closed_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
     schema: 'ClientSupportTicket',
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
@@ -651,8 +687,49 @@ use OpenApi\Attributes as OA;
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientNotification')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
 )]
 #[OA\Schema(
+    schema: 'AccountDataExportEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(
+        property: 'data',
+        type: 'object',
+        description: 'The account\'s own data.',
+        properties: [
+            new OA\Property(property: 'exported_at', type: 'string', format: 'date-time'),
+            new OA\Property(property: 'account', type: 'object'),
+            new OA\Property(property: 'preferences', type: 'object'),
+            new OA\Property(property: 'provider_profile', type: 'object', nullable: true),
+            new OA\Property(property: 'bookings', type: 'array', items: new OA\Items(type: 'object')),
+            new OA\Property(property: 'reviews', type: 'array', items: new OA\Items(type: 'object')),
+            new OA\Property(property: 'reports_filed', type: 'array', items: new OA\Items(type: 'object')),
+            new OA\Property(property: 'support_tickets', type: 'array', items: new OA\Items(type: 'object')),
+        ],
+    )])],
+)]
+#[OA\Schema(
+    schema: 'ClientReportEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ClientReport')])],
+)]
+#[OA\Schema(
+    schema: 'ClientReportListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientReport')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'BookingDisputeEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/BookingDispute')])],
+)]
+#[OA\Schema(
+    schema: 'BookingDisputeListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/BookingDispute')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
     schema: 'ConversationListEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/Conversation')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
+    schema: 'MessagesMarkedReadEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'object', properties: [
+        new OA\Property(property: 'marked_read', type: 'integer', description: 'Messages in this thread newly marked read'),
+        new OA\Property(property: 'unread_count', type: 'integer', description: 'Unread messages left across every thread'),
+    ])])],
 )]
 #[OA\Schema(
     schema: 'UnreadMessageCountEnvelope',

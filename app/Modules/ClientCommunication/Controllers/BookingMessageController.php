@@ -7,6 +7,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientCommunication\Requests\StoreBookingMessageRequest;
 use App\Modules\ClientCommunication\Resources\BookingMessageResource;
 use App\Modules\ClientCommunication\Services\BookingMessageService;
+use App\Modules\ClientCommunication\Services\ConversationService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,10 @@ class BookingMessageController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private readonly BookingMessageService $messageService) {}
+    public function __construct(
+        private readonly BookingMessageService $messageService,
+        private readonly ConversationService $conversationService,
+    ) {}
 
     #[OA\Get(
         path: '/api/client/v1/bookings/{booking}/messages',
@@ -59,5 +63,29 @@ class BookingMessageController extends Controller
             $message->wasRecentlyCreated ? 'Message sent.' : 'Message already sent.',
             status: $message->wasRecentlyCreated ? 201 : 200,
         );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/bookings/{booking}/messages/read',
+        summary: 'Mark the messages received on a booking as read',
+        description: 'For an open conversation that already shows a pushed message: clears its unread state without re-reading the thread, and returns the account\'s remaining unread total for the Messages badge.',
+        tags: ['Booking Messages'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Marked read', content: new OA\JsonContent(ref: '#/components/schemas/MessagesMarkedReadEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Booking participant access required'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+        ],
+    )]
+    public function markRead(Request $request, Booking $booking): JsonResponse
+    {
+        $marked = $this->messageService->markRead($request->user(), $booking);
+
+        return $this->success([
+            'marked_read' => $marked,
+            'unread_count' => $this->conversationService->unreadCount($request->user()),
+        ], 'Messages marked as read.');
     }
 }

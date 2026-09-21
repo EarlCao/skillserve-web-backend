@@ -8,6 +8,7 @@ use App\Modules\ClientAuthentication\Requests\CancelClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
 use App\Modules\ClientAuthentication\Requests\CompleteGoogleRegistrationRequest;
+use App\Modules\ClientAuthentication\Requests\DeleteClientAccountRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\GoogleClientAuthRequest;
 use App\Modules\ClientAuthentication\Requests\RefreshClientTokenRequest;
@@ -22,6 +23,7 @@ use App\Modules\ClientAuthentication\Resources\ClientAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientGoogleAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientUserResource;
 use App\Modules\ClientAuthentication\Resources\PendingRegistrationResource;
+use App\Modules\ClientAuthentication\Services\AccountDataService;
 use App\Modules\ClientAuthentication\Services\ClientAuthenticationService;
 use App\Modules\ClientAuthentication\Services\ClientEmailOtpService;
 use App\Modules\ClientAuthentication\Services\ClientGoogleAuthService;
@@ -47,6 +49,7 @@ class ClientAuthController extends Controller
         private readonly ClientGoogleAuthService $googleAuthService,
         private readonly PendingRegistrationService $pendingRegistrations,
         private readonly ClientProfileService $profileService,
+        private readonly AccountDataService $accountDataService,
     ) {}
 
     #[OA\Post(
@@ -465,6 +468,57 @@ class ClientAuthController extends Controller
             new ClientUserResource($this->profileService->removePhoto($request->user())),
             'Profile photo removed successfully.',
         );
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/auth/me/data-export',
+        summary: 'Take a copy of everything the platform holds about this account',
+        description: 'Own data only: profile, preferences, provider profile, bookings, reviews, reports filed and support tickets.',
+        tags: ['Client Authentication'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'The account\'s data', content: new OA\JsonContent(ref: '#/components/schemas/AccountDataExportEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active mobile account required'),
+        ],
+    )]
+    public function exportData(Request $request): JsonResponse
+    {
+        return $this->success(
+            $this->accountDataService->export($request->user()),
+            'Account data exported.',
+        );
+    }
+
+    #[OA\Delete(
+        path: '/api/client/v1/auth/me',
+        summary: 'Delete the signed-in account',
+        description: 'Confirmed with the account password. Refused while the account still has open bookings, so the other party is never left mid-job. The account is soft-deleted and every device is signed out; an administrator can restore it from Data Management. There is no separate "pending deletion" state.',
+        tags: ['Client Authentication'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['password'],
+            properties: [
+                new OA\Property(property: 'password', type: 'string', description: 'The account\'s current password'),
+                new OA\Property(property: 'reason', type: 'string', nullable: true, maxLength: 1000),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Account deleted and sessions revoked'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active mobile account required'),
+            new OA\Response(response: 422, description: 'Wrong password, or open bookings remain'),
+        ],
+    )]
+    public function deleteAccount(DeleteClientAccountRequest $request): JsonResponse
+    {
+        $this->accountDataService->delete(
+            $request->user(),
+            $request->validated('password'),
+            $request->validated('reason'),
+        );
+
+        return $this->success(null, 'Your account has been deleted.');
     }
 
     #[OA\Get(

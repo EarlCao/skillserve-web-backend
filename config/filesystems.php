@@ -47,6 +47,16 @@ return [
             'report' => false,
         ],
 
+        // Dispute evidence is private to the two parties and the administrators
+        // reviewing the case, so it is never exposed through the public link.
+        'dispute_evidence' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/dispute-evidence'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

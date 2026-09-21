@@ -2,9 +2,9 @@
 
 use App\Modules\ClientCommunication\Controllers\BookingMessageController;
 use App\Modules\ClientCommunication\Controllers\ClientNotificationController;
+use App\Modules\ClientCommunication\Controllers\ClientReportController;
 use App\Modules\ClientCommunication\Controllers\ClientSupportTicketController;
 use App\Modules\ClientCommunication\Controllers\ConversationController;
-use App\Modules\ClientMarketplace\Middleware\EnsureClient;
 use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
 use Illuminate\Support\Facades\Route;
 
@@ -16,13 +16,23 @@ Route::prefix('notifications')->middleware(['auth:sanctum', EnsureMobileAccount:
     Route::post('/read-all', [ClientNotificationController::class, 'readAll']);
 });
 
-Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): void {
+// Support is for everyone who uses the app: customers and providers both
+// raise tickets, each seeing only their own.
+Route::middleware(['auth:sanctum', EnsureMobileAccount::class])->group(function (): void {
     Route::prefix('support/tickets')->group(function (): void {
         Route::get('/', [ClientSupportTicketController::class, 'index']);
         Route::post('/', [ClientSupportTicketController::class, 'store']);
         Route::get('/{ticket}', [ClientSupportTicketController::class, 'show']);
         Route::post('/{ticket}/replies', [ClientSupportTicketController::class, 'reply']);
     });
+});
+
+// Complaints. Customers and providers can both report the other party on a
+// booking, so this is not limited to the customer surface.
+Route::prefix('reports')->middleware(['auth:sanctum', EnsureMobileAccount::class])->group(function (): void {
+    Route::get('/', [ClientReportController::class, 'index']);
+    Route::post('/', [ClientReportController::class, 'store']);
+    Route::get('/{report}', [ClientReportController::class, 'show'])->whereNumber('report');
 });
 
 // The Messages inbox. Customers and providers both have conversations, so the
@@ -35,4 +45,5 @@ Route::prefix('conversations')->middleware(['auth:sanctum', EnsureMobileAccount:
 Route::prefix('bookings/{booking}/messages')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [BookingMessageController::class, 'index']);
     Route::post('/', [BookingMessageController::class, 'store']);
+    Route::post('/read', [BookingMessageController::class, 'markRead']);
 });

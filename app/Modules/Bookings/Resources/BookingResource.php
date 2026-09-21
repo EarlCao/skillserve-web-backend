@@ -38,7 +38,17 @@ class BookingResource extends BaseResource
             'disputed_at' => $this->disputed_at?->toIso8601String(),
             'dispute_status' => $this->dispute_status,
             'dispute_resolution' => $this->dispute_resolution,
-            'dispute_evidence' => $this->dispute_evidence ?? [],
+            // Each item points at the authorized download instead of carrying
+            // its private storage path.
+            'dispute_evidence' => collect($this->dispute_evidence ?? [])
+                ->map(fn (array $item): array => [
+                    ...collect($item)->except('path')->all(),
+                    'download_path' => isset($item['id'], $item['path'])
+                        ? "/disputes/{$this->id}/evidence/{$item['id']}"
+                        : null,
+                ])
+                ->values()
+                ->all(),
             'dispute_notes' => $this->dispute_notes ?? [],
             'dispute_closed_at' => $this->dispute_closed_at?->toIso8601String(),
             'dispute_closed_by' => $this->whenLoaded('disputeClosedBy', fn () => $this->disputeClosedBy ? [
