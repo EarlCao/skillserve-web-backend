@@ -13,6 +13,17 @@ fi
 export REVERB_HOST=127.0.0.1 REVERB_PORT=8080 REVERB_SCHEME=http
 export REVERB_SERVER_HOST=127.0.0.1 REVERB_SERVER_PORT=8080
 
+# Uploads (profile photos, portfolio, verification documents, dispute
+# evidence) live under storage/app. In production a Render persistent disk is
+# mounted there so they survive deploys; a new disk starts empty, so recreate
+# the folders the disks expect. See DEPLOYMENT.md → "Uploaded files".
+mkdir -p storage/app/public storage/app/private/dispute-evidence 2>/dev/null || true
+if ! touch storage/app/.write-check 2>/dev/null; then
+    echo "WARNING: storage/app is not writable by $(id -un); uploads will fail. Check the Render disk mount." >&2
+else
+    rm -f storage/app/.write-check
+fi
+
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

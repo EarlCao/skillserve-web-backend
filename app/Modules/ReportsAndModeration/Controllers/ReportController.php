@@ -60,6 +60,28 @@ class ReportController extends Controller
     }
 
     /**
+     * GET /api/reports/reasons — every reason a report can carry, for filters.
+     */
+    #[OA\Get(
+        path: '/api/reports/reasons',
+        summary: 'List report reasons',
+        description: 'Reason keys moderators can filter by: those the mobile app files, followed by legacy keys older reports still carry.',
+        tags: ['Reports'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Report reason keys, e.g. ["service_quality", "no_show", …, "fraud"]', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized'),
+        ],
+    )]
+    public function reasons(): JsonResponse
+    {
+        $this->authorize('viewAny', Report::class);
+
+        return $this->success(Report::filterableReasons(), 'Report reasons retrieved.');
+    }
+
+    /**
      * GET /api/reports/{report} — single report with its reported item.
      */
     #[OA\Get(

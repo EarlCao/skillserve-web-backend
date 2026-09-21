@@ -64,7 +64,7 @@ class ClientReportController extends Controller
                 new OA\Property(property: 'booking_id', type: 'integer', nullable: true, description: 'Report the other party on this booking'),
                 new OA\Property(property: 'review_id', type: 'integer', nullable: true, description: 'Report this published review'),
                 new OA\Property(property: 'message_id', type: 'integer', nullable: true, description: 'Report this message the caller received'),
-                new OA\Property(property: 'reason', type: 'string', enum: StoreClientReportRequest::REASONS),
+                new OA\Property(property: 'reason', type: 'string', enum: Report::REASONS),
                 new OA\Property(property: 'description', type: 'string', minLength: 10, maxLength: 2000),
             ],
         )),

@@ -24,9 +24,13 @@ use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
 use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
+use App\Modules\Bookings\Events\BookingPaymentRecorded;
+use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Listeners\NotifyBookingParticipants;
+use App\Modules\Bookings\Listeners\NotifyPaymentParticipants;
+use App\Modules\Bookings\Listeners\NotifyProviderOfReschedule;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
@@ -256,9 +260,13 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(BookingStatusChanged::class, LogBookingActivity::class);
         Event::listen(BookingCancelled::class, LogBookingActivity::class);
         Event::listen(BookingDisputeManaged::class, LogBookingActivity::class);
+        Event::listen(BookingRescheduled::class, LogBookingActivity::class);
+        Event::listen(BookingPaymentRecorded::class, LogBookingActivity::class);
 
         // Every status change tells the other party in the mobile app.
         Event::listen(BookingStatusChanged::class, NotifyBookingParticipants::class);
+        Event::listen(BookingRescheduled::class, NotifyProviderOfReschedule::class);
+        Event::listen(BookingPaymentRecorded::class, NotifyPaymentParticipants::class);
 
         // Booking Management module policies.
         Gate::policy(Booking::class, BookingPolicy::class);

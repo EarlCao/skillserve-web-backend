@@ -7,7 +7,10 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Requests\CancelBookingRequest;
 use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ManageDisputeRequest;
+use App\Modules\Bookings\Requests\MarkBookingPaidRequest;
+use App\Modules\Bookings\Requests\RefundBookingRequest;
 use App\Modules\Bookings\Resources\BookingResource;
+use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Bookings\Services\BookingService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -21,6 +24,7 @@ class BookingController extends Controller
 
     public function __construct(
         private readonly BookingService $bookingService,
+        private readonly BookingPaymentService $paymentService,
     ) {}
 
     /**
@@ -230,6 +234,78 @@ class BookingController extends Controller
         $booking = $this->bookingService->cancel($booking, $request->user(), $request->validated('reason'));
 
         return $this->success(new BookingResource($booking), 'Booking cancelled.');
+    }
+
+    /**
+     * PATCH /api/bookings/{booking}/mark-paid — record an off-platform payment.
+     */
+    #[OA\Patch(
+        path: '/api/bookings/{booking}/mark-paid',
+        summary: 'Mark a booking as paid',
+        description: 'Records that the customer paid off-platform (cash, GCash, …); no payment provider is called. Allowed for an unpaid booking that is confirmed, active, completed or disputed. Audited, and both parties are notified.',
+        tags: ['Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(
+            example: ['payment_reference' => 'GCASH-0123456789'],
+            properties: [new OA\Property(property: 'payment_reference', type: 'string', maxLength: 100, nullable: true)],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Booking marked as paid', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the manage-booking-payments permission'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+            new OA\Response(response: 409, description: 'Already paid or refunded'),
+            new OA\Response(response: 422, description: 'Booking is pending or cancelled, or validation error'),
+        ],
+    )]
+    public function markPaid(MarkBookingPaidRequest $request, Booking $booking): JsonResponse
+    {
+        $this->authorize('managePayments', $booking);
+
+        $booking = $this->paymentService->markPaid($booking, $request->user(), $request->validated('payment_reference'));
+
+        return $this->success(new BookingResource($this->bookingService->show($booking)), 'Booking marked as paid.');
+    }
+
+    /**
+     * PATCH /api/bookings/{booking}/refund — record a full or partial refund.
+     */
+    #[OA\Patch(
+        path: '/api/bookings/{booking}/refund',
+        summary: 'Record a refund on a paid booking',
+        description: 'Records money returned to the customer off-platform. Refunding everything that remains makes the booking refunded; less makes it partially_refunded. Audited, and both parties are notified.',
+        tags: ['Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['amount', 'reason'],
+            example: ['amount' => 500, 'reason' => 'Job finished an hour short; partial refund agreed.'],
+            properties: [
+                new OA\Property(property: 'amount', type: 'number', format: 'float', minimum: 0.01, description: 'At most the amount not yet refunded'),
+                new OA\Property(property: 'reason', type: 'string', minLength: 5, maxLength: 1000),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Refund recorded', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the manage-booking-payments permission'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+            new OA\Response(response: 422, description: 'Not paid, amount above what remains, or validation error'),
+        ],
+    )]
+    public function refund(RefundBookingRequest $request, Booking $booking): JsonResponse
+    {
+        $this->authorize('managePayments', $booking);
+
+        $booking = $this->paymentService->refund(
+            $booking,
+            $request->user(),
+            (float) $request->validated('amount'),
+            $request->validated('reason'),
+        );
+
+        return $this->success(new BookingResource($this->bookingService->show($booking)), 'Refund recorded.');
     }
 
     /**

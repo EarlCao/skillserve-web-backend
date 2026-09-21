@@ -21,6 +21,38 @@ class Report extends Model
 {
     use SoftDeletes;
 
+    /**
+     * Why someone can be reported. Stored as the key so the reason survives
+     * copy changes; each client owns its own wording.
+     *
+     * @var array<int, string>
+     */
+    public const REASONS = [
+        'service_quality',
+        'no_show',
+        'safety_concern',
+        'payment_dispute',
+        'misleading_information',
+        'harassment',
+        'inappropriate_content',
+        'spam',
+        'other',
+    ];
+
+    /**
+     * Reasons older reports still carry but that can no longer be filed.
+     * Moderators must still be able to filter by them.
+     *
+     * @var array<int, string>
+     */
+    public const LEGACY_REASONS = ['fraud', 'misleading', 'offensive'];
+
+    /** @return array<int, string> */
+    public static function filterableReasons(): array
+    {
+        return [...self::REASONS, ...self::LEGACY_REASONS];
+    }
+
     public function reportable(): MorphTo
     {
         return $this->morphTo();

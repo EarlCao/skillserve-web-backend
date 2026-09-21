@@ -76,6 +76,13 @@ class AccountDataService extends BaseService
                     'client_notes' => $booking->client_notes,
                     'created_at' => $booking->created_at?->toIso8601String(),
                 ])->values()->all(),
+            'favorite_providers' => $user->favoriteProviders()
+                ->orderByPivot('created_at', 'desc')
+                ->get(['provider_profiles.id', 'provider_profiles.business_name'])
+                ->map(fn ($provider): array => [
+                    'business_name' => $provider->business_name,
+                    'saved_at' => $provider->pivot->created_at?->toIso8601String(),
+                ])->values()->all(),
             'reviews' => Review::query()
                 ->where('reviewer_id', $user->id)
                 ->with('service:id,title')

@@ -3019,6 +3019,158 @@
                 ]
             }
         },
+        "/api/bookings/{booking}/mark-paid": {
+            "patch": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Mark a booking as paid",
+                "description": "Records that the customer paid off-platform (cash, GCash, …); no payment provider is called. Allowed for an unpaid booking that is confirmed, active, completed or disputed. Audited, and both parties are notified.",
+                "operationId": "b45fde150ce0004d81e1cdf05c0bab64",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "payment_reference": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "payment_reference": "GCASH-0123456789"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Booking marked as paid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage-booking-payments permission"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Already paid or refunded"
+                    },
+                    "422": {
+                        "description": "Booking is pending or cancelled, or validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{booking}/refund": {
+            "patch": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Record a refund on a paid booking",
+                "description": "Records money returned to the customer off-platform. Refunding everything that remains makes the booking refunded; less makes it partially_refunded. Audited, and both parties are notified.",
+                "operationId": "b127877f84fdb593a106df3098103018",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "amount",
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "amount": {
+                                        "description": "At most the amount not yet refunded",
+                                        "type": "number",
+                                        "format": "float",
+                                        "minimum": 0.01
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "minLength": 5
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "amount": 500,
+                                "reason": "Job finished an hour short; partial refund agreed."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Refund recorded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage-booking-payments permission"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "422": {
+                        "description": "Not paid, amount above what remains, or validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/bookings/{booking}/dispute": {
             "patch": {
                 "tags": [
@@ -6514,6 +6666,85 @@
                 ]
             }
         },
+        "/api/client/v1/bookings/{booking}/reschedule": {
+            "patch": {
+                "tags": [
+                    "Client Bookings"
+                ],
+                "summary": "Move an owned pending or confirmed booking to a new time",
+                "description": "Re-runs the provider hours and overlap checks for the new window. A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.",
+                "operationId": "9501476e5e47bba758d5b0881ab1e44a",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "scheduled_date"
+                                ],
+                                "properties": {
+                                    "scheduled_date": {
+                                        "description": "New start; must be in the future",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-10-05T09:00:00+08:00"
+                                    },
+                                    "scheduled_end_date": {
+                                        "description": "New end; after scheduled_date",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Booking rescheduled; status is now pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not owned by the customer"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "The new time overlaps another booking for this provider"
+                    },
+                    "422": {
+                        "description": "Validation error, same time as now, outside the provider hours, or the booking is no longer pending/confirmed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/categories": {
             "get": {
                 "tags": [
@@ -7037,6 +7268,154 @@
                 ]
             }
         },
+        "/api/client/v1/favorites": {
+            "get": {
+                "tags": [
+                    "Client Favorites"
+                ],
+                "summary": "List the customer's saved providers",
+                "description": "Most recently saved first. Providers who are no longer publicly listed (suspended, unverified, private) are left out.",
+                "operationId": "45c1fbfb75ac00bee554508a47a1aeb7",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Saved providers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientProviderListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified customer account required"
+                    },
+                    "422": {
+                        "description": "Invalid pagination parameters"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/favorites/{provider}": {
+            "put": {
+                "tags": [
+                    "Client Favorites"
+                ],
+                "summary": "Save a provider",
+                "description": "Idempotent: saving a provider that is already saved succeeds without a duplicate.",
+                "operationId": "dc27013e11b4fa7cbbc15e19b193bb5d",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "description": "Provider profile id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientProviderEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified customer account required"
+                    },
+                    "404": {
+                        "description": "Provider not found or not publicly listed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Client Favorites"
+                ],
+                "summary": "Remove a saved provider",
+                "description": "Idempotent: removing a provider that is not saved also succeeds.",
+                "operationId": "85eac19f3130a66f6c866f8f591243fa",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "description": "Provider profile id",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified customer account required"
+                    },
+                    "404": {
+                        "description": "Provider not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/provider/bookings": {
             "get": {
                 "tags": [
@@ -7285,6 +7664,77 @@
                 ]
             }
         },
+        "/api/client/v1/provider/bookings/{booking}/cancel": {
+            "patch": {
+                "tags": [
+                    "Provider Bookings"
+                ],
+                "summary": "Cancel an accepted booking before the job starts",
+                "description": "Only a confirmed booking can be cancelled this way; use decline for a pending request. The customer is notified with the reason.",
+                "operationId": "8d4f43bdd4883ca33b61744cb4a94797",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Shown to the customer as the cancellation reason.",
+                                        "type": "string",
+                                        "example": "I am unwell and cannot make it that day.",
+                                        "maxLength": 1000,
+                                        "minLength": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Booking cancelled. Payment state is unchanged and no external refund is processed.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not placed with this provider"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "422": {
+                        "description": "Reason missing, or the booking is not confirmed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/provider/bookings/{booking}/start": {
             "patch": {
                 "tags": [
@@ -7372,6 +7822,77 @@
                     },
                     "422": {
                         "description": "Only a job in progress can be completed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/payment-received": {
+            "patch": {
+                "tags": [
+                    "Provider Bookings"
+                ],
+                "summary": "Confirm the customer paid for a completed job",
+                "description": "Records an off-platform payment (cash, GCash, …); nothing is charged. Only a completed, unpaid booking. The customer is notified.",
+                "operationId": "b0d2ef701a60c7b2aa6750594b124dbc",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "payment_reference": {
+                                        "description": "e.g. a GCash reference number",
+                                        "type": "string",
+                                        "example": "GCASH-0123456789",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Payment recorded; payment_status is now paid",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderBookingEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not placed with this provider"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Already marked as paid"
+                    },
+                    "422": {
+                        "description": "The job is not completed yet"
                     }
                 },
                 "security": [
@@ -11476,6 +11997,39 @@
                 "responses": {
                     "200": {
                         "description": "Paginated list of reports",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/reports/reasons": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "List report reasons",
+                "description": "Reason keys moderators can filter by: those the mobile app files, followed by legacy keys older reports still carry.",
+                "operationId": "70c1a730a9b66a967e84dd310fdf333c",
+                "responses": {
+                    "200": {
+                        "description": "Report reason keys, e.g. [\"service_quality\", \"no_show\", …, \"fraud\"]",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -17417,7 +17971,33 @@
                         "type": "string"
                     },
                     "payment_status": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "unpaid",
+                            "paid",
+                            "refunded",
+                            "partially_refunded"
+                        ]
+                    },
+                    "paid_at": {
+                        "description": "When the payment was recorded",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "refunded_amount": {
+                        "description": "Total refunded so far",
+                        "type": "string",
+                        "example": "0.00"
+                    },
+                    "refunded_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "refund_reason": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "service_price": {
                         "type": "string",
@@ -17480,6 +18060,12 @@
                         "nullable": true
                     },
                     "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "rescheduled_at": {
+                        "description": "When the customer last moved the booking to a new time",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
@@ -17565,7 +18151,33 @@
                         ]
                     },
                     "payment_status": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "unpaid",
+                            "paid",
+                            "refunded",
+                            "partially_refunded"
+                        ]
+                    },
+                    "paid_at": {
+                        "description": "When the payment was recorded",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "refunded_amount": {
+                        "description": "Total refunded so far",
+                        "type": "string",
+                        "example": "0.00"
+                    },
+                    "refunded_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "refund_reason": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "service_price": {
                         "type": "string",
@@ -17632,6 +18244,12 @@
                         "nullable": true
                     },
                     "cancelled_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "rescheduled_at": {
+                        "description": "When the customer last moved the booking to a new time",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
@@ -19362,6 +19980,10 @@
         {
             "name": "Client Reviews",
             "description": "Customer reviews for completed bookings"
+        },
+        {
+            "name": "Client Favorites",
+            "description": "The signed-in customer's saved providers"
         },
         {
             "name": "Provider Bookings",

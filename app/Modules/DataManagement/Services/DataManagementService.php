@@ -3,8 +3,8 @@
 namespace App\Modules\DataManagement\Services;
 
 use App\Models\User;
-use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\DataManagement\Models\DataArchive;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;

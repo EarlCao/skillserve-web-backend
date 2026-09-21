@@ -26,10 +26,6 @@ class ReportSeeder extends Seeder
 
     private const TARGET_REPORTS = 30;
 
-    private const REASONS = [
-        'spam', 'harassment', 'inappropriate_content', 'fraud', 'misleading', 'offensive', 'other',
-    ];
-
     public function run(): void
     {
         $this->seedMessages();
@@ -89,7 +85,7 @@ class ReportSeeder extends Seeder
                 'reportable_type' => $target->getMorphClass(),
                 'reportable_id' => $target->id,
                 'reporter_id' => $reporterId,
-                'reason' => fake()->randomElement(self::REASONS),
+                'reason' => fake()->randomElement(Report::REASONS),
                 'description' => fake()->boolean(70) ? fake()->sentence(8) : null,
                 'status' => $status,
                 'investigation_notes' => $reviewed ? [$this->note()] : null,

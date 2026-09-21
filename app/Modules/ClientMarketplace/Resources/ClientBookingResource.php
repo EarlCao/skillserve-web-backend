@@ -13,6 +13,10 @@ class ClientBookingResource extends BaseResource
             'booking_number' => $this->booking_number,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
+            'paid_at' => $this->paid_at?->toIso8601String(),
+            'refunded_amount' => $this->refunded_amount,
+            'refunded_at' => $this->refunded_at?->toIso8601String(),
+            'refund_reason' => $this->refund_reason,
             'service_price' => $this->service_price,
             'total_price' => $this->total_price,
             'currency' => $this->currency,
@@ -28,6 +32,7 @@ class ClientBookingResource extends BaseResource
             'started_at' => $this->started_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
+            'rescheduled_at' => $this->rescheduled_at?->toIso8601String(),
             'is_reviewed' => $this->is_reviewed,
             'service' => $this->whenLoaded('service', fn () => new ClientServiceResource($this->service)),
             'provider' => $this->whenLoaded('provider', fn () => $this->provider ? [

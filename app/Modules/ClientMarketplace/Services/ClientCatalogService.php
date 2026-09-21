@@ -204,7 +204,8 @@ class ClientCatalogService extends BaseService
                 ->where('private_profile', true));
     }
 
-    private function publicProvidersQuery(): Builder
+    /** Providers any visitor may discover: verified, active and public. */
+    public function publicProvidersQuery(): Builder
     {
         $primaryCategory = ServiceCategory::query()
             ->select('service_categories.name')

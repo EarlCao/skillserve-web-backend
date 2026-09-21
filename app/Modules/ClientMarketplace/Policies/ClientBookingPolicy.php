@@ -27,6 +27,11 @@ class ClientBookingPolicy
         return $this->view($user, $booking);
     }
 
+    public function reschedule(User $user, Booking $booking): bool
+    {
+        return $this->view($user, $booking);
+    }
+
     private function isActiveClient(User $user): bool
     {
         return $user->isClientAccount() && $user->isActive();

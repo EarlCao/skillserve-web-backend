@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -188,6 +189,13 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function clientBookings(): HasMany
     {
         return $this->hasMany(Booking::class, 'client_id');
+    }
+
+    /** Providers this customer saved in the app. */
+    public function favoriteProviders(): BelongsToMany
+    {
+        return $this->belongsToMany(ProviderProfile::class, 'favorite_providers', 'user_id', 'provider_profile_id')
+            ->withTimestamps();
     }
 
     public function providerProfile(): HasOne

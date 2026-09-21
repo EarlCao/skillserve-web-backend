@@ -7,6 +7,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientMarketplace\Policies\ClientBookingPolicy;
 use App\Modules\ClientMarketplace\Requests\CancelClientBookingRequest;
 use App\Modules\ClientMarketplace\Requests\ClientBookingIndexRequest;
+use App\Modules\ClientMarketplace\Requests\RescheduleClientBookingRequest;
 use App\Modules\ClientMarketplace\Requests\StoreClientBookingRequest;
 use App\Modules\ClientMarketplace\Resources\ClientBookingResource;
 use App\Modules\ClientMarketplace\Services\ClientBookingService;
@@ -122,6 +123,36 @@ class ClientBookingController extends Controller
         return $this->success(
             new ClientBookingResource($this->bookingService->cancel($request->user(), $booking, $request->validated('reason'))),
             'Booking cancelled.',
+        );
+    }
+
+    #[OA\Patch(
+        path: '/api/client/v1/bookings/{booking}/reschedule',
+        summary: 'Move an owned pending or confirmed booking to a new time',
+        description: 'Re-runs the provider hours and overlap checks for the new window. A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.',
+        tags: ['Client Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['scheduled_date'], properties: [
+            new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', description: 'New start; must be in the future', example: '2026-10-05T09:00:00+08:00'),
+            new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true, description: 'New end; after scheduled_date'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Booking rescheduled; status is now pending', content: new OA\JsonContent(ref: '#/components/schemas/ClientBookingEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not owned by the customer'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+            new OA\Response(response: 409, description: 'The new time overlaps another booking for this provider'),
+            new OA\Response(response: 422, description: 'Validation error, same time as now, outside the provider hours, or the booking is no longer pending/confirmed'),
+        ],
+    )]
+    public function reschedule(RescheduleClientBookingRequest $request, Booking $booking): JsonResponse
+    {
+        $this->ensure($this->bookingPolicy->reschedule($request->user(), $booking));
+
+        return $this->success(
+            new ClientBookingResource($this->bookingService->reschedule($request->user(), $booking, $request->validated())),
+            'Booking rescheduled. The provider will confirm the new time.',
         );
     }
 

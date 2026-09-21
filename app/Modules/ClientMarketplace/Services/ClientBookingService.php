@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Services;
 
 use App\Models\User;
 use App\Modules\Bookings\Events\BookingCancelled;
+use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientMarketplace\Actions\CancelClientBookingAction;
@@ -80,7 +81,8 @@ class ClientBookingService extends BaseService
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $this->assertProviderIsBookable($provider, $data['scheduled_date'], $scheduledEnd);
+                $this->assertAcceptingBookings($provider);
+                $this->assertWithinProviderHours($provider, $data['scheduled_date'], $scheduledEnd);
                 $this->assertNoOverlap($service->provider_id, $data['scheduled_date'], $scheduledEnd);
 
                 $booking = $this->createBookingAction->handle(
@@ -143,6 +145,85 @@ class ClientBookingService extends BaseService
         });
     }
 
+    /**
+     * Move a pending or confirmed booking to a new time. The new window must
+     * pass the same hours and overlap checks as a new booking; an accepted
+     * booking goes back to pending, because the provider agreed to the old
+     * time, not this one.
+     *
+     * Pausing new bookings does not block a reschedule: it is existing work,
+     * and the provider can still decline the new time.
+     */
+    public function reschedule(User $client, Booking $booking, array $data): Booking
+    {
+        return $this->transaction(function () use ($client, $booking, $data): Booking {
+            $booking = Booking::query()
+                ->where('client_id', $client->id)
+                ->whereKey($booking->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $booking->isReschedulable()) {
+                throw new ApiException(
+                    'This booking can no longer be rescheduled.',
+                    422,
+                    errors: ['status' => ['This booking is '.$booking->status.'; only pending or confirmed bookings can be rescheduled.']],
+                );
+            }
+
+            $scheduledEnd = $this->rescheduledEnd($booking, $data);
+
+            if ($booking->scheduled_date?->equalTo(Carbon::parse($data['scheduled_date']))
+                && $booking->scheduled_end_date?->equalTo($scheduledEnd)) {
+                throw new ApiException(
+                    'Choose a different time to reschedule this booking.',
+                    422,
+                    errors: ['scheduled_date' => ['The booking is already scheduled for this time.']],
+                );
+            }
+
+            // Same provider lock as create(), so a reschedule and a new
+            // booking cannot both claim the same window.
+            $provider = ProviderProfile::query()
+                ->whereKey($booking->provider_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->assertWithinProviderHours($provider, $data['scheduled_date'], $scheduledEnd);
+            $this->assertNoOverlap($booking->provider_id, $data['scheduled_date'], $scheduledEnd, $booking->id);
+
+            $oldStatus = $booking->status;
+            $previousStart = $booking->scheduled_date;
+            $previousEnd = $booking->scheduled_end_date;
+
+            $booking->update([
+                'scheduled_date' => $data['scheduled_date'],
+                'scheduled_end_date' => $scheduledEnd,
+                'rescheduled_at' => now(),
+                'status' => 'pending',
+                'confirmed_at' => null,
+            ]);
+            $booking = $booking->fresh()->load($this->bookingRelations());
+
+            if ($oldStatus !== 'pending') {
+                event(new BookingStatusChanged(
+                    booking: $booking,
+                    actor: $client,
+                    oldStatus: $oldStatus,
+                    newStatus: 'pending',
+                ));
+            }
+            event(new BookingRescheduled(
+                booking: $booking,
+                actor: $client,
+                previousStart: $previousStart,
+                previousEnd: $previousEnd,
+            ));
+
+            return $booking;
+        });
+    }
+
     private function assertSameIdempotentRequest(Booking $booking, array $data, ?Carbon $scheduledEnd = null): void
     {
         $requestedDate = Carbon::parse($data['scheduled_date']);
@@ -159,6 +240,20 @@ class ClientBookingService extends BaseService
                 409,
             );
         }
+    }
+
+    /**
+     * An explicit end wins; otherwise the booking keeps its current length,
+     * falling back to the service duration for a booking recorded without one.
+     */
+    private function rescheduledEnd(Booking $booking, array $data): Carbon
+    {
+        if (empty($data['scheduled_end_date']) && $booking->scheduled_date && $booking->scheduled_end_date) {
+            return Carbon::parse($data['scheduled_date'])
+                ->addSeconds((int) $booking->scheduled_date->diffInSeconds($booking->scheduled_end_date));
+        }
+
+        return $this->scheduledEnd(Service::withTrashed()->findOrFail($booking->service_id), $data);
     }
 
     private function scheduledEnd(Service $service, array $data): Carbon
@@ -187,15 +282,7 @@ class ClientBookingService extends BaseService
         };
     }
 
-    /**
-     * The provider must be taking new bookings, and — when they publish
-     * weekly hours — the whole booking must fall inside that day's window.
-     *
-     * A provider with no published hours is unconstrained, which is how
-     * every provider behaved before schedules existed. Times are compared
-     * as wall clock, the same basis `scheduled_date` is recorded in.
-     */
-    private function assertProviderIsBookable(ProviderProfile $provider, string $scheduledDate, Carbon $scheduledEnd): void
+    private function assertAcceptingBookings(ProviderProfile $provider): void
     {
         if (! $provider->is_accepting_bookings) {
             throw new ApiException(
@@ -204,7 +291,18 @@ class ClientBookingService extends BaseService
                 errors: ['service_id' => ['The provider is not accepting new bookings.']],
             );
         }
+    }
 
+    /**
+     * When the provider publishes weekly hours, the whole booking must fall
+     * inside that day's window.
+     *
+     * A provider with no published hours is unconstrained, which is how
+     * every provider behaved before schedules existed. Times are compared
+     * as wall clock, the same basis `scheduled_date` is recorded in.
+     */
+    private function assertWithinProviderHours(ProviderProfile $provider, string $scheduledDate, Carbon $scheduledEnd): void
+    {
         $schedule = $provider->availabilities()->get();
 
         if ($schedule->isEmpty()) {
@@ -241,11 +339,12 @@ class ClientBookingService extends BaseService
         }
     }
 
-    private function assertNoOverlap(int $providerId, string $scheduledDate, Carbon $scheduledEnd): void
+    private function assertNoOverlap(int $providerId, string $scheduledDate, Carbon $scheduledEnd, ?int $ignoreBookingId = null): void
     {
         $start = Carbon::parse($scheduledDate);
         $bookings = Booking::query()
             ->where('provider_id', $providerId)
+            ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId))
             ->whereIn('status', ['pending', 'confirmed', 'active'])
             ->whereNotNull('scheduled_date')
             ->where('scheduled_date', '<', $scheduledEnd)

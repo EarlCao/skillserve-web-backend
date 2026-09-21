@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('reports')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [ReportController::class, 'index']);
+    Route::get('/reasons', [ReportController::class, 'reasons']);
     Route::get('/{report}', [ReportController::class, 'show']);
     Route::patch('/{report}/investigate', [ReportController::class, 'investigate']);
     Route::patch('/{report}/notes', [ReportController::class, 'addNote']);

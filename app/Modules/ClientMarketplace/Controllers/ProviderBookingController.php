@@ -4,7 +4,9 @@ namespace App\Modules\ClientMarketplace\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Requests\MarkBookingPaidRequest;
 use App\Modules\ClientMarketplace\Policies\ProviderBookingPolicy;
+use App\Modules\ClientMarketplace\Requests\CancelProviderBookingRequest;
 use App\Modules\ClientMarketplace\Requests\DeclineProviderBookingRequest;
 use App\Modules\ClientMarketplace\Requests\ProviderBookingIndexRequest;
 use App\Modules\ClientMarketplace\Resources\ProviderBookingResource;
@@ -132,6 +134,36 @@ class ProviderBookingController extends Controller
     }
 
     #[OA\Patch(
+        path: '/api/client/v1/provider/bookings/{booking}/cancel',
+        summary: 'Cancel an accepted booking before the job starts',
+        description: 'Only a confirmed booking can be cancelled this way; use decline for a pending request. The customer is notified with the reason.',
+        tags: ['Provider Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [
+            new OA\Property(property: 'reason', type: 'string', minLength: 5, maxLength: 1000, description: 'Shown to the customer as the cancellation reason.', example: 'I am unwell and cannot make it that day.'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Booking cancelled. Payment state is unchanged and no external refund is processed.', content: new OA\JsonContent(ref: '#/components/schemas/ProviderBookingEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not placed with this provider'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+            new OA\Response(response: 422, description: 'Reason missing, or the booking is not confirmed'),
+        ],
+    )]
+    public function cancel(CancelProviderBookingRequest $request, Booking $booking): JsonResponse
+    {
+        $this->ensure($this->bookingPolicy->transition($request->user(), $booking));
+
+        return $this->success(
+            new ProviderBookingResource(
+                $this->bookingService->cancel($request->user(), $booking, $request->validated('reason')),
+            ),
+            'Booking cancelled.',
+        );
+    }
+
+    #[OA\Patch(
         path: '/api/client/v1/provider/bookings/{booking}/start',
         summary: 'Start a confirmed job',
         tags: ['Provider Bookings'],
@@ -176,6 +208,37 @@ class ProviderBookingController extends Controller
         return $this->success(
             new ProviderBookingResource($this->bookingService->complete($request->user(), $booking)),
             'Job completed.',
+        );
+    }
+
+    #[OA\Patch(
+        path: '/api/client/v1/provider/bookings/{booking}/payment-received',
+        summary: 'Confirm the customer paid for a completed job',
+        description: 'Records an off-platform payment (cash, GCash, …); nothing is charged. Only a completed, unpaid booking. The customer is notified.',
+        tags: ['Provider Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'payment_reference', type: 'string', maxLength: 100, nullable: true, description: 'e.g. a GCash reference number', example: 'GCASH-0123456789'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Payment recorded; payment_status is now paid', content: new OA\JsonContent(ref: '#/components/schemas/ProviderBookingEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not placed with this provider'),
+            new OA\Response(response: 404, description: 'Booking not found'),
+            new OA\Response(response: 409, description: 'Already marked as paid'),
+            new OA\Response(response: 422, description: 'The job is not completed yet'),
+        ],
+    )]
+    public function paymentReceived(MarkBookingPaidRequest $request, Booking $booking): JsonResponse
+    {
+        $this->ensure($this->bookingPolicy->transition($request->user(), $booking));
+
+        return $this->success(
+            new ProviderBookingResource(
+                $this->bookingService->recordPayment($request->user(), $booking, $request->validated('payment_reference')),
+            ),
+            'Payment recorded.',
         );
     }
 

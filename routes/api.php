@@ -24,8 +24,19 @@ Route::get('/health', function () {
     try {
         DB::connection()->getPdo();
         $checks['services']['database'] = ['status' => 'up'];
-    } catch (\Throwable $e) {
+    } catch (Throwable $e) {
         $checks['services']['database'] = ['status' => 'down', 'error' => $e->getMessage()];
+        $checks['status'] = 'degraded';
+    }
+
+    // Uploads are written under storage/app, which in production is a Render
+    // persistent disk. A disk that is missing or read-only would lose every
+    // upload, so it counts as degraded like the database.
+    $uploads = storage_path('app');
+    if (is_dir($uploads) && is_writable($uploads)) {
+        $checks['services']['storage'] = ['status' => 'up'];
+    } else {
+        $checks['services']['storage'] = ['status' => 'down', 'error' => 'storage/app is not writable.'];
         $checks['status'] = 'degraded';
     }
 

@@ -235,6 +235,25 @@ class ReportsAndModerationTest extends TestCase
             ->assertJsonPath('data.0.id', $report->id);
     }
 
+    public function test_reasons_lists_fileable_then_legacy_reason_keys(): void
+    {
+        [, $token] = $this->actingModerator(['view reports']);
+
+        $this->withToken($token)
+            ->getJson('/api/reports/reasons')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data', [...Report::REASONS, ...Report::LEGACY_REASONS]);
+    }
+
+    public function test_reasons_requires_view_permission(): void
+    {
+        $this->createPermissions(['view reports', 'manage reports']);
+        $token = $this->createCustomer()->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/reports/reasons')->assertStatus(403);
+    }
+
     public function test_show_returns_a_single_report_with_its_reported_item(): void
     {
         [, $token] = $this->actingModerator(['view reports']);

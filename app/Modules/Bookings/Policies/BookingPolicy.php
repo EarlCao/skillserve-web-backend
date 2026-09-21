@@ -28,6 +28,12 @@ class BookingPolicy extends BasePolicy
         return $this->allows($user, 'cancel bookings');
     }
 
+    /** Record a payment or a refund by hand. */
+    public function managePayments(User $user, Booking $booking): bool
+    {
+        return $this->allows($user, 'manage booking payments');
+    }
+
     public function manageDispute(User $user, Booking $booking): bool
     {
         return $this->allows($user, 'manage booking disputes');

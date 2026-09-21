@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
@@ -16,17 +17,23 @@ use Illuminate\Pagination\LengthAwarePaginator;
  * them and moves each one along its lifecycle.
  *
  * pending ──confirm──▶ confirmed ──start──▶ active ──complete──▶ completed
- *    └──────decline──▶ cancelled
+ * pending ──decline──▶ cancelled
+ * confirmed ──cancel──▶ cancelled   (a reason is required)
  *
  * Every transition re-reads the booking under a row lock, so two taps (or a
  * client cancelling at the same moment) cannot both win.
  */
 class ProviderBookingService extends BaseService
 {
+    public function __construct(
+        private readonly BookingPaymentService $paymentService,
+    ) {}
+
     /** The status each action requires, and the status it writes. */
     private const TRANSITIONS = [
         'confirm' => ['from' => ['pending'], 'to' => 'confirmed', 'timestamp' => 'confirmed_at'],
         'decline' => ['from' => ['pending'], 'to' => 'cancelled', 'timestamp' => 'cancelled_at'],
+        'cancel' => ['from' => ['confirmed'], 'to' => 'cancelled', 'timestamp' => 'cancelled_at'],
         'start' => ['from' => ['confirmed'], 'to' => 'active', 'timestamp' => 'started_at'],
         'complete' => ['from' => ['active'], 'to' => 'completed', 'timestamp' => 'completed_at'],
     ];
@@ -34,6 +41,7 @@ class ProviderBookingService extends BaseService
     private const REFUSALS = [
         'confirm' => ['Only a pending booking can be accepted.', 'accepted'],
         'decline' => ['Only a pending booking can be declined.', 'declined'],
+        'cancel' => ['Only an accepted booking that has not started can be cancelled.', 'cancelled'],
         'start' => ['Only a confirmed booking can be started.', 'started'],
         'complete' => ['Only a job in progress can be completed.', 'completed'],
     ];
@@ -75,6 +83,12 @@ class ProviderBookingService extends BaseService
         return $this->transition($providerUser, $booking, 'decline', $reason);
     }
 
+    /** Call off a job already accepted, before it starts. */
+    public function cancel(User $providerUser, Booking $booking, string $reason): Booking
+    {
+        return $this->transition($providerUser, $booking, 'cancel', $reason);
+    }
+
     public function start(User $providerUser, Booking $booking): Booking
     {
         return $this->transition($providerUser, $booking, 'start');
@@ -83,6 +97,19 @@ class ProviderBookingService extends BaseService
     public function complete(User $providerUser, Booking $booking): Booking
     {
         return $this->transition($providerUser, $booking, 'complete');
+    }
+
+    /**
+     * The provider confirms they were paid for a finished job — the common
+     * case, since most customers pay cash on completion.
+     */
+    public function recordPayment(User $providerUser, Booking $booking, ?string $reference): Booking
+    {
+        $booking = $this->show($providerUser, $booking);
+
+        $this->paymentService->markPaid($booking, $providerUser, $reference, ['completed']);
+
+        return $this->show($providerUser, $booking);
     }
 
     private function transition(User $providerUser, Booking $booking, string $action, ?string $reason = null): Booking
@@ -113,7 +140,7 @@ class ProviderBookingService extends BaseService
                 $rules['timestamp'] => now(),
             ];
 
-            if ($action === 'decline') {
+            if ($rules['to'] === 'cancelled') {
                 $updates['cancellation_reason'] = $reason;
                 $updates['cancelled_by'] = $providerUser->id;
             }
@@ -128,7 +155,7 @@ class ProviderBookingService extends BaseService
                 newStatus: $rules['to'],
             ));
 
-            if ($action === 'decline') {
+            if ($rules['to'] === 'cancelled') {
                 event(new BookingCancelled(booking: $booking, actor: $providerUser, reason: $reason));
             }
 

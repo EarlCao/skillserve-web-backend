@@ -162,6 +162,93 @@ class ProviderBookingTest extends TestCase
         $this->assertSame('pending', $booking->fresh()->status);
     }
 
+    public function test_a_provider_can_cancel_an_accepted_booking_with_a_reason_and_the_customer_is_told(): void
+    {
+        Notification::fake();
+
+        [$provider, $providerUser, $token] = $this->provider();
+        $client = $this->client();
+        $booking = $this->booking($client, $this->service($provider), [
+            'status' => 'confirmed',
+            'confirmed_at' => now(),
+        ]);
+
+        $this->withToken($token)
+            ->patchJson("/api/client/v1/provider/bookings/{$booking->id}/cancel", [
+                'reason' => 'I am unwell and cannot make it.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'cancelled')
+            ->assertJsonPath('data.cancellation_reason', 'I am unwell and cannot make it.');
+
+        $booking->refresh();
+        $this->assertSame($providerUser->id, $booking->cancelled_by);
+        $this->assertNotNull($booking->cancelled_at);
+        $this->assertSame('unpaid', $booking->payment_status);
+
+        Notification::assertSentTo(
+            $client,
+            BookingStatusNotification::class,
+            fn (BookingStatusNotification $notification) => $notification->toArray($client)['reason'] === 'I am unwell and cannot make it.',
+        );
+        Notification::assertNotSentTo($providerUser, BookingStatusNotification::class);
+
+        $this->assertDatabaseHas('activity_log', [
+            'subject_id' => $booking->id,
+            'description' => 'booking_cancelled',
+            'causer_id' => $providerUser->id,
+        ]);
+    }
+
+    public function test_a_provider_cancellation_needs_a_reason(): void
+    {
+        [$provider, , $token] = $this->provider();
+        $booking = $this->booking($this->client(), $this->service($provider), ['status' => 'confirmed']);
+
+        $this->withToken($token)
+            ->patchJson("/api/client/v1/provider/bookings/{$booking->id}/cancel")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        $this->withToken($token)
+            ->patchJson("/api/client/v1/provider/bookings/{$booking->id}/cancel", ['reason' => 'no'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('reason');
+
+        $this->assertSame('confirmed', $booking->fresh()->status);
+    }
+
+    public function test_a_provider_can_only_cancel_a_confirmed_booking(): void
+    {
+        [$provider, , $token] = $this->provider();
+        $service = $this->service($provider);
+        $client = $this->client();
+
+        foreach (['pending', 'active', 'completed', 'cancelled'] as $status) {
+            $booking = $this->booking($client, $service, ['status' => $status]);
+
+            $this->withToken($token)
+                ->patchJson("/api/client/v1/provider/bookings/{$booking->id}/cancel", ['reason' => 'Cannot make it.'])
+                ->assertStatus(422)
+                ->assertJsonValidationErrors('status');
+
+            $this->assertSame($status, $booking->fresh()->status);
+        }
+    }
+
+    public function test_another_provider_cannot_cancel_the_booking(): void
+    {
+        [$provider] = $this->provider();
+        [, , $intruderToken] = $this->provider();
+        $booking = $this->booking($this->client(), $this->service($provider), ['status' => 'confirmed']);
+
+        $this->withToken($intruderToken)
+            ->patchJson("/api/client/v1/provider/bookings/{$booking->id}/cancel", ['reason' => 'Not mine to cancel.'])
+            ->assertForbidden();
+
+        $this->assertSame('confirmed', $booking->fresh()->status);
+    }
+
     public function test_another_providers_booking_is_not_readable_or_transitionable(): void
     {
         [$provider] = $this->provider();

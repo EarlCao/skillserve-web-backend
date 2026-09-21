@@ -65,6 +65,7 @@ class RolePermissionSeeder extends Seeder
             'view bookings',
             'cancel bookings',
             'manage booking disputes',
+            'manage booking payments',
             'view reviews',
             'manage reviews',
             'edit reviews',

@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'service_id', 'client_id', 'provider_id', 'booking_number', 'status',
     'payment_status', 'total_price', 'service_price', 'platform_fee', 'currency',
-    'payment_method', 'payment_reference', 'client_notes', 'provider_notes',
+    'payment_method', 'payment_reference', 'paid_at', 'payment_recorded_by',
+    'refunded_amount', 'refunded_at', 'refund_reason', 'client_notes', 'provider_notes',
     'service_address', 'contact_phone',
     'cancellation_reason', 'scheduled_date', 'scheduled_end_date',
-    'confirmed_at', 'started_at', 'completed_at', 'cancelled_at',
+    'confirmed_at', 'started_at', 'completed_at', 'cancelled_at', 'rescheduled_at',
     'dispute_reason', 'disputed_at', 'dispute_status', 'dispute_resolution',
     'dispute_evidence', 'dispute_notes', 'dispute_closed_at', 'dispute_closed_by',
     'is_reviewed', 'client_idempotency_key', 'cancelled_by', 'deleted_by',
@@ -75,6 +76,11 @@ class Booking extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
+    public function paymentRecordedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'payment_recorded_by');
+    }
+
     public function deletedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'deleted_by');
@@ -120,6 +126,12 @@ class Booking extends Model
         return in_array($this->status, ['pending', 'confirmed'], true);
     }
 
+    /** A booking can move to a new time until the provider starts the job. */
+    public function isReschedulable(): bool
+    {
+        return in_array($this->status, ['pending', 'confirmed'], true);
+    }
+
     public function cancellationPaymentPolicy(): string
     {
         return match ($this->payment_status) {
@@ -135,6 +147,9 @@ class Booking extends Model
             'total_price' => 'decimal:2',
             'service_price' => 'decimal:2',
             'platform_fee' => 'decimal:2',
+            'refunded_amount' => 'decimal:2',
+            'paid_at' => 'datetime',
+            'refunded_at' => 'datetime',
             'is_reviewed' => 'boolean',
             'scheduled_date' => 'datetime',
             'scheduled_end_date' => 'datetime',
@@ -142,6 +157,7 @@ class Booking extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'rescheduled_at' => 'datetime',
             'disputed_at' => 'datetime',
             'dispute_evidence' => 'array',
             'dispute_notes' => 'array',

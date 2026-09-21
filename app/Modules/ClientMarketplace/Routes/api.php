@@ -4,6 +4,7 @@ use App\Modules\ClientMarketplace\Controllers\BookingDisputeController;
 use App\Modules\ClientMarketplace\Controllers\ClientBookingController;
 use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
+use App\Modules\ClientMarketplace\Controllers\FavoriteProviderController;
 use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
@@ -26,7 +27,12 @@ Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): voi
         Route::post('/', [ClientBookingController::class, 'store']);
         Route::get('/{booking}', [ClientBookingController::class, 'show']);
         Route::patch('/{booking}/cancel', [ClientBookingController::class, 'cancel']);
+        Route::patch('/{booking}/reschedule', [ClientBookingController::class, 'reschedule']);
     });
+
+    Route::get('/favorites', [FavoriteProviderController::class, 'index']);
+    Route::put('/favorites/{provider}', [FavoriteProviderController::class, 'store'])->whereNumber('provider');
+    Route::delete('/favorites/{provider}', [FavoriteProviderController::class, 'destroy'])->whereNumber('provider');
 
     Route::prefix('reviews')->group(function (): void {
         Route::get('/', [ClientReviewController::class, 'index']);
@@ -68,8 +74,10 @@ Route::prefix('provider/bookings')->middleware(['auth:sanctum', EnsureProvider::
     Route::get('/{booking}', [ProviderBookingController::class, 'show'])->whereNumber('booking');
     Route::patch('/{booking}/confirm', [ProviderBookingController::class, 'confirm'])->whereNumber('booking');
     Route::patch('/{booking}/decline', [ProviderBookingController::class, 'decline'])->whereNumber('booking');
+    Route::patch('/{booking}/cancel', [ProviderBookingController::class, 'cancel'])->whereNumber('booking');
     Route::patch('/{booking}/start', [ProviderBookingController::class, 'start'])->whereNumber('booking');
     Route::patch('/{booking}/complete', [ProviderBookingController::class, 'complete'])->whereNumber('booking');
+    Route::patch('/{booking}/payment-received', [ProviderBookingController::class, 'paymentReceived'])->whereNumber('booking');
 });
 
 /* Providers manage their own services; changes await administrator approval. */

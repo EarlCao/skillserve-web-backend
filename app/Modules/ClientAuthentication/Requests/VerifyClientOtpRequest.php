@@ -3,7 +3,6 @@
 namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Shared\Requests\BaseFormRequest;
-use Illuminate\Validation\Rule;
 
 class VerifyClientOtpRequest extends BaseFormRequest
 {

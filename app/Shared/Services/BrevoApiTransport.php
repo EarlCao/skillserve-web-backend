@@ -7,6 +7,7 @@ use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\TransportInterface;
+use Symfony\Component\Mime\Message;
 use Symfony\Component\Mime\RawMessage;
 
 /**
@@ -34,9 +35,9 @@ class BrevoApiTransport implements TransportInterface
         }
     }
 
-    public function send(RawMessage $message, Envelope $envelope = null): SentMessage
+    public function send(RawMessage $message, ?Envelope $envelope = null): SentMessage
     {
-        if (! $message instanceof \Symfony\Component\Mime\Message) {
+        if (! $message instanceof Message) {
             throw new TransportException('Brevo API transport only supports MIME messages.');
         }
 
