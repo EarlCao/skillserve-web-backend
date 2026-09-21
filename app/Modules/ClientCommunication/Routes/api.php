@@ -5,6 +5,7 @@ use App\Modules\ClientCommunication\Controllers\ClientNotificationController;
 use App\Modules\ClientCommunication\Controllers\ClientReportController;
 use App\Modules\ClientCommunication\Controllers\ClientSupportTicketController;
 use App\Modules\ClientCommunication\Controllers\ConversationController;
+use App\Modules\ClientCommunication\Middleware\EnsureBackgroundNotificationToken;
 use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
 use Illuminate\Support\Facades\Route;
 
@@ -14,7 +15,13 @@ Route::prefix('notifications')->middleware(['auth:sanctum', EnsureMobileAccount:
     Route::get('/unread-count', [ClientNotificationController::class, 'unreadCount']);
     Route::patch('/{notification}/read', [ClientNotificationController::class, 'markRead']);
     Route::post('/read-all', [ClientNotificationController::class, 'readAll']);
+    Route::post('/background-token', [ClientNotificationController::class, 'backgroundToken']);
 });
+
+// The app's background task, while the app is closed: a narrow token that
+// can read pending notifications and nothing else.
+Route::get('/notifications/background', [ClientNotificationController::class, 'background'])
+    ->middleware(['auth:sanctum', EnsureBackgroundNotificationToken::class]);
 
 // Support is for everyone who uses the app: customers and providers both
 // raise tickets, each seeing only their own.

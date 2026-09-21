@@ -2,10 +2,18 @@
 
 return [
     'access_ability' => 'client:auth',
+    // A second, narrow token the app hands to its background task so it can
+    // check for new notifications while the app is closed. It reads the
+    // notification feed and nothing else, and it never refreshes, so it
+    // cannot collide with the app's rotating refresh token.
+    'background_ability' => 'client:notifications',
+    // Minutes the background token lives. Signing out, changing the password
+    // or losing the account ends it earlier (every token is revoked).
+    'background_token_expiration' => (int) env('CLIENT_BACKGROUND_TOKEN_EXPIRATION', 525600),
     'access_token_expiration' => (int) env('CLIENT_ACCESS_TOKEN_EXPIRATION', 60),
     // Where profile photos live. `public` serves them through the storage
-    // symlink; point this at an S3 disk in production so they survive a
-    // redeploy of an ephemeral container.
+    // symlink; in production storage/app is a Render persistent disk, so they
+    // survive a redeploy (DEPLOYMENT.md → "Uploaded files").
     'profile_photo_disk' => env('CLIENT_PROFILE_PHOTO_DISK', 'public'),
     'password_reset_url' => env('CLIENT_PASSWORD_RESET_URL', env('APP_URL', 'http://localhost:8000').'/client/reset-password'),
     // Minutes a refresh token lives, counted from its last use: every refresh

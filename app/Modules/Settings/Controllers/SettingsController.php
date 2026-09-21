@@ -16,12 +16,16 @@ class SettingsController extends Controller
 
     public function __construct(private readonly SettingsService $settingsService) {}
 
-    #[OA\Get(path: '/api/settings', summary: 'Get system settings', tags: ['System Settings'], security: [['bearerAuth' => []]], responses: [new OA\Response(response: 200, description: 'Grouped system settings', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized')])]
+    #[OA\Get(path: '/api/settings', summary: 'Get system settings', description: 'meta.read_only lists "group.name" settings shown for information only (for example general.timezone, which follows the server APP_TIMEZONE).', tags: ['System Settings'], security: [['bearerAuth' => []]], responses: [new OA\Response(response: 200, description: 'Grouped system settings', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized')])]
     public function index(): JsonResponse
     {
         abort_unless(request()->user()->can('manage settings'), 403);
 
-        return $this->success($this->settingsService->all(), 'System settings retrieved.');
+        return $this->success(
+            $this->settingsService->all(),
+            'System settings retrieved.',
+            meta: ['read_only' => $this->settingsService->readOnly()],
+        );
     }
 
     #[OA\Put(
@@ -40,7 +44,7 @@ class SettingsController extends Controller
                         new OA\Property(property: 'platform_name', type: 'string', maxLength: 120),
                         new OA\Property(property: 'platform_description', type: 'string', nullable: true, maxLength: 1000),
                         new OA\Property(property: 'support_email', type: 'string', format: 'email', nullable: true),
-                        new OA\Property(property: 'timezone', type: 'string'),
+                        new OA\Property(property: 'timezone', type: 'string', readOnly: true, description: 'Read-only; follows APP_TIMEZONE. Sending it returns 422.'),
                     ]),
                     new OA\Property(property: 'marketplace', type: 'object', additionalProperties: false, properties: [
                         new OA\Property(property: 'provider_registration_enabled', type: 'boolean'),
@@ -83,6 +87,10 @@ class SettingsController extends Controller
     {
         abort_unless($request->user()->can('manage settings'), 403);
 
-        return $this->success($this->settingsService->update($request->validated(), $request->user()), 'System settings updated.');
+        return $this->success(
+            $this->settingsService->update($request->validated(), $request->user()),
+            'System settings updated.',
+            meta: ['read_only' => $this->settingsService->readOnly()],
+        );
     }
 }

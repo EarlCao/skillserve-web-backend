@@ -6,9 +6,11 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
+use App\Modules\Reviews\Notifications\ReviewModerationNotification;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -61,6 +63,37 @@ class ReviewRemovalTest extends TestCase
             'deleted_at' => null,
             'removed_at' => null,
         ]);
+    }
+
+    public function test_the_reviewer_hears_about_hide_restore_and_removal_and_the_provider_about_restore(): void
+    {
+        Notification::fake();
+        foreach (['manage reviews', 'edit reviews', 'delete reviews'] as $permission) {
+            Permission::findOrCreate($permission);
+        }
+        $role = Role::create(['name' => 'review-notifier']);
+        $role->syncPermissions(['edit reviews', 'delete reviews']);
+        $admin = User::factory()->create(['status' => 'active']);
+        $admin->assignRole($role);
+        $token = $admin->createToken('test')->plainTextToken;
+        $review = $this->createReview();
+        $reviewer = $review->reviewer;
+        $providerUser = User::query()->findOrFail(ProviderProfile::query()->findOrFail($review->provider_id)->user_id);
+        $action = fn (string $expected) => fn (ReviewModerationNotification $n, array $channels, $notifiable) => $n->toArray($notifiable)['action'] === $expected;
+
+        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true])->assertOk();
+        Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('hidden'));
+        Notification::assertNotSentTo($providerUser, ReviewModerationNotification::class);
+
+        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => false])->assertOk();
+        Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('restored'));
+        Notification::assertSentTo($providerUser, ReviewModerationNotification::class, $action('restored'));
+
+        $this->withToken($token)->deleteJson("/api/reviews/{$review->id}")->assertOk();
+        Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('removed'));
+
+        $sample = new ReviewModerationNotification($review, 'hidden', 't', 'm');
+        $this->assertSame($review->booking_id, $sample->toArray($reviewer)['booking_id']);
     }
 
     public function test_deleted_records_are_purged_after_thirty_days_unless_related_data_references_them(): void

@@ -4,7 +4,9 @@ namespace App\Modules\Authentication\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Authentication\Requests\ChangePasswordRequest;
+use App\Modules\Authentication\Requests\ForgotPasswordRequest;
 use App\Modules\Authentication\Requests\LoginRequest;
+use App\Modules\Authentication\Requests\ResetPasswordRequest;
 use App\Modules\Authentication\Resources\UserResource;
 use App\Modules\Authentication\Services\AuthenticationService;
 use App\Modules\Authentication\Services\PasswordService;
@@ -305,5 +307,50 @@ class AuthController extends Controller
         $this->passwordService->changePassword($request->user(), $request->validated());
 
         return $this->success(null, 'Password changed successfully.');
+    }
+
+    #[OA\Post(
+        path: '/api/auth/forgot-password',
+        summary: 'Email an administrator a password reset link',
+        description: 'Always answers the same way, whether or not the address belongs to an active administrator, so accounts cannot be discovered. The link opens the admin web reset page and expires in 60 minutes. Rate-limited like login.',
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['email'], properties: [
+            new OA\Property(property: 'email', type: 'string', format: 'email', example: 'admin@skillserve.test'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Reset link sent if the account exists', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 429, description: 'Too many attempts'),
+        ],
+    )]
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $this->passwordService->requestReset($request->validated('email'));
+
+        return $this->success(null, 'If that email belongs to an administrator, a reset link is on its way.');
+    }
+
+    #[OA\Post(
+        path: '/api/auth/reset-password',
+        summary: 'Reset an administrator password with an emailed token',
+        description: 'Sets the new password and signs the administrator out everywhere.',
+        tags: ['Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['token', 'email', 'password', 'password_confirmation'], properties: [
+            new OA\Property(property: 'token', type: 'string'),
+            new OA\Property(property: 'email', type: 'string', format: 'email'),
+            new OA\Property(property: 'password', type: 'string', minLength: 8, format: 'password'),
+            new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Password reset', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Invalid or expired token, or validation error'),
+            new OA\Response(response: 429, description: 'Too many attempts'),
+        ],
+    )]
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $this->passwordService->resetPassword($request->validated());
+
+        return $this->success(null, 'Password reset. Sign in with your new password.');
     }
 }

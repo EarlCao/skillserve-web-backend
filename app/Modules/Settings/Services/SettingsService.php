@@ -13,6 +13,10 @@ class SettingsService
     {
         $definition = config("system-settings.groups.{$group}.{$name}");
 
+        if (isset($definition['source'])) {
+            return config($definition['source']);
+        }
+
         return Setting::query()->where('group', $group)->where('name', $name)->value('payload')
             ?? ($definition['default'] ?? null);
     }
@@ -23,9 +27,28 @@ class SettingsService
             $stored = Setting::query()->where('group', $group)->pluck('payload', 'name');
 
             return [$group => collect($fields)->mapWithKeys(fn (array $definition, string $name): array => [
-                $name => $stored->get($name, $definition['default']),
+                $name => isset($definition['source'])
+                    ? config($definition['source'])
+                    : $stored->get($name, $definition['default']),
             ])->all()];
         })->all();
+    }
+
+    /**
+     * Settings the admin can see but not change, as "group.name" keys —
+     * values that come from server configuration.
+     *
+     * @return array<int, string>
+     */
+    public function readOnly(): array
+    {
+        return collect(config('system-settings.groups'))
+            ->flatMap(fn (array $fields, string $group) => collect($fields)
+                ->filter(fn (array $definition): bool => isset($definition['source']))
+                ->keys()
+                ->map(fn (string $name): string => "{$group}.{$name}"))
+            ->values()
+            ->all();
     }
 
     public function update(array $values, User $actor): array
@@ -40,6 +63,12 @@ class SettingsService
                     if (! array_key_exists($name, config("system-settings.groups.{$group}"))) {
                         throw ValidationException::withMessages([
                             "{$group}.{$name}" => ['This setting is not supported.'],
+                        ]);
+                    }
+
+                    if (isset(config("system-settings.groups.{$group}.{$name}")['source'])) {
+                        throw ValidationException::withMessages([
+                            "{$group}.{$name}" => ['This value comes from the server configuration and cannot be changed here.'],
                         ]);
                     }
 

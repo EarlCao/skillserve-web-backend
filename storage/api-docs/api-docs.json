@@ -2593,6 +2593,116 @@
                 ]
             }
         },
+        "/api/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Email an administrator a password reset link",
+                "description": "Always answers the same way, whether or not the address belongs to an active administrator, so accounts cannot be discovered. The link opens the admin web reset page and expires in 60 minutes. Rate-limited like login.",
+                "operationId": "e10dbfac5af8763c42ec829cb20838e0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "admin@skillserve.test"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Reset link sent if the account exists",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "429": {
+                        "description": "Too many attempts"
+                    }
+                }
+            }
+        },
+        "/api/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Reset an administrator password with an emailed token",
+                "description": "Sets the new password and signs the administrator out everywhere.",
+                "operationId": "1bb992287bae6638ed9af9875134fbb2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token",
+                                    "email",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Invalid or expired token, or validation error"
+                    },
+                    "429": {
+                        "description": "Too many attempts"
+                    }
+                }
+            }
+        },
         "/api/bookings": {
             "get": {
                 "tags": [
@@ -5485,6 +5595,97 @@
                     },
                     "404": {
                         "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/background-token": {
+            "post": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Issue a read-only token for background notification checks",
+                "description": "Called by the app after sign-in. The token can only call GET /notifications/background; it never refreshes and ends when the user signs out or changes their password. Up to five are kept per account (one per device).",
+                "operationId": "40b13d60c4581887ac521afa75c3964e",
+                "responses": {
+                    "201": {
+                        "description": "Background token issued",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Background token issued.",
+                                    "data": {
+                                        "token": "42|…",
+                                        "expires_at": "2027-09-21T10:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified mobile account with a full session token required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/background": {
+            "get": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Unread notifications for the background check",
+                "description": "Authenticated with the background token only. Returns up to 10 unread notifications created at or after `after`, oldest first; without `after`, the last 24 hours. Muted categories are never stored, so everything returned may be shown.",
+                "operationId": "0be3bccdc80339e9598bc4f900714d4a",
+                "parameters": [
+                    {
+                        "name": "after",
+                        "in": "query",
+                        "description": "created_at of the newest notification the device already showed",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pending notifications (same shape as the feed)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated or token expired"
+                    },
+                    "403": {
+                        "description": "Not a background token, or the account is inactive"
+                    },
+                    "422": {
+                        "description": "Invalid `after`"
                     }
                 },
                 "security": [
@@ -15237,6 +15438,7 @@
                     "System Settings"
                 ],
                 "summary": "Get system settings",
+                "description": "meta.read_only lists \"group.name\" settings shown for information only (for example general.timezone, which follows the server APP_TIMEZONE).",
                 "operationId": "20bd9bc8619c690488a3f4f467ac0136",
                 "responses": {
                     "200": {
@@ -15292,7 +15494,9 @@
                                                 "nullable": true
                                             },
                                             "timezone": {
-                                                "type": "string"
+                                                "description": "Read-only; follows APP_TIMEZONE. Sending it returns 422.",
+                                                "type": "string",
+                                                "readOnly": true
                                             }
                                         },
                                         "type": "object",

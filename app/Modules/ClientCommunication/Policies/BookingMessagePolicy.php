@@ -20,14 +20,15 @@ class BookingMessagePolicy
 
     private function participant(User $user, Booking $booking): bool
     {
-        if (! $user->isActive()) {
+        // Either side must use a full client session token; narrower tokens
+        // (e.g. the background notification token) never read a thread.
+        if (! $user->isActive()
+            || ! $user->currentAccessToken()?->can(config('client-auth.access_ability'))) {
             return false;
         }
 
         if ($booking->client_id === $user->id) {
-            return $user->isClientAccount()
-                && $user->hasVerifiedEmail()
-                && (bool) $user->currentAccessToken()?->can(config('client-auth.access_ability'));
+            return $user->isClientAccount() && $user->hasVerifiedEmail();
         }
 
         return $user->user_type === 'provider'

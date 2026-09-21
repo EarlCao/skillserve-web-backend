@@ -8,19 +8,19 @@ use Illuminate\Support\Facades\Route;
  * Mounted by the client marketplace service provider under /api/client/v1/auth.
  */
 
-Route::post('/register', [ClientAuthController::class, 'register']);
-Route::post('/cancel-registration', [ClientAuthController::class, 'cancelRegistration']);
-Route::post('/register-provider', [ClientAuthController::class, 'registerProvider']);
-Route::post('/verify-otp', [ClientAuthController::class, 'verifyOtp']);
-Route::post('/resend-otp', [ClientAuthController::class, 'resendOtp']);
+Route::post('/register', [ClientAuthController::class, 'register'])->middleware('throttle:client-auth');
+Route::post('/cancel-registration', [ClientAuthController::class, 'cancelRegistration'])->middleware('throttle:client-auth');
+Route::post('/register-provider', [ClientAuthController::class, 'registerProvider'])->middleware('throttle:client-auth');
+Route::post('/verify-otp', [ClientAuthController::class, 'verifyOtp'])->middleware('throttle:client-auth');
+Route::post('/resend-otp', [ClientAuthController::class, 'resendOtp'])->middleware('throttle:client-auth');
 // Both mint a session from an externally supplied token and call out to
 // Google on every request, so they share the login throttle.
 Route::post('/google', [ClientAuthController::class, 'google'])->middleware('throttle:login');
 Route::post('/google/register', [ClientAuthController::class, 'googleRegister'])->middleware('throttle:login');
 Route::post('/login', [ClientAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/refresh', [ClientAuthController::class, 'refresh']);
-Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword']);
-Route::post('/reset-password', [ClientAuthController::class, 'resetPassword']);
+Route::post('/forgot-password', [ClientAuthController::class, 'forgotPassword'])->middleware('throttle:client-auth');
+Route::post('/reset-password', [ClientAuthController::class, 'resetPassword'])->middleware('throttle:client-auth');
 Route::get('/verify-email/{user}/{hash}', [ClientAuthController::class, 'verifyEmail'])
     ->middleware('signed')
     ->name('client.verification.verify');

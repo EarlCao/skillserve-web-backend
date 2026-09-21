@@ -6,7 +6,10 @@ return [
             'platform_name' => ['label' => 'Platform name', 'type' => 'string', 'default' => 'SkillServe', 'rules' => ['string', 'max:120']],
             'platform_description' => ['label' => 'Platform description', 'type' => 'textarea', 'default' => '', 'rules' => ['nullable', 'string', 'max:1000']],
             'support_email' => ['label' => 'Support email', 'type' => 'email', 'default' => '', 'rules' => ['nullable', 'email', 'max:255']],
-            'timezone' => ['label' => 'Timezone', 'type' => 'string', 'default' => 'UTC', 'rules' => ['string', 'timezone']],
+            // Read-only: the server's own timezone (config/app.php, APP_TIMEZONE)
+            // is what bookings are stored and checked in, so it is shown here
+            // rather than kept as a second, conflicting copy.
+            'timezone' => ['label' => 'Timezone', 'type' => 'string', 'default' => 'UTC', 'source' => 'app.timezone', 'rules' => ['string', 'timezone']],
         ],
         'marketplace' => [
             'provider_registration_enabled' => ['label' => 'Allow provider registration', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],

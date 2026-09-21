@@ -62,6 +62,7 @@ use App\Modules\Reviews\Events\ReviewHidden;
 use App\Modules\Reviews\Events\ReviewRemoved;
 use App\Modules\Reviews\Events\ReviewRestored;
 use App\Modules\Reviews\Listeners\LogReviewActivity;
+use App\Modules\Reviews\Listeners\NotifyReviewModeration;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Reviews\Policies\ReviewPolicy;
 use App\Modules\ServiceCategories\Events\ServiceCategoryCreated;
@@ -165,6 +166,20 @@ class AppServiceProvider extends ServiceProvider
         // Throttle failed login attempts per IP address.
         RateLimiter::for('login', function (Request $request) {
             return Limit::perMinute((int) env('LOGIN_RATE_LIMIT', 5))->by($request->ip());
+        });
+
+        // Public mobile account endpoints (sign-up, OTP, password reset): per
+        // IP, generous enough for a room of people on one Wi-Fi, and per email
+        // address, which is what an attacker would target.
+        RateLimiter::for('client-auth', function (Request $request) {
+            $limits = [Limit::perMinute((int) env('CLIENT_AUTH_RATE_LIMIT', 20))->by('ip:'.$request->ip())];
+            $email = mb_strtolower(trim((string) $request->input('email')));
+            if ($email !== '') {
+                // Above the OTP service's own 5-guess cap, so its clearer message wins.
+                $limits[] = Limit::perMinute(10)->by('email:'.$email);
+            }
+
+            return $limits;
         });
 
         // Super-admins bypass every authorization gate (authorization is
@@ -278,6 +293,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ReviewHidden::class, LogReviewActivity::class);
         Event::listen(ReviewRestored::class, LogReviewActivity::class);
         Event::listen(ReviewRemoved::class, LogReviewActivity::class);
+        Event::listen([ReviewHidden::class, ReviewRemoved::class, ReviewRestored::class], NotifyReviewModeration::class);
 
         // Reviews and Ratings Management module policies.
         Gate::policy(Review::class, ReviewPolicy::class);

@@ -17,6 +17,10 @@ use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 
 Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:login');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+    ->middleware('throttle:login');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:login');
 
 Route::middleware(['auth:sanctum', CheckAbilities::class.':admin:auth'])->group(function (): void {
     Route::get('/me', [AuthController::class, 'me']);
