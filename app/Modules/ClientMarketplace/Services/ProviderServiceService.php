@@ -11,7 +11,9 @@ use App\Modules\Services\Events\ServiceCreated;
 use App\Modules\Services\Events\ServiceDeleted;
 use App\Modules\Services\Events\ServiceUpdated;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -42,7 +44,7 @@ class ProviderServiceService extends BaseService
             ->when($filters['approval_status'] ?? null, fn ($query, $status) => $query->where('approval_status', $status))
             ->with(self::RELATIONS)
             ->latest()
-            ->paginate(max(1, min(100, (int) ($filters['per_page'] ?? 15))));
+            ->paginate(PageSize::from($filters));
     }
 
     public function show(User $providerUser, Service $service): Service
@@ -59,6 +61,7 @@ class ProviderServiceService extends BaseService
                 array_merge($data, ['provider_id' => $profile->id, 'currency' => 'PHP']),
                 $providerUser,
             );
+            $service->forceFill($this->reviewState($providerUser))->save();
 
             event(new ServiceCreated(service: $service, actor: $providerUser, data: $data));
 
@@ -80,11 +83,8 @@ class ProviderServiceService extends BaseService
             $before = $service->only(self::SNAPSHOT_FIELDS);
 
             $this->updateServiceAction->handle($service, array_merge($data, [
-                'approval_status' => 'pending',
-                'status' => 'draft',
+                ...$this->reviewState($providerUser),
                 'rejection_reason' => null,
-                'approved_by' => null,
-                'approved_at' => null,
                 'updated_by' => $providerUser->id,
             ]));
 
@@ -118,6 +118,22 @@ class ProviderServiceService extends BaseService
     {
         return $providerUser->providerProfile
             ?? throw new ApiException('Provider profile not found.', 404);
+    }
+
+    /**
+     * Where a new or edited service lands. With System Settings → Marketplace
+     * → "Require service approval" on (the default) it waits for an
+     * administrator; with it off it goes live at once.
+     *
+     * @return array<string, mixed>
+     */
+    private function reviewState(User $providerUser): array
+    {
+        if (app(SettingsService::class)->value('marketplace', 'service_approval_required')) {
+            return ['approval_status' => 'pending', 'status' => 'draft', 'approved_by' => null, 'approved_at' => null];
+        }
+
+        return ['approval_status' => 'approved', 'status' => 'published', 'approved_by' => null, 'approved_at' => now()];
     }
 
     private function verifiedProfile(User $providerUser): ProviderProfile

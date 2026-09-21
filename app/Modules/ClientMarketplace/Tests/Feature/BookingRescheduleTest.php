@@ -155,7 +155,8 @@ class BookingRescheduleTest extends TestCase
         $booking = $this->booking($client, $this->service($provider));
         $token = $this->token($client);
 
-        $day = Carbon::parse('next monday')->addWeek();
+        // Hours are Manila wall clock.
+        $day = Carbon::parse('next monday', 'Asia/Manila')->addWeek();
         $provider->availabilities()->create(['day_of_week' => $day->dayOfWeek, 'start_time' => '09:00', 'end_time' => '17:00']);
         // Pausing new bookings does not block moving an existing one.
         $provider->update(['is_accepting_bookings' => false]);

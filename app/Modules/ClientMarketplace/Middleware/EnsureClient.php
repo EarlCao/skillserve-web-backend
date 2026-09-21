@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Middleware;
 
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class EnsureClient
         }
 
         if (! $user->isActive()) {
-            throw new ApiException('This endpoint is available to active customer accounts only.', 403);
+            throw AccountRestrictedException::for($user);
         }
 
         if (! $user->hasVerifiedEmail()) {

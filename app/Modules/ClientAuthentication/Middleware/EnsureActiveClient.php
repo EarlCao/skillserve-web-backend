@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Middleware;
 
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use Closure;
 use Illuminate\Http\Request;
@@ -19,7 +20,7 @@ class EnsureActiveClient
         }
 
         if (! $user->isActive()) {
-            throw new ApiException('Your account is not active.', 403);
+            throw AccountRestrictedException::for($user);
         }
 
         return $next($request);

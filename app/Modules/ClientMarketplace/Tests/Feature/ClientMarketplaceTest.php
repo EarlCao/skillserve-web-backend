@@ -529,8 +529,9 @@ class ClientMarketplaceTest extends TestCase
         ]);
         $token = $this->clientToken($client);
 
-        // Next Monday, so the weekday is deterministic regardless of today.
-        $monday = now()->addWeek()->startOfWeek();
+        // Next Monday in the business timezone (hours are Manila wall
+        // clock), so the weekday is deterministic regardless of today.
+        $monday = now('Asia/Manila')->addWeek()->startOfWeek();
         $provider->availabilities()->create([
             'day_of_week' => 1, 'start_time' => '09:00', 'end_time' => '17:00',
         ]);
@@ -570,6 +571,37 @@ class ClientMarketplaceTest extends TestCase
             ->assertJsonPath('errors.service_id.0', 'The provider is not accepting new bookings.');
 
         $this->assertDatabaseCount('bookings', 1);
+    }
+
+    public function test_booking_times_keep_their_instant_and_hours_are_read_in_business_time(): void
+    {
+        config(['app.business_timezone' => 'Asia/Manila']);
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->service($provider, $this->category('Tz '.Str::random(5)), ['duration' => '1 hour']);
+        $provider->availabilities()->create(['day_of_week' => 1, 'start_time' => '09:00', 'end_time' => '17:00']);
+        $monday = now('Asia/Manila')->addWeek()->startOfWeek()->format('Y-m-d');
+        $token = $this->clientToken($client);
+
+        // 9:00 AM in Manila is 01:00 UTC; it is stored and returned as that instant.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', ['service_id' => $service->id, 'scheduled_date' => "{$monday}T09:00:00+08:00"])
+            ->assertCreated()
+            ->assertJsonPath('data.scheduled_date', "{$monday}T01:00:00+00:00")
+            ->assertJsonPath('data.scheduled_end_date', "{$monday}T02:00:00+00:00");
+
+        // A time sent without an offset (an older app) means Manila wall clock.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', ['service_id' => $service->id, 'scheduled_date' => "{$monday} 11:00:00"])
+            ->assertCreated()
+            ->assertJsonPath('data.scheduled_date', "{$monday}T03:00:00+00:00");
+
+        // 17:30 UTC on Sunday is 01:30 Monday in Manila: outside the 09:00 start.
+        $sunday = now('Asia/Manila')->addWeek()->startOfWeek()->subDay()->format('Y-m-d');
+        $this->withToken($token)
+            ->postJson('/api/client/v1/bookings', ['service_id' => $service->id, 'scheduled_date' => "{$sunday}T17:30:00Z"])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.scheduled_date.0', 'The provider works Mondays from 09:00 to 17:00.');
     }
 
     public function test_a_provider_without_published_hours_can_still_be_booked_at_any_time(): void

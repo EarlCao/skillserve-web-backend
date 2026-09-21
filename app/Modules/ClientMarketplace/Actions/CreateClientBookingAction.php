@@ -4,16 +4,20 @@ namespace App\Modules\ClientMarketplace\Actions;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\Services\Models\Service;
 use App\Shared\Actions\BaseAction;
 use Illuminate\Support\Str;
 
 final class CreateClientBookingAction extends BaseAction
 {
+    public function __construct(private readonly BookingRules $rules) {}
+
     public function handle(User $client, Service $service, array $data, ?string $idempotencyKey): Booking
     {
         $servicePrice = round((float) $service->price, 2);
-        $platformFee = round($servicePrice * 0.10, 2);
+        // System Settings → Marketplace → Platform commission rate.
+        $platformFee = $this->rules->platformFee($servicePrice);
 
         return Booking::create([
             'service_id' => $service->id,

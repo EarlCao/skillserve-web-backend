@@ -3,6 +3,7 @@
 namespace App\Modules\ClientCommunication\Services;
 
 use App\Models\User;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -38,6 +39,6 @@ class ClientNotificationService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

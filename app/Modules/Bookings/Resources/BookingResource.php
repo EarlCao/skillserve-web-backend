@@ -36,6 +36,7 @@ class BookingResource extends BaseResource
             'client_notes' => $this->client_notes,
             'provider_notes' => $this->provider_notes,
             'cancellation_reason' => $this->cancellation_reason,
+            'cancellation_fee' => $this->cancellation_fee,
             'scheduled_date' => $this->scheduled_date?->toIso8601String(),
             'scheduled_end_date' => $this->scheduled_end_date?->toIso8601String(),
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),

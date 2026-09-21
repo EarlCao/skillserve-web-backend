@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Resources;
 
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Enums\AccountRole;
+use App\Shared\Exceptions\AccountRestrictedException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,6 +25,8 @@ class ClientUserResource extends JsonResource
             'profile_picture' => ClientProfileService::photoUrl($this->profile_photo_path),
             'birthday' => $this->birthday?->toDateString(),
             'status' => $this->status,
+            // Same shape as meta.account on a refused request (M 2.4).
+            'account' => AccountRestrictedException::describe($this->resource),
             'role_id' => $this->role_id,
             // Flat fields: older app builds read a string `role` key, so the
             // role is not exposed as a nested `role` object.
@@ -39,6 +42,11 @@ class ClientUserResource extends JsonResource
                     'experience_years' => $this->providerProfile->experience_years,
                     'bio' => $this->providerProfile->bio,
                     'verification_status' => $this->providerProfile->verification_status,
+                    // A provider can be suspended while the account stays
+                    // active: they can sign in but cannot take work (M 9.6).
+                    'suspended' => $this->providerProfile->suspended_at !== null,
+                    'suspended_at' => $this->providerProfile->suspended_at?->toIso8601String(),
+                    'suspension_reason' => $this->providerProfile->suspension_reason,
                 ],
             ),
             'email_verified' => $this->hasVerifiedEmail(),

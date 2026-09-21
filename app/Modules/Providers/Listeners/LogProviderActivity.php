@@ -8,8 +8,7 @@ use App\Modules\Providers\Events\ProviderSuspended;
 use App\Modules\Providers\Events\ProviderVerificationApproved;
 use App\Modules\Providers\Events\ProviderVerificationRejected;
 use App\Modules\Providers\Events\ProviderVerificationRemoved;
-use Spatie\Activitylog\Facades\Activity;
-use Spatie\Activitylog\LogOptions;
+use App\Modules\Providers\Events\ProviderVerificationSubmitted;
 
 /**
  * Logs provider management activity to the activity_log table.
@@ -31,6 +30,7 @@ class LogProviderActivity
             $event instanceof ProviderSuspended => $event->providerProfile,
             $event instanceof ProviderActivated => $event->providerProfile,
             $event instanceof ProviderVerificationRemoved => $event->providerProfile,
+            $event instanceof ProviderVerificationSubmitted => $event->providerProfile,
             default => null,
         };
 
@@ -45,6 +45,9 @@ class LogProviderActivity
             $event instanceof ProviderSuspended => 'provider_suspended',
             $event instanceof ProviderActivated => 'provider_activated',
             $event instanceof ProviderVerificationRemoved => 'provider_verification_removed',
+            $event instanceof ProviderVerificationSubmitted => $event->isResponse
+                ? 'provider_additional_info_submitted'
+                : 'provider_verification_submitted',
             default => 'provider_action',
         };
 
@@ -61,17 +64,18 @@ class LogProviderActivity
             $event instanceof ProviderSuspended => [
                 'reason' => $event->reason,
             ],
+            $event instanceof ProviderVerificationSubmitted => [
+                'verification_request_id' => $event->request->id,
+                'documents' => $event->documentCount,
+            ],
             default => [],
         };
 
-        Activity::tap(function ($activity) use ($event) {
-            $activity->causer = $event->actor;
-        })->log(
-            LogOptions::defaults()
-                ->useLogName('provider')
-                ->subject($profile)
-                ->event($description)
-                ->withProperties($properties)
-        );
+        activity('provider')
+            ->causedBy($event->actor)
+            ->performedOn($profile)
+            ->event($description)
+            ->withProperties($properties)
+            ->log($description);
     }
 }

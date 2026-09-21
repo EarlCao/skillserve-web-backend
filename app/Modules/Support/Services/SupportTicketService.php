@@ -10,6 +10,7 @@ use App\Modules\Support\Events\SupportTicketAssigned;
 use App\Modules\Support\Events\SupportTicketResolved;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
 use App\Modules\Support\Models\SupportTicket;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -127,6 +128,6 @@ class SupportTicketService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

@@ -17,6 +17,11 @@ class NotifyBookingParticipants
 {
     public function handle(BookingStatusChanged $event): void
     {
+        // NotifyDisputeParties already told both sides what was decided.
+        if ($event->fromDispute) {
+            return;
+        }
+
         $booking = $event->booking;
         $service = $booking->service?->title;
         $name = $service ? "\u{201C}{$service}\u{201D}" : 'your booking';

@@ -7,8 +7,10 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Services\BookingPaymentService;
+use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -27,6 +29,7 @@ class ProviderBookingService extends BaseService
 {
     public function __construct(
         private readonly BookingPaymentService $paymentService,
+        private readonly BookingRules $rules,
     ) {}
 
     /** The status each action requires, and the status it writes. */
@@ -143,6 +146,11 @@ class ProviderBookingService extends BaseService
             if ($rules['to'] === 'cancelled') {
                 $updates['cancellation_reason'] = $reason;
                 $updates['cancelled_by'] = $providerUser->id;
+                // Calling off an accepted job late records the provider fee.
+                if ($action === 'cancel') {
+                    $fee = $this->rules->cancellationFee($booking, 'provider');
+                    $updates['cancellation_fee'] = $fee > 0 ? $fee : null;
+                }
             }
 
             $booking->update($updates);
@@ -183,6 +191,6 @@ class ProviderBookingService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

@@ -17,6 +17,7 @@ use App\Modules\Providers\Events\ProviderVerificationRejected;
 use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Models\VerificationRequest;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -266,7 +267,7 @@ class ProviderService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     private function withAggregates(Builder $query): Builder

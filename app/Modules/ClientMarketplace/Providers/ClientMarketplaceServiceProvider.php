@@ -2,6 +2,8 @@
 
 namespace App\Modules\ClientMarketplace\Providers;
 
+use App\Modules\Settings\Controllers\PlatformController;
+use App\Shared\Middleware\EnsurePlatformAvailable;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +15,13 @@ class ClientMarketplaceServiceProvider extends ServiceProvider
             return;
         }
 
+        // Outside maintenance mode's reach: the app polls it to learn when
+        // the platform is back.
         Route::middleware('api')
+            ->prefix('api/client/v1')
+            ->get('/platform', [PlatformController::class, 'show']);
+
+        Route::middleware(['api', EnsurePlatformAvailable::class])
             ->prefix('api/client/v1')
             ->group(function (): void {
                 Route::prefix('auth')->group(

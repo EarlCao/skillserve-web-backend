@@ -30,6 +30,7 @@ use App\Modules\ClientAuthentication\Services\ClientGoogleAuthService;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Modules\ClientAuthentication\Services\ClientProviderRegistrationService;
 use App\Modules\ClientAuthentication\Services\PendingRegistrationService;
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -167,7 +168,7 @@ class ClientAuthController extends Controller
         $verified = $this->otpService->verify($user, $code);
 
         if (! $verified->isActive()) {
-            throw new ApiException('Your account is not active.', 403);
+            throw AccountRestrictedException::for($verified);
         }
 
         return $this->success(

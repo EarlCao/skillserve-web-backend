@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Shared\Resources\BaseResource;
 
 class ClientServiceResource extends BaseResource
@@ -17,6 +18,7 @@ class ClientServiceResource extends BaseResource
             'currency' => $this->currency,
             'duration' => $this->duration,
             'location' => $this->location,
+            'is_featured' => (bool) $this->is_featured && ClientCatalogService::featuredServicesEnabled(),
             'average_rating' => $this->average_rating,
             'total_reviews' => $this->total_reviews,
             'total_bookings' => $this->total_bookings,

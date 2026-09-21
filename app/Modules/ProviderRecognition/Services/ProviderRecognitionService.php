@@ -7,6 +7,7 @@ use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -158,7 +159,7 @@ class ProviderRecognitionService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     private function applyProviderFilters(Builder $query, array $filters): void

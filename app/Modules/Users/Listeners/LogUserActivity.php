@@ -9,6 +9,7 @@ use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
+use App\Modules\Users\Events\UserWarned;
 
 /**
  * Persists User Management events into the Spatie activity log.
@@ -22,7 +23,7 @@ class LogUserActivity
      * Handle the user-module events.
      */
     public function handle(
-        UserUpdated|UserSuspended|UserActivated|UserBanned|UserUnbanned|UserDeleted $event,
+        UserUpdated|UserSuspended|UserActivated|UserBanned|UserUnbanned|UserDeleted|UserWarned $event,
     ): void {
         match (true) {
             $event instanceof UserUpdated => $this->log(
@@ -32,6 +33,10 @@ class LogUserActivity
             $event instanceof UserSuspended => $this->log(
                 $event->actor, $event->user,
                 ['reason' => $event->reason], 'user_suspended',
+            ),
+            $event instanceof UserWarned => $this->log(
+                $event->actor, $event->user,
+                ['reason' => $event->reason], 'user_warned',
             ),
             $event instanceof UserActivated => $this->log(
                 $event->actor, $event->user,

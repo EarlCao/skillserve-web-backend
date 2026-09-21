@@ -12,11 +12,12 @@ final class CancelClientBookingAction extends BaseAction
      * This changes booking state only. No external payment or refund provider
      * is called; unpaid remains unpaid and paid state remains unchanged.
      */
-    public function handle(Booking $booking, User $client, ?string $reason): Booking
+    public function handle(Booking $booking, User $client, ?string $reason, float $fee = 0.0): Booking
     {
         $booking->update([
             'status' => 'cancelled',
             'cancellation_reason' => $reason,
+            'cancellation_fee' => $fee > 0 ? $fee : null,
             'cancelled_at' => now(),
             'cancelled_by' => $client->id,
         ]);

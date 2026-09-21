@@ -48,7 +48,7 @@ class AuditLogService extends BaseService
                 $security->whereIn('log_name', ['authentication', 'administrators'])
                     ->orWhereIn('description', [
                         'administrator_password_changed', 'administrator_status_changed',
-                        'user_banned', 'user_unbanned', 'user_suspended', 'user_activated', 'user_deleted',
+                        'user_banned', 'user_unbanned', 'user_suspended', 'user_activated', 'user_deleted', 'user_warned',
                     ]);
             });
         }

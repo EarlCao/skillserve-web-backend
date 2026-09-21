@@ -29,6 +29,7 @@ use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Listeners\NotifyBookingParticipants;
+use App\Modules\Bookings\Listeners\NotifyDisputeParties;
 use App\Modules\Bookings\Listeners\NotifyPaymentParticipants;
 use App\Modules\Bookings\Listeners\NotifyProviderOfReschedule;
 use App\Modules\Bookings\Models\Booking;
@@ -47,7 +48,9 @@ use App\Modules\Providers\Events\ProviderSuspended;
 use App\Modules\Providers\Events\ProviderVerificationApproved;
 use App\Modules\Providers\Events\ProviderVerificationRejected;
 use App\Modules\Providers\Events\ProviderVerificationRemoved;
+use App\Modules\Providers\Events\ProviderVerificationSubmitted;
 use App\Modules\Providers\Listeners\LogProviderActivity;
+use App\Modules\Providers\Listeners\NotifyProviderOfAccountDecision;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Policies\ProviderPolicy;
 use App\Modules\ReportsAndModeration\Events\ReportActionTaken;
@@ -56,6 +59,7 @@ use App\Modules\ReportsAndModeration\Events\ReportNoteAdded;
 use App\Modules\ReportsAndModeration\Events\ReportRejected;
 use App\Modules\ReportsAndModeration\Events\ReportResolved;
 use App\Modules\ReportsAndModeration\Listeners\LogReportActivity;
+use App\Modules\ReportsAndModeration\Listeners\NotifyReporterOfOutcome;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\ReportsAndModeration\Policies\ReportPolicy;
 use App\Modules\Reviews\Events\ReviewHidden;
@@ -99,7 +103,9 @@ use App\Modules\Users\Events\UserDeleted;
 use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
+use App\Modules\Users\Events\UserWarned;
 use App\Modules\Users\Listeners\LogUserActivity;
+use App\Modules\Users\Listeners\NotifyUserOfAccountAction;
 use App\Modules\Users\Listeners\SendUserModerationMail;
 use App\Modules\Users\Policies\UserManagementPolicy;
 use App\Shared\Listeners\SyncUserRoleId;
@@ -214,6 +220,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(UserBanned::class, LogUserActivity::class);
         Event::listen(UserUnbanned::class, LogUserActivity::class);
         Event::listen(UserDeleted::class, LogUserActivity::class);
+        Event::listen(UserWarned::class, LogUserActivity::class);
+        Event::listen([UserWarned::class, UserSuspended::class, UserActivated::class], NotifyUserOfAccountAction::class);
 
         // Ban / unban notifications (best-effort email delivery).
         Event::listen(UserBanned::class, SendUserModerationMail::class);
@@ -254,6 +262,11 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ProviderSuspended::class, LogProviderActivity::class);
         Event::listen(ProviderActivated::class, LogProviderActivity::class);
         Event::listen(ProviderVerificationRemoved::class, LogProviderActivity::class);
+        Event::listen(ProviderVerificationSubmitted::class, LogProviderActivity::class);
+        Event::listen([
+            ProviderVerificationApproved::class, ProviderVerificationRejected::class, ProviderAdditionalInfoRequested::class,
+            ProviderVerificationRemoved::class, ProviderSuspended::class, ProviderActivated::class,
+        ], NotifyProviderOfAccountDecision::class);
         Event::listen(ProviderRecognitionChanged::class, LogProviderRecognitionActivity::class);
 
         // Service Management module events.
@@ -282,6 +295,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(BookingStatusChanged::class, NotifyBookingParticipants::class);
         Event::listen(BookingRescheduled::class, NotifyProviderOfReschedule::class);
         Event::listen(BookingPaymentRecorded::class, NotifyPaymentParticipants::class);
+        Event::listen(BookingDisputeManaged::class, NotifyDisputeParties::class);
 
         // Booking Management module policies.
         Gate::policy(Booking::class, BookingPolicy::class);
@@ -304,6 +318,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ReportResolved::class, LogReportActivity::class);
         Event::listen(ReportRejected::class, LogReportActivity::class);
         Event::listen(ReportActionTaken::class, LogReportActivity::class);
+        Event::listen([ReportResolved::class, ReportRejected::class], NotifyReporterOfOutcome::class);
 
         // Reports and Moderation module policies.
         Gate::policy(Report::class, ReportPolicy::class);

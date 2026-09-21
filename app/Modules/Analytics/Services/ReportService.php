@@ -7,6 +7,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -325,6 +326,6 @@ class ReportService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

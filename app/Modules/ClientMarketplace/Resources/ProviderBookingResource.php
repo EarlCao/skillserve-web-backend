@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Resources\BaseResource;
 
@@ -35,6 +36,13 @@ class ProviderBookingResource extends BaseResource
             'service_address' => $this->service_address,
             'contact_phone' => $this->contact_phone,
             'cancellation_reason' => $this->cancellation_reason,
+            'cancellation_fee' => $this->cancellation_fee,
+            // The cancellation rule and what cancelling now would cost; only
+            // while this side can still cancel.
+            'cancellation_policy' => $this->when(
+                in_array($this->status, ['confirmed'], true),
+                fn () => app(BookingRules::class)->policyFor($this->resource, 'provider'),
+            ),
             'scheduled_date' => $this->scheduled_date?->toIso8601String(),
             'scheduled_end_date' => $this->scheduled_end_date?->toIso8601String(),
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),

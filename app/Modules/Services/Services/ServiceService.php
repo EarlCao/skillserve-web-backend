@@ -16,6 +16,9 @@ use App\Modules\Services\Events\ServiceHidden;
 use App\Modules\Services\Events\ServiceRejected;
 use App\Modules\Services\Events\ServiceUpdated;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Services\SettingsService;
+use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -194,6 +197,14 @@ class ServiceService extends BaseService
      */
     public function toggleFeature(Service $service, bool $isFeatured, User $actor): Service
     {
+        if ($isFeatured && ! app(SettingsService::class)->value('marketplace', 'featured_services_enabled')) {
+            throw new ApiException(
+                'Featured services are turned off in System Settings.',
+                422,
+                errors: ['is_featured' => ['Turn on "Enable featured services" under Settings → Marketplace first.']],
+            );
+        }
+
         return $this->transaction(function () use ($service, $isFeatured, $actor): Service {
             $this->featureServiceAction->handle($service, $isFeatured);
 
@@ -224,7 +235,7 @@ class ServiceService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     /**

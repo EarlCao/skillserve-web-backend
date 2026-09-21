@@ -13,6 +13,7 @@ use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use App\Modules\Services\Models\Service;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -280,6 +281,6 @@ class DataManagementService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

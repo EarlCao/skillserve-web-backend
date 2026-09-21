@@ -16,6 +16,7 @@ use App\Modules\Users\Events\UserSuspended;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Events\UserUpdated;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Spatie\Activitylog\Models\Activity;
@@ -245,7 +246,7 @@ class UserManagementService extends BaseService
             ->where('subject_type', $user->getMorphClass())
             ->where('subject_id', $user->id)
             ->whereIn('description', [
-                'user_banned', 'user_unbanned', 'user_suspended', 'user_activated', 'user_deleted',
+                'user_banned', 'user_unbanned', 'user_suspended', 'user_activated', 'user_deleted', 'user_warned',
             ])
             ->with('causer:id,name')
             ->latest('id')
@@ -327,7 +328,7 @@ class UserManagementService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     /**

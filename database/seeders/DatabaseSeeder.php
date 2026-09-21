@@ -12,9 +12,12 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * Set SEED_MODE=admin-only to seed only the super-admin and admin
-     * accounts (otherwise empty database). The default mode seeds
-     * the full demo dataset.
+     * SEED_MODE:
+     * - `admin-only` — roles, permissions and the two admin accounts.
+     * - `starter`    — the same plus the default service categories and
+     *                  subcategories, so a fresh production site is usable at
+     *                  once (idempotent: existing categories are kept).
+     * - `demo` (default) — the full demo dataset. Never in production.
      */
     public function run(): void
     {
@@ -26,6 +29,12 @@ class DatabaseSeeder extends Seeder
         ]);
 
         if ($mode === 'admin-only') {
+            return;
+        }
+
+        if ($mode === 'starter') {
+            $this->call([ServiceCategorySeeder::class]);
+
             return;
         }
 

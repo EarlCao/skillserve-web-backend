@@ -8826,6 +8826,112 @@
                 ]
             }
         },
+        "/api/client/v1/provider/verification": {
+            "get": {
+                "tags": [
+                    "Provider Verification"
+                ],
+                "summary": "The provider's verification status, latest request and documents",
+                "description": "verification_status is unverified, pending, verified, rejected or additional_info_required. can_submit tells the app whether to offer an upload. The request carries the rejection reason or the information an administrator asked for.",
+                "operationId": "8fb051f788171fabc3307c31c04a5b19",
+                "responses": {
+                    "200": {
+                        "description": "Verification state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Provider Verification"
+                ],
+                "summary": "Submit verification documents for review",
+                "description": "Allowed while unverified, rejected (starts a new request) or additional_info_required (adds documents to the same request — the answer to an information request). Moves the provider to pending review. Files are private: JPG, PNG or PDF, up to 10 MB each, at most 5 per submission.",
+                "operationId": "d247a988e1ea3e8be7e1625d214a710c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "documents"
+                                ],
+                                "properties": {
+                                    "documents[0][type]": {
+                                        "type": "string",
+                                        "enum": [
+                                            "government_id",
+                                            "certificate",
+                                            "other"
+                                        ]
+                                    },
+                                    "documents[0][file]": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "notes": {
+                                        "description": "Optional message to the reviewer",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Submitted; status is now pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Invalid files, or already pending / verified"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/preferences": {
             "get": {
                 "tags": [
@@ -15432,6 +15538,52 @@
                 ]
             }
         },
+        "/api/client/v1/platform": {
+            "get": {
+                "tags": [
+                    "Client Platform"
+                ],
+                "summary": "Platform information, policies and rules",
+                "description": "Public. Stays available during maintenance mode, so the app can tell when the platform is back. Policy texts are the ones administrators write in System Settings → Platform policies (empty until written).",
+                "operationId": "10f155aa58afee5a876d18c28edfeb86",
+                "responses": {
+                    "200": {
+                        "description": "Platform information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Platform information retrieved.",
+                                    "data": {
+                                        "platform_name": "SkillServe",
+                                        "platform_description": "",
+                                        "support_email": "support@skillserve.ph",
+                                        "maintenance_mode": false,
+                                        "provider_registration_enabled": true,
+                                        "booking": {
+                                            "booking_enabled": true,
+                                            "cancellation_window_hours": 24,
+                                            "client_cancellation_fee_percent": 0,
+                                            "provider_cancellation_fee_percent": 0
+                                        },
+                                        "policies": {
+                                            "terms_of_service": "…",
+                                            "privacy_policy": "…",
+                                            "community_guidelines": "…"
+                                        }
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "tags": [
@@ -20198,6 +20350,10 @@
             "description": "Providers create and manage their own services; every submission and change awaits administrator approval"
         },
         {
+            "name": "Provider Verification",
+            "description": "The signed-in provider submits verification documents and follows the review"
+        },
+        {
             "name": "Client Preferences",
             "description": "Notification, privacy and application settings for a mobile account"
         },
@@ -20236,6 +20392,10 @@
         {
             "name": "Services",
             "description": "Moderate provider services (view, edit, approve, reject, hide, feature, delete)"
+        },
+        {
+            "name": "Client Platform",
+            "description": "Public platform information, policies and rules for the mobile app"
         },
         {
             "name": "System Settings",

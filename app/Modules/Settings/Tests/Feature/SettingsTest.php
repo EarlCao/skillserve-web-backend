@@ -21,7 +21,7 @@ class SettingsTest extends TestCase
 
     public function test_settings_are_grouped_and_the_timezone_follows_the_server(): void
     {
-        config(['app.timezone' => 'Asia/Manila']);
+        config(['app.business_timezone' => 'Asia/Manila']);
 
         $this->withToken($this->adminToken())
             ->getJson('/api/settings')

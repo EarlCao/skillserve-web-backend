@@ -2,6 +2,7 @@
 
 namespace App\Modules\Users\Listeners;
 
+use App\Modules\Settings\Services\SettingsService;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserUnbanned;
 use App\Modules\Users\Mail\UserBannedMail;
@@ -20,6 +21,12 @@ class SendUserModerationMail
 {
     public function handle(UserBanned|UserUnbanned $event): void
     {
+        // System Settings → Notifications → "Email notifications". Account
+        // security mail (OTP, password reset) is never switched off.
+        if (! app(SettingsService::class)->value('notifications', 'email_notifications_enabled')) {
+            return;
+        }
+
         try {
             if ($event instanceof UserBanned) {
                 Mail::to($event->user)->send(

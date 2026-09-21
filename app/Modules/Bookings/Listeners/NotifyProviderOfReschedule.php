@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Notifications\BookingStatusNotification;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Shared\Helpers\BusinessTime;
 
 /**
  * A customer moving a booking puts it back in the provider's requests, so
@@ -18,7 +19,7 @@ class NotifyProviderOfReschedule
         $booking = $event->booking;
         $service = $booking->service?->title;
         $name = $service ? "\u{201C}{$service}\u{201D}" : 'a booking';
-        $when = $booking->scheduled_date?->format('M j, Y g:i A');
+        $when = BusinessTime::format($booking->scheduled_date);
 
         // Resolved from the id for the same reason as NotifyBookingParticipants:
         // the loaded provider relation omits provider_profiles.user_id.

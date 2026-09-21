@@ -12,5 +12,8 @@ class BookingStatusChanged
         public readonly User $actor,
         public readonly string $oldStatus,
         public readonly string $newStatus,
+        // Set when a dispute decision changed the status: the parties get the
+        // dispute notice instead of the ordinary status message.
+        public readonly bool $fromDispute = false,
     ) {}
 }

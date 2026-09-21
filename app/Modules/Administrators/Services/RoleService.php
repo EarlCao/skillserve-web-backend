@@ -12,6 +12,7 @@ use App\Modules\Administrators\Events\RoleDeleted;
 use App\Modules\Administrators\Events\RolePermissionsSynced;
 use App\Modules\Administrators\Events\RoleUpdated;
 use App\Shared\Enums\AccountRole;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Spatie\Permission\Models\Role;
@@ -58,7 +59,7 @@ class RoleService extends BaseService
 
         $query->orderBy($sort, $direction);
 
-        return $query->paginate(max(1, min(100, (int) ($filters['per_page'] ?? 15))));
+        return $query->paginate(PageSize::from($filters));
     }
 
     /**

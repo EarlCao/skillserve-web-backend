@@ -5,6 +5,7 @@ namespace App\Modules\ClientAuthentication\Services;
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
 use App\Shared\Enums\AccountRole;
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Http;
@@ -88,6 +89,10 @@ class ClientGoogleAuthService
             return $this->signIn($existing, $googleSub);
         }
 
+        if ($validated['role'] === 'provider') {
+            ProviderSignups::assertOpen();
+        }
+
         $roleId = $validated['role'] === 'provider'
             ? AccountRole::Provider->value
             : AccountRole::Customer->value;
@@ -160,7 +165,7 @@ class ClientGoogleAuthService
     private function signIn(User $user, string $googleSub): array
     {
         if (! $user->isActive()) {
-            throw new ApiException('Your account is not active.', 403);
+            throw AccountRestrictedException::for($user);
         }
 
         $attributes = [];

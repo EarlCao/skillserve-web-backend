@@ -22,7 +22,9 @@ use App\Modules\Services\Events\ServiceHidden;
 use App\Modules\Services\Models\Service;
 use App\Modules\Users\Events\UserBanned;
 use App\Modules\Users\Events\UserSuspended;
+use App\Modules\Users\Events\UserWarned;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -220,6 +222,11 @@ class ReportService extends BaseService
         $target = $report->reportable;
 
         match ($action) {
+            'warning' => event(new UserWarned(
+                user: $target,
+                actor: $actor,
+                reason: trim((string) ($payload['reason'] ?? $payload['note'] ?? '')) ?: 'Please follow the community guidelines.',
+            )),
             'suspend' => event(new UserSuspended(user: $target, actor: $actor, reason: $payload['reason'])),
             'ban' => event(new UserBanned(user: $target, actor: $actor, reason: $payload['reason'])),
             'hide' => match ($report->reportable_type) {
@@ -309,6 +316,6 @@ class ReportService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

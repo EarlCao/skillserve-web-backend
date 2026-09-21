@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Services;
 
 use App\Models\User;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -27,7 +28,7 @@ class FavoriteProviderService extends BaseService
             ->where('favorite_providers.user_id', $client->id)
             ->orderByDesc('favorite_providers.created_at')
             ->orderByDesc('favorite_providers.id')
-            ->paginate(max(1, min(100, (int) ($filters['per_page'] ?? 15))));
+            ->paginate(PageSize::from($filters));
     }
 
     /** Only a provider the customer can see can be saved (404 otherwise). */

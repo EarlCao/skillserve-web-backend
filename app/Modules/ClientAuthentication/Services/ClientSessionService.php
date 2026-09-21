@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,7 +79,7 @@ class ClientSessionService
             if (! $user || ! $user->isMobileAccount() || ! $user->isActive()) {
                 $this->revokeFamily($refreshToken->family_id);
 
-                return new ApiException('Your account is not active.', 403);
+                return $user && $user->isMobileAccount() ? AccountRestrictedException::for($user) : new ApiException('Your account is not active.', 403);
             }
 
             if (! $user->hasVerifiedEmail()) {

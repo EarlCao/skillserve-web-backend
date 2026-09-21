@@ -71,6 +71,10 @@ return [
 
     'timezone' => env('APP_TIMEZONE', 'UTC'),
 
+    // Where the platform operates: provider working hours and times written
+    // into messages use this wall clock. Storage stays in `timezone` (UTC).
+    'business_timezone' => env('BUSINESS_TIMEZONE', 'Asia/Manila'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

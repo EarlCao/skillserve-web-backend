@@ -8,6 +8,7 @@ use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Notifications\AnnouncementNotification;
 use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -163,6 +164,6 @@ class AnnouncementService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

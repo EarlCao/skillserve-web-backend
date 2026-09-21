@@ -91,7 +91,7 @@ final class TakeModerationAction extends BaseAction
         $target = $report->reportable;
 
         match ($action) {
-            'warning' => null, // warnings are recorded on the report only
+            'warning' => null, // recorded on the report; ReportService dispatches UserWarned to notify the user
             'suspend' => $this->suspendUserAction->handle($target, $actor, $payload['reason']),
             'ban' => $this->banUserAction->handle($target, $actor, $payload['reason'], $payload['duration'] ?? 'forever', $payload['days'] ?? null),
             'hide' => $this->hide($target, $actor),

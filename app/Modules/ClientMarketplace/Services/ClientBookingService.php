@@ -7,12 +7,15 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientMarketplace\Actions\CancelClientBookingAction;
 use App\Modules\ClientMarketplace\Actions\CreateClientBookingAction;
 use App\Modules\Providers\Models\ProviderAvailability;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Models\Service;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\BusinessTime;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -24,6 +27,7 @@ class ClientBookingService extends BaseService
         private readonly ClientCatalogService $catalogService,
         private readonly CreateClientBookingAction $createBookingAction,
         private readonly CancelClientBookingAction $cancelBookingAction,
+        private readonly BookingRules $rules,
     ) {}
 
     public function index(User $client, array $filters): LengthAwarePaginator
@@ -55,6 +59,8 @@ class ClientBookingService extends BaseService
 
     public function create(User $client, array $data, ?string $idempotencyKey): Booking
     {
+        $this->rules->assertBookingEnabled();
+
         try {
             $booking = $this->transaction(function () use ($client, $data, $idempotencyKey): Booking {
                 $service = $this->catalogService->bookableService((int) $data['service_id']);
@@ -130,7 +136,9 @@ class ClientBookingService extends BaseService
             }
 
             $oldStatus = $booking->status;
-            $booking = $this->cancelBookingAction->handle($booking, $client, $reason);
+            // Late cancellation of a confirmed booking records the client fee.
+            $fee = $this->rules->cancellationFee($booking, 'client');
+            $booking = $this->cancelBookingAction->handle($booking, $client, $reason, $fee);
             $booking->load($this->bookingRelations());
 
             event(new BookingStatusChanged(
@@ -298,8 +306,9 @@ class ClientBookingService extends BaseService
      * inside that day's window.
      *
      * A provider with no published hours is unconstrained, which is how
-     * every provider behaved before schedules existed. Times are compared
-     * as wall clock, the same basis `scheduled_date` is recorded in.
+     * every provider behaved before schedules existed. Times are compared as
+     * business-time wall clock (BusinessTime), the basis providers publish
+     * their hours in.
      */
     private function assertWithinProviderHours(ProviderProfile $provider, string $scheduledDate, Carbon $scheduledEnd): void
     {
@@ -309,7 +318,9 @@ class ClientBookingService extends BaseService
             return;
         }
 
-        $start = Carbon::parse($scheduledDate);
+        // Hours are published as business-time wall clock.
+        $start = BusinessTime::local(Carbon::parse($scheduledDate));
+        $scheduledEnd = BusinessTime::local($scheduledEnd);
         $window = $schedule->firstWhere('day_of_week', $start->dayOfWeek);
 
         if ($window === null) {
@@ -383,6 +394,6 @@ class ClientBookingService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

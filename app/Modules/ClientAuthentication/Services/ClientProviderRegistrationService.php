@@ -24,6 +24,8 @@ class ClientProviderRegistrationService
      */
     public function register(array $validated): PendingRegistration
     {
+        ProviderSignups::assertOpen();
+
         return $this->pendingRegistrations->start($validated, AccountRole::Provider->value);
     }
 }

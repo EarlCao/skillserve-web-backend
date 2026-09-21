@@ -3,6 +3,7 @@
 namespace App\Modules\ClientCommunication\Services;
 
 use App\Models\User;
+use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Services\BaseService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -57,6 +58,12 @@ class BackgroundNotificationService extends BaseService
      */
     public function pending(User $user, ?CarbonInterface $after): Collection
     {
+        // "Push notifications" off in System Settings: nothing is pushed while
+        // the app is closed; the in-app feed still has everything.
+        if (! app(SettingsService::class)->value('notifications', 'push_notifications_enabled')) {
+            return collect();
+        }
+
         return $user->unreadNotifications()
             ->where('created_at', '>=', $after ?? now()->subDay())
             ->reorder('created_at', 'desc')

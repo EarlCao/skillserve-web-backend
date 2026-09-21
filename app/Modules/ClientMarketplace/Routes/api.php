@@ -8,6 +8,7 @@ use App\Modules\ClientMarketplace\Controllers\FavoriteProviderController;
 use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
+use App\Modules\ClientMarketplace\Controllers\ProviderVerificationController;
 use App\Modules\ClientMarketplace\Middleware\EnsureClient;
 use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
 use App\Modules\ClientMarketplace\Middleware\EnsureProvider;
@@ -56,6 +57,9 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
     Route::put('/provider/availability', [ProviderProfileController::class, 'updateAvailability']);
 
     Route::get('/provider/badges', [ProviderProfileController::class, 'badges']);
+
+    Route::get('/provider/verification', [ProviderVerificationController::class, 'show']);
+    Route::post('/provider/verification', [ProviderVerificationController::class, 'store']);
 });
 
 /* Disputes belong to both parties on a booking, so they sit outside the

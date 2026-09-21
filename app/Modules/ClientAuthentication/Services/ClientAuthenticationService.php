@@ -9,6 +9,7 @@ use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotifi
 use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Enums\AccountRole;
+use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -106,7 +107,7 @@ class ClientAuthenticationService
         }
 
         if (! $user->isActive()) {
-            throw new ApiException('Your account is not active.', 403);
+            throw AccountRestrictedException::for($user);
         }
 
         if (! $user->hasVerifiedEmail()) {

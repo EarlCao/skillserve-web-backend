@@ -19,6 +19,7 @@ use App\Modules\ServiceCategories\Events\ServiceSubcategoryDeleted;
 use App\Modules\ServiceCategories\Events\ServiceSubcategoryUpdated;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -247,7 +248,7 @@ class ServiceCategoryService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     /**

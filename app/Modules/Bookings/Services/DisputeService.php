@@ -7,6 +7,7 @@ use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Spatie\Activitylog\Models\Activity;
@@ -139,7 +140,7 @@ class DisputeService extends BaseService
             event(new BookingDisputeManaged(booking: $booking, actor: $actor, action: 'resolve', resolution: trim($resolution)));
 
             if ($oldStatus !== 'completed') {
-                event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: $oldStatus, newStatus: 'completed'));
+                event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: $oldStatus, newStatus: 'completed', fromDispute: true));
             }
 
             return $booking;
@@ -234,6 +235,6 @@ class DisputeService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

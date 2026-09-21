@@ -11,6 +11,7 @@ use App\Modules\Administrators\Events\AdministratorCreated;
 use App\Modules\Administrators\Events\AdministratorPasswordChanged;
 use App\Modules\Administrators\Events\AdministratorStatusChanged;
 use App\Modules\Administrators\Events\AdministratorUpdated;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
@@ -183,7 +184,7 @@ class AdministratorService extends BaseService
      */
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 
     /**

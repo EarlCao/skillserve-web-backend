@@ -9,6 +9,7 @@ use App\Modules\ClientMarketplace\Actions\RecalculateClientReviewAggregatesActio
 use App\Modules\ClientMarketplace\Actions\UpdateClientReviewAction;
 use App\Modules\Reviews\Models\Review;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -97,6 +98,6 @@ class ClientReviewService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }

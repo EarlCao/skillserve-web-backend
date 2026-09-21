@@ -5,7 +5,9 @@ namespace App\Modules\ClientMarketplace\Services;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -204,6 +206,11 @@ class ClientCatalogService extends BaseService
                 ->where('private_profile', true));
     }
 
+    public static function featuredServicesEnabled(): bool
+    {
+        return (bool) app(SettingsService::class)->value('marketplace', 'featured_services_enabled');
+    }
+
     /** Providers any visitor may discover: verified, active and public. */
     public function publicProvidersQuery(): Builder
     {
@@ -267,6 +274,18 @@ class ClientCatalogService extends BaseService
             }
         }
 
+        // Featured services (M 3.5). With System Settings → Marketplace →
+        // "Enable featured services" off, nothing counts as featured.
+        if (array_key_exists('featured', $filters) && $filters['featured'] !== null) {
+            if (! self::featuredServicesEnabled()) {
+                if ($filters['featured']) {
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                $query->where('is_featured', (bool) $filters['featured']);
+            }
+        }
+
         $this->applyRatingFilter($query, $filters);
     }
 
@@ -295,6 +314,6 @@ class ClientCatalogService extends BaseService
 
     private function perPage(array $filters): int
     {
-        return max(1, min(100, (int) ($filters['per_page'] ?? 15)));
+        return PageSize::from($filters);
     }
 }
