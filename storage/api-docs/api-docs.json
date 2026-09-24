@@ -6656,6 +6656,7 @@
                     "Client Bookings"
                 ],
                 "summary": "Create a booking from a published service",
+                "description": "Requires a verified National ID once System Settings → Identity turns the requirement on for this account; otherwise 403 with `errors.identity`. Call `/transaction-eligibility` to find out in advance.\n\n**Payment methods changed.** SkillServe now supports `on_hand` and `gcash` only. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422 — clients offering them must be updated.\n\nThe commission is included in the advertised price, so `total_price` is what the customer pays and is unchanged by it.",
                 "operationId": "f421d193ad9de361281e846ccf9ba5ea",
                 "parameters": [
                     {
@@ -6698,16 +6699,13 @@
                                         "maxLength": 2000
                                     },
                                     "payment_method": {
-                                        "description": "Selection only; payment remains unpaid because no payment provider is called.",
+                                        "description": "SkillServe supports two payment methods: `on_hand` and `gcash`. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`; new clients should send `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422. Selection only — the booking stays unpaid, because no payment provider is called yet.",
                                         "type": "string",
                                         "nullable": true,
                                         "enum": [
-                                            "cash",
-                                            "credit_card",
-                                            "debit_card",
-                                            "bank_transfer",
+                                            "on_hand",
                                             "gcash",
-                                            "paypal"
+                                            "cash"
                                         ]
                                     }
                                 },
@@ -8103,6 +8101,76 @@
                 ]
             }
         },
+        "/api/client/v1/provider/commissions": {
+            "get": {
+                "tags": [
+                    "Provider Commissions"
+                ],
+                "summary": "The provider's outstanding commission and transaction eligibility",
+                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. While anything is outstanding the provider cannot accept or start jobs, or publish services; declining and cancelling stay available so they can still clear their queue.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.",
+                "operationId": "5dacd0fd7595da346a2e5956064e8a63",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Outstanding commissions and eligibility",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Commission summary retrieved.",
+                                    "data": {
+                                        "eligible": false,
+                                        "reason": "outstanding_commission",
+                                        "outstanding_total": "20.00",
+                                        "outstanding_count": 1,
+                                        "currency": "PHP",
+                                        "outstanding": [
+                                            {
+                                                "booking_number": "BK-AB12CD34EF56",
+                                                "service": "Aircon Cleaning",
+                                                "total_price": "200.00",
+                                                "commission_rate": "10.00",
+                                                "commission_amount": "20.00",
+                                                "paid_at": "2026-09-24T08:00:00+00:00"
+                                            }
+                                        ]
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/provider/profile": {
             "get": {
                 "tags": [
@@ -8826,6 +8894,71 @@
                 ]
             }
         },
+        "/api/client/v1/provider/commission-preview": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "What a provider would earn at a given price",
+                "description": "SkillServe's commission is included in the price the provider advertises: the customer pays `amount`, the platform takes `commission_amount` out of it, and the provider receives `net_amount`. Call this while the provider is choosing a price so the split is visible before publishing.\n\nIndicative only — the rate that binds a booking is snapshotted when the booking is made. `source` explains the rate: `tier` (a configured band matched), `gap` (the bands leave this amount uncovered, so nothing is charged) or `fallback` (no bands configured; the legacy flat rate applies).",
+                "operationId": "b77cdf1169b9590e592dd51eca5f8222",
+                "parameters": [
+                    {
+                        "name": "amount",
+                        "in": "query",
+                        "description": "The price being considered, in pesos",
+                        "required": true,
+                        "schema": {
+                            "type": "number",
+                            "format": "float",
+                            "example": 200,
+                            "minimum": 0
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Commission breakdown",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Commission preview calculated.",
+                                    "data": {
+                                        "amount": "200.00",
+                                        "commission_rate": "10.00",
+                                        "commission_amount": "20.00",
+                                        "net_amount": "180.00",
+                                        "currency": "PHP",
+                                        "tier_name": "Standard",
+                                        "source": "tier"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "422": {
+                        "description": "Missing or invalid amount"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/provider/verification": {
             "get": {
                 "tags": [
@@ -9074,6 +9207,656 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commissions": {
+            "get": {
+                "tags": [
+                    "Commissions"
+                ],
+                "summary": "List booking commissions",
+                "description": "commission_status is pending (the job has not been paid for), outstanding (the provider holds SkillServe's share), settled, waived or voided. meta.totals carries the outstanding, settled and waived sums for the same provider and date filters.",
+                "operationId": "f495980a56e8449a0a779c64e92e515e",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "outstanding",
+                                "settled",
+                                "waived",
+                                "voided"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "provider_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by booking number",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Earliest payment date",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Latest payment date",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "created_at",
+                            "enum": [
+                                "paid_at",
+                                "platform_fee",
+                                "created_at"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated commissions with totals",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    },
+                    "422": {
+                        "description": "Invalid filter values"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commissions/{booking}/settle": {
+            "patch": {
+                "tags": [
+                    "Commissions"
+                ],
+                "summary": "Record that a provider remitted the commission",
+                "description": "Only an outstanding commission can be settled. The amount is always the commission snapshotted on the booking — it is never taken from the request, so a client cannot influence what SkillServe books as revenue.",
+                "operationId": "e7fe7f7c5a149310f05c5faffa31e500",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "method"
+                                ],
+                                "properties": {
+                                    "method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "gcash",
+                                            "bank_transfer",
+                                            "cash",
+                                            "offset",
+                                            "other"
+                                        ]
+                                    },
+                                    "reference": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    },
+                                    "notes": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Settlement recorded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the settle commissions permission"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "The commission is not outstanding"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commissions/{booking}/waive": {
+            "patch": {
+                "tags": [
+                    "Commissions"
+                ],
+                "summary": "Write off an outstanding commission",
+                "description": "Only an outstanding commission can be waived, and a reason is always required — it is written to the audit log alongside the administrator who approved it.",
+                "operationId": "360a047d5efc99b95d75114817d03c29",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Commission waived",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the settle commissions permission"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "The commission is not outstanding"
+                    },
+                    "422": {
+                        "description": "A reason is required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-tiers": {
+            "get": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "List commission tiers",
+                "description": "Ordered by minimum amount so the bands read as a ladder. Amounts are Philippine pesos; both range bounds are inclusive and a null max_amount is the open-ended top band.",
+                "operationId": "1c8cf044b9e678b7efa748cfbae64b8a",
+                "parameters": [
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by tier name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "is_active",
+                        "in": "query",
+                        "description": "Filter by enabled state",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "min_amount",
+                            "enum": [
+                                "min_amount",
+                                "percentage",
+                                "name",
+                                "created_at"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "asc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated commission tiers",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Commission tiers retrieved.",
+                                    "data": [
+                                        {
+                                            "id": 2,
+                                            "name": "Standard",
+                                            "min_amount": "200.00",
+                                            "max_amount": "499.99",
+                                            "is_open_ended": false,
+                                            "percentage": "10.00",
+                                            "is_active": true,
+                                            "created_at": "2026-09-24T08:00:00+00:00",
+                                            "updated_at": "2026-09-24T08:00:00+00:00"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": {
+                                        "pagination": {
+                                            "total": 1,
+                                            "per_page": 15,
+                                            "current_page": 1,
+                                            "last_page": 1,
+                                            "from": 1,
+                                            "to": 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    },
+                    "422": {
+                        "description": "Invalid filter values"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Create a commission tier",
+                "description": "Both bounds are inclusive. Omit max_amount (or send null) to create the open-ended top band. The range may not overlap another enabled tier.",
+                "operationId": "7cf2bdaf692b987b53908a2550561e6f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "min_amount",
+                                    "percentage"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Standard",
+                                        "maxLength": 120
+                                    },
+                                    "min_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 200,
+                                        "minimum": 0
+                                    },
+                                    "max_amount": {
+                                        "description": "Inclusive upper bound; null means open ended",
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 499.99,
+                                        "nullable": true
+                                    },
+                                    "percentage": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 10,
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    },
+                                    "is_active": {
+                                        "type": "boolean",
+                                        "default": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Tier created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage commissions permission"
+                    },
+                    "422": {
+                        "description": "Validation failed, or the range overlaps an enabled tier"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-tiers/{commissionTier}": {
+            "get": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Show a commission tier",
+                "operationId": "6e5408bcfe58d8539f2b2fe459cb97ff",
+                "parameters": [
+                    {
+                        "name": "commissionTier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Commission tier",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    },
+                    "404": {
+                        "description": "Tier not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Update a commission tier",
+                "description": "Partial update. Disabling a tier (is_active=false) lifts the overlap rule for it, because a disabled band charges nobody. Bookings already charged under this tier keep their own rate snapshot and are unaffected.",
+                "operationId": "6408631a774da9d334c98b407d4a38a4",
+                "parameters": [
+                    {
+                        "name": "commissionTier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 120
+                                    },
+                                    "min_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "minimum": 0
+                                    },
+                                    "max_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "percentage": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tier updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage commissions permission"
+                    },
+                    "404": {
+                        "description": "Tier not found"
+                    },
+                    "422": {
+                        "description": "Validation failed, or the range overlaps an enabled tier"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Retire a commission tier",
+                "description": "Soft deletion. Bookings charged under this tier keep their rate snapshot, so past commissions never change.",
+                "operationId": "85102453b7768fb04d1a83290586e51b",
+                "parameters": [
+                    {
+                        "name": "commissionTier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Tier retired"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage commissions permission"
+                    },
+                    "404": {
+                        "description": "Tier not found"
                     }
                 },
                 "security": [
@@ -9601,6 +10384,525 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/identity-verification": {
+            "get": {
+                "tags": [
+                    "Identity Verification"
+                ],
+                "summary": "The account's identity verification status",
+                "description": "status is unverified, pending, verified or rejected. can_submit tells the app whether to offer the form. Only the last four digits of the card number are ever returned.",
+                "operationId": "d669f56fbfb9d74c1faf8ac8cee452e8",
+                "responses": {
+                    "200": {
+                        "description": "Verification state",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Identity verification status retrieved.",
+                                    "data": {
+                                        "status": "rejected",
+                                        "can_submit": true,
+                                        "id_number_last4": "4821",
+                                        "full_name": "Juan Dela Cruz",
+                                        "birthdate": "1995-04-02",
+                                        "submitted_at": "2026-09-20T02:11:00+00:00",
+                                        "reviewed_at": "2026-09-21T06:40:00+00:00",
+                                        "rejection_reason": "The photo of the back of the card was unreadable.",
+                                        "documents": []
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Identity Verification"
+                ],
+                "summary": "Submit a Philippine National ID for review",
+                "description": "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nA National ID can back only one active SkillServe account: submitting one already linked to another live account returns 422 without revealing which account holds it. An ID becomes available again only once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download.",
+                "operationId": "6c2b588d452c204e71a4770e35310989",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "id_number",
+                                    "full_name",
+                                    "birthdate",
+                                    "documents"
+                                ],
+                                "properties": {
+                                    "id_number": {
+                                        "description": "PhilSys Card Number; 16 digits, grouping optional",
+                                        "type": "string",
+                                        "example": "1234-5678-9012-3456"
+                                    },
+                                    "full_name": {
+                                        "description": "Exactly as printed on the card",
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "birthdate": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "documents[0][type]": {
+                                        "type": "string",
+                                        "enum": [
+                                            "id_front",
+                                            "id_back",
+                                            "selfie"
+                                        ]
+                                    },
+                                    "documents[0][file]": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Submitted; status is now pending",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified account required"
+                    },
+                    "422": {
+                        "description": "Validation failed, the ID is already linked to an account, or the account is already pending or verified"
+                    },
+                    "429": {
+                        "description": "Too many submissions"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/identity-verifications": {
+            "get": {
+                "tags": [
+                    "Identity Verifications"
+                ],
+                "summary": "List National ID submissions",
+                "description": "Filterable review queue. Searching matches the account's name or email — the card number is deliberately not searchable, because hashing a search term would turn this endpoint into a \"does SkillServe know this ID?\" oracle.",
+                "operationId": "135a434a0c2f72586b40d1e9a7b1abdf",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "unverified",
+                                "pending",
+                                "verified",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "account_type",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "customer",
+                                "provider"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Account name or email",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "submitted_at",
+                            "enum": [
+                                "submitted_at",
+                                "reviewed_at",
+                                "created_at"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated submissions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view identity verifications permission"
+                    },
+                    "422": {
+                        "description": "Invalid filter values"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/identity-verifications/{identityVerification}": {
+            "get": {
+                "tags": [
+                    "Identity Verifications"
+                ],
+                "summary": "Show one submission with its documents and history",
+                "operationId": "53fd44fcdbcbc0cc259c2333b9fcc24d",
+                "parameters": [
+                    {
+                        "name": "identityVerification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Submission detail",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view identity verifications permission"
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/identity-verifications/{identityVerification}/approve": {
+            "patch": {
+                "tags": [
+                    "Identity Verifications"
+                ],
+                "summary": "Confirm the National ID belongs to the account holder",
+                "description": "Only a pending submission can be decided; a second decision returns 409. Approving starts the retention clock on the stored images (System Settings → Identity).",
+                "operationId": "f68a7813db9011b36d573ab69dc3b4e9",
+                "parameters": [
+                    {
+                        "name": "identityVerification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "description": "Internal note; never shown to the account holder",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Identity verified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the verify identities permission"
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    },
+                    "409": {
+                        "description": "Already reviewed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/identity-verifications/{identityVerification}/reject": {
+            "patch": {
+                "tags": [
+                    "Identity Verifications"
+                ],
+                "summary": "Refuse a National ID submission",
+                "description": "A reason is required and is shown to the account holder so they can correct the problem and resubmit. Only a pending submission can be decided.",
+                "operationId": "6f917156220564355f2aed107549fc31",
+                "parameters": [
+                    {
+                        "name": "identityVerification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Submission rejected",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the reject identities permission"
+                    },
+                    "404": {
+                        "description": "Submission not found"
+                    },
+                    "409": {
+                        "description": "Already reviewed"
+                    },
+                    "422": {
+                        "description": "A reason is required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/identity-verifications/{identityVerification}/documents/{document}/download": {
+            "get": {
+                "tags": [
+                    "Identity Verifications"
+                ],
+                "summary": "Open a National ID image",
+                "description": "Streams the file from the private disk. The image is never reachable by URL, the document must belong to the submission in the path, and every request is authorised against the view permission.",
+                "operationId": "ffd3907bd7c245649c0de284c98739bf",
+                "parameters": [
+                    {
+                        "name": "identityVerification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "document",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The file"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view identity verifications permission"
+                    },
+                    "404": {
+                        "description": "Not found, not part of this submission, or already purged"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/transaction-eligibility": {
+            "get": {
+                "tags": [
+                    "Transaction Eligibility"
+                ],
+                "summary": "Whether this account may transact, and what is blocking it",
+                "description": "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total.\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
+                "operationId": "383df0b86c2a6529a7b7192ee5565b85",
+                "responses": {
+                    "200": {
+                        "description": "Eligibility",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Eligibility retrieved.",
+                                    "data": {
+                                        "account_type": "provider",
+                                        "eligible": false,
+                                        "reason": "identity_unverified",
+                                        "identity_status": "unverified",
+                                        "identity_required": true,
+                                        "outstanding_total": "0.00",
+                                        "outstanding_count": 0
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified account required"
                     }
                 },
                 "security": [
@@ -20346,6 +21648,10 @@
             "description": "Bookings placed with the signed-in provider"
         },
         {
+            "name": "Provider Commissions",
+            "description": "What the provider owes SkillServe and whether they can take on new work"
+        },
+        {
             "name": "Provider Services",
             "description": "Providers create and manage their own services; every submission and change awaits administrator approval"
         },
@@ -20358,12 +21664,32 @@
             "description": "Notification, privacy and application settings for a mobile account"
         },
         {
+            "name": "Commissions",
+            "description": "Track and settle SkillServe's share of each booking"
+        },
+        {
+            "name": "Commission Tiers",
+            "description": "Configure the commission percentage charged for each booking amount range"
+        },
+        {
             "name": "Dashboard",
             "description": "Administrative dashboard summaries, activity, and analytics"
         },
         {
             "name": "Data Management",
             "description": "Export, archive, restore, and manage removed system records"
+        },
+        {
+            "name": "Identity Verification",
+            "description": "The signed-in account holder submits their Philippine National ID and follows the review"
+        },
+        {
+            "name": "Identity Verifications",
+            "description": "Review Philippine National ID submissions from customers and providers"
+        },
+        {
+            "name": "Transaction Eligibility",
+            "description": "Whether the signed-in account may transact, and what is blocking it"
         },
         {
             "name": "Notifications",

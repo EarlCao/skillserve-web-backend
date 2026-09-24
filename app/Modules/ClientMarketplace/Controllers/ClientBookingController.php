@@ -54,6 +54,7 @@ class ClientBookingController extends Controller
     #[OA\Post(
         path: '/api/client/v1/bookings',
         summary: 'Create a booking from a published service',
+        description: "Requires a verified National ID once System Settings → Identity turns the requirement on for this account; otherwise 403 with `errors.identity`. Call `/transaction-eligibility` to find out in advance.\n\n**Payment methods changed.** SkillServe now supports `on_hand` and `gcash` only. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422 — clients offering them must be updated.\n\nThe commission is included in the advertised price, so `total_price` is what the customer pays and is unchanged by it.",
         tags: ['Client Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'Idempotency-Key', in: 'header', required: false, schema: new OA\Schema(type: 'string', maxLength: 100))],
@@ -64,7 +65,7 @@ class ClientBookingController extends Controller
                 new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', description: 'Booking start. The service duration is used when scheduled_end_date is omitted.'),
                 new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true, description: 'Optional explicit end; must be after scheduled_date.'),
                 new OA\Property(property: 'client_notes', type: 'string', nullable: true, maxLength: 2000),
-                new OA\Property(property: 'payment_method', type: 'string', nullable: true, enum: StoreClientBookingRequest::PAYMENT_METHODS, description: 'Selection only; payment remains unpaid because no payment provider is called.'),
+                new OA\Property(property: 'payment_method', type: 'string', nullable: true, enum: StoreClientBookingRequest::PAYMENT_METHODS, description: 'SkillServe supports two payment methods: `on_hand` and `gcash`. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`; new clients should send `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422. Selection only — the booking stays unpaid, because no payment provider is called yet.'),
             ],
         )),
         responses: [
