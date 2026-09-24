@@ -3,11 +3,13 @@
 namespace App\Modules\ClientMarketplace\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\ClientMarketplace\Requests\CommissionPreviewRequest;
 use App\Modules\ClientMarketplace\Requests\ProviderServiceIndexRequest;
 use App\Modules\ClientMarketplace\Requests\StoreProviderServiceRequest;
 use App\Modules\ClientMarketplace\Requests\UpdateProviderServiceRequest;
 use App\Modules\ClientMarketplace\Resources\ProviderServiceResource;
 use App\Modules\ClientMarketplace\Services\ProviderServiceService;
+use App\Modules\Commissions\Services\CommissionCalculator;
 use App\Modules\Services\Models\Service;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -138,5 +140,53 @@ class ProviderServiceController extends Controller
         $this->providerServiceService->delete($request->user(), $service);
 
         return $this->success(null, 'Service deleted.');
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/provider/commission-preview',
+        summary: 'What a provider would earn at a given price',
+        description: "SkillServe's commission is included in the price the provider advertises: the customer pays `amount`, the platform takes `commission_amount` out of it, and the provider receives `net_amount`. Call this while the provider is choosing a price so the split is visible before publishing.\n\nIndicative only — the rate that binds a booking is snapshotted when the booking is made. `source` explains the rate: `tier` (a configured band matched), `gap` (the bands leave this amount uncovered, so nothing is charged) or `fallback` (no bands configured; the legacy flat rate applies).",
+        tags: ['Provider Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'amount', in: 'query', required: true, description: 'The price being considered, in pesos', schema: new OA\Schema(type: 'number', format: 'float', minimum: 0, example: 200)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Commission breakdown', content: new OA\JsonContent(
+                ref: '#/components/schemas/ApiEnvelope',
+                example: [
+                    'success' => true,
+                    'message' => 'Commission preview calculated.',
+                    'data' => [
+                        'amount' => '200.00',
+                        'commission_rate' => '10.00',
+                        'commission_amount' => '20.00',
+                        'net_amount' => '180.00',
+                        'currency' => 'PHP',
+                        'tier_name' => 'Standard',
+                        'source' => 'tier',
+                    ],
+                    'errors' => null,
+                    'meta' => [],
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
+            new OA\Response(response: 422, description: 'Missing or invalid amount'),
+        ],
+    )]
+    public function commissionPreview(CommissionPreviewRequest $request, CommissionCalculator $calculator): JsonResponse
+    {
+        $breakdown = $calculator->for((float) $request->validated('amount'));
+
+        return $this->success([
+            'amount' => number_format($breakdown['base_amount'], 2, '.', ''),
+            'commission_rate' => number_format($breakdown['rate'], 2, '.', ''),
+            'commission_amount' => number_format($breakdown['commission_amount'], 2, '.', ''),
+            'net_amount' => number_format($breakdown['net_amount'], 2, '.', ''),
+            'currency' => 'PHP',
+            'tier_name' => $breakdown['tier_name'],
+            'source' => $breakdown['source'],
+        ], 'Commission preview calculated.');
     }
 }

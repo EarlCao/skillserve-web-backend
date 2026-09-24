@@ -5,6 +5,7 @@ namespace App\Modules\Bookings\Services;
 use App\Models\User;
 use App\Modules\Bookings\Events\BookingPaymentRecorded;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Commissions\Services\CommissionLedger;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 
@@ -23,6 +24,8 @@ class BookingPaymentService extends BaseService
 {
     /** Work was agreed or done, so payment can be owed. */
     public const PAYABLE_STATUSES = ['confirmed', 'active', 'completed', 'disputed'];
+
+    public function __construct(private readonly CommissionLedger $ledger) {}
 
     /**
      * Mark an unpaid booking as paid. [$allowedStatuses] narrows who may do
@@ -62,9 +65,14 @@ class BookingPaymentService extends BaseService
                 'payment_reference' => $reference ?? $booking->payment_reference,
             ]);
 
+            // The commission is inclusive, so the provider has just been
+            // handed SkillServe's share along with their own: they now owe it
+            // back. A booking carrying no commission settles itself.
+            $this->ledger->markOutstanding($booking);
+
             event(new BookingPaymentRecorded($booking, $actor, 'paid', 'unpaid', (float) $booking->total_price));
 
-            return $booking;
+            return $booking->refresh();
         });
     }
 
@@ -108,9 +116,17 @@ class BookingPaymentService extends BaseService
                 'refund_reason' => $reason,
             ]);
 
+            // Money fully returned to the customer means SkillServe earned
+            // nothing on this job, so any share still owed is dropped. A
+            // commission already remitted is left alone: reversing that is a
+            // refund decision of its own, not a status flip.
+            if ($booking->payment_status === 'refunded') {
+                $this->ledger->void($booking);
+            }
+
             event(new BookingPaymentRecorded($booking, $actor, 'refunded', $oldPaymentStatus, $amount));
 
-            return $booking;
+            return $booking->refresh();
         });
     }
 }

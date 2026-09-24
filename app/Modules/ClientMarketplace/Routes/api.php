@@ -6,6 +6,7 @@ use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
 use App\Modules\ClientMarketplace\Controllers\FavoriteProviderController;
 use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
+use App\Modules\ClientMarketplace\Controllers\ProviderCommissionController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
 use App\Modules\ClientMarketplace\Controllers\ProviderVerificationController;
@@ -60,6 +61,9 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
 
     Route::get('/provider/verification', [ProviderVerificationController::class, 'show']);
     Route::post('/provider/verification', [ProviderVerificationController::class, 'store']);
+
+    // What the provider owes SkillServe, and whether it is blocking them.
+    Route::get('/provider/commissions', [ProviderCommissionController::class, 'index']);
 });
 
 /* Disputes belong to both parties on a booking, so they sit outside the
@@ -83,6 +87,12 @@ Route::prefix('provider/bookings')->middleware(['auth:sanctum', EnsureProvider::
     Route::patch('/{booking}/complete', [ProviderBookingController::class, 'complete'])->whereNumber('booking');
     Route::patch('/{booking}/payment-received', [ProviderBookingController::class, 'paymentReceived'])->whereNumber('booking');
 });
+
+/* What a price means for the provider, before they publish it. Outside the
+   services prefix because it answers a question about an amount, not about an
+   existing service. */
+Route::get('/provider/commission-preview', [ProviderServiceController::class, 'commissionPreview'])
+    ->middleware(['auth:sanctum', EnsureProvider::class]);
 
 /* Providers manage their own services; changes await administrator approval. */
 Route::prefix('provider/services')->middleware(['auth:sanctum', EnsureProvider::class])->group(function (): void {

@@ -36,6 +36,18 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
+use App\Modules\Commissions\Events\CommissionSettled;
+use App\Modules\Commissions\Events\CommissionTierCreated;
+use App\Modules\Commissions\Events\CommissionTierDeleted;
+use App\Modules\Commissions\Events\CommissionTierUpdated;
+use App\Modules\Commissions\Events\CommissionWaived;
+use App\Modules\Commissions\Listeners\LogCommissionActivity;
+use App\Modules\Commissions\Listeners\LogCommissionSettlementActivity;
+use App\Modules\Commissions\Listeners\VoidCommissionOnCancellation;
+use App\Modules\Commissions\Models\CommissionTier;
+use App\Modules\Commissions\Policies\CommissionPolicy;
+use App\Modules\Commissions\Policies\CommissionTierPolicy;
+use App\Modules\Commissions\Services\CommissionCalculator;
 use App\Modules\Dashboard\Policies\DashboardPolicy;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
@@ -134,6 +146,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(RealtimeChangeTracker::class);
+
+        // Commission rates are the same for every amount priced in a request,
+        // so the calculator fetches the tiers once and the whole request
+        // shares that instance.
+        $this->app->scoped(CommissionCalculator::class);
     }
 
     /**
@@ -299,6 +316,24 @@ class AppServiceProvider extends ServiceProvider
 
         // Booking Management module policies.
         Gate::policy(Booking::class, BookingPolicy::class);
+
+        // Commission Management module events and policy. Commission rates
+        // decide platform revenue, so every change is written to the audit log.
+        Event::listen(CommissionTierCreated::class, LogCommissionActivity::class);
+        Event::listen(CommissionTierUpdated::class, LogCommissionActivity::class);
+        Event::listen(CommissionTierDeleted::class, LogCommissionActivity::class);
+        Gate::policy(CommissionTier::class, CommissionTierPolicy::class);
+
+        // The ledger hangs off Booking, whose policy slot belongs to the
+        // Bookings module, so it is exposed as named abilities instead.
+        Gate::define('view commissions', [CommissionPolicy::class, 'viewAny']);
+        Gate::define('settle commissions', [CommissionPolicy::class, 'settle']);
+        Event::listen(CommissionSettled::class, LogCommissionSettlementActivity::class);
+        Event::listen(CommissionWaived::class, LogCommissionSettlementActivity::class);
+
+        // A cancelled job earns SkillServe nothing, so anything still owed
+        // on it is dropped.
+        Event::listen(BookingCancelled::class, VoidCommissionOnCancellation::class);
 
         // Service Management module policies.
         Gate::policy(Service::class, ServicePolicy::class);

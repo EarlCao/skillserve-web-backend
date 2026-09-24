@@ -8,6 +8,7 @@ use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Bookings\Services\BookingRules;
+use App\Modules\Commissions\Services\TransactionEligibility;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
@@ -30,6 +31,7 @@ class ProviderBookingService extends BaseService
     public function __construct(
         private readonly BookingPaymentService $paymentService,
         private readonly BookingRules $rules,
+        private readonly TransactionEligibility $eligibility,
     ) {}
 
     /** The status each action requires, and the status it writes. */
@@ -78,6 +80,13 @@ class ProviderBookingService extends BaseService
 
     public function confirm(User $providerUser, Booking $booking): Booking
     {
+        // Accepting *new* work while holding SkillServe's share of finished
+        // work would keep extending credit. Only this and publishing services
+        // are blocked: every transition on a job the provider already agreed
+        // to stays open, so a blocked provider can always finish or clear
+        // what they have taken on.
+        $this->eligibility->assertProviderCanTransact($providerUser);
+
         return $this->transition($providerUser, $booking, 'confirm');
     }
 

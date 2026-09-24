@@ -3,6 +3,8 @@
 namespace App\Modules\Bookings\Models;
 
 use App\Models\User;
+use App\Modules\Commissions\Models\CommissionSettlement;
+use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\Reviews\Models\Review;
@@ -16,7 +18,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'service_id', 'client_id', 'provider_id', 'booking_number', 'status',
-    'payment_status', 'total_price', 'service_price', 'platform_fee', 'currency',
+    'payment_status', 'total_price', 'service_price', 'platform_fee',
+    'commission_rate', 'commission_tier_id', 'commission_status',
+    'commission_settled_at', 'currency',
     'payment_method', 'payment_reference', 'paid_at', 'payment_recorded_by',
     'refunded_amount', 'refunded_at', 'refund_reason', 'client_notes', 'provider_notes',
     'service_address', 'contact_phone',
@@ -79,6 +83,18 @@ class Booking extends Model
     public function paymentRecordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'payment_recorded_by');
+    }
+
+    /** Proof that SkillServe's share of this booking was remitted, if it was. */
+    public function commissionSettlement(): HasOne
+    {
+        return $this->hasOne(CommissionSettlement::class, 'booking_id');
+    }
+
+    /** The commission band this booking was charged under, if any. */
+    public function commissionTier(): BelongsTo
+    {
+        return $this->belongsTo(CommissionTier::class, 'commission_tier_id');
     }
 
     public function deletedByUser(): BelongsTo
@@ -147,6 +163,8 @@ class Booking extends Model
             'total_price' => 'decimal:2',
             'service_price' => 'decimal:2',
             'platform_fee' => 'decimal:2',
+            'commission_rate' => 'decimal:2',
+            'commission_settled_at' => 'datetime',
             'refunded_amount' => 'decimal:2',
             'cancellation_fee' => 'decimal:2',
             'paid_at' => 'datetime',

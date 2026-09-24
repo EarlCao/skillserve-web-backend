@@ -3,12 +3,13 @@
 namespace App\Modules\Bookings\Services;
 
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Commissions\Services\CommissionCalculator;
 use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
 
 /**
  * The booking rules an administrator configures in System Settings
- * (Marketplace → commission, Booking → enabled / cancellation window / fees),
+ * (Marketplace → commission tiers, Booking → enabled / cancellation window / fees),
  * read in one place.
  *
  * A cancellation is *late* when a confirmed booking is called off less than
@@ -19,7 +20,10 @@ use App\Shared\Exceptions\ApiException;
  */
 class BookingRules
 {
-    public function __construct(private readonly SettingsService $settings) {}
+    public function __construct(
+        private readonly SettingsService $settings,
+        private readonly CommissionCalculator $calculator,
+    ) {}
 
     public function assertBookingEnabled(): void
     {
@@ -32,12 +36,28 @@ class BookingRules
         }
     }
 
-    /** SkillServe's share of a booking, from the configured commission rate. */
-    public function platformFee(float $price): float
+    /**
+     * SkillServe's share of a booking priced at [$price], and what the
+     * provider is left with. The commission is inclusive: it comes out of the
+     * advertised price rather than being added to it, so the customer pays
+     * [$price] either way.
+     *
+     * Rates come from the configured commission tiers (see
+     * CommissionCalculator), which is the one place they are decided.
+     *
+     * @return array{
+     *     base_amount: float,
+     *     rate: float,
+     *     commission_amount: float,
+     *     net_amount: float,
+     *     tier_id: int|null,
+     *     tier_name: string|null,
+     *     source: string,
+     * }
+     */
+    public function commission(float $price): array
     {
-        $rate = (float) $this->settings->value('marketplace', 'commission_rate');
-
-        return round($price * max(0.0, min(100.0, $rate)) / 100, 2);
+        return $this->calculator->for($price);
     }
 
     public function windowHours(): int

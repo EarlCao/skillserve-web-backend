@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Services;
 
 use App\Models\User;
+use App\Modules\Commissions\Services\TransactionEligibility;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Actions\CreateServiceAction;
 use App\Modules\Services\Actions\DeleteServiceAction;
@@ -35,6 +36,7 @@ class ProviderServiceService extends BaseService
         private readonly CreateServiceAction $createServiceAction,
         private readonly UpdateServiceAction $updateServiceAction,
         private readonly DeleteServiceAction $deleteServiceAction,
+        private readonly TransactionEligibility $eligibility,
     ) {}
 
     public function index(User $providerUser, array $filters): LengthAwarePaginator
@@ -143,6 +145,10 @@ class ProviderServiceService extends BaseService
         if (! $profile->isVerified()) {
             throw new ApiException('Your provider account must be verified before you can add or edit services.', 403);
         }
+
+        // Publishing new or changed work while SkillServe's share of finished
+        // work is still owed keeps the debt growing.
+        $this->eligibility->assertProviderCanTransact($providerUser);
 
         return $profile;
     }

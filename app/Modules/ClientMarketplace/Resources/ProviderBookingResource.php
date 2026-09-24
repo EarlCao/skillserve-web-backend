@@ -29,6 +29,15 @@ class ProviderBookingResource extends BaseResource
             'service_price' => $this->service_price,
             'total_price' => $this->total_price,
             'platform_fee' => $this->platform_fee,
+            // The commission as charged when this booking was made, never
+            // recalculated from the current tiers.
+            'commission_rate' => $this->commission_rate,
+            // What the provider actually receives: the price the customer
+            // pays, less SkillServe's inclusive share.
+            'net_amount' => number_format(
+                round((float) $this->total_price - (float) $this->platform_fee, 2),
+                2, '.', '',
+            ),
             'currency' => $this->currency,
             'payment_method' => $this->payment_method,
             'client_notes' => $this->client_notes,

@@ -21,6 +21,11 @@ class BookingResource extends BaseResource
             'total_price' => $this->total_price,
             'service_price' => $this->service_price,
             'platform_fee' => $this->platform_fee,
+            // The commission as charged at booking time, and whether the
+            // provider has remitted SkillServe's share of it.
+            'commission_rate' => $this->commission_rate,
+            'commission_status' => $this->commission_status,
+            'commission_settled_at' => $this->commission_settled_at?->toIso8601String(),
             'currency' => $this->currency,
             'payment_method' => $this->payment_method,
             'payment_reference' => $this->payment_reference,
