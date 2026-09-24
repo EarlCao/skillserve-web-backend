@@ -271,10 +271,20 @@ class ClientMarketplaceTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonStructure(['errors' => ['payment_method']]);
 
+        // Card, bank transfer and PayPal were removed: SkillServe supports
+        // GCash and on-hand payment only.
+        foreach (['credit_card', 'bank_transfer', 'paypal'] as $removed) {
+            $this->withToken($token)
+                ->postJson('/api/client/v1/bookings', [...$payload, 'payment_method' => $removed])
+                ->assertUnprocessable()
+                ->assertJsonStructure(['errors' => ['payment_method']]);
+        }
+
         $booking = $this->withToken($token)
-            ->postJson('/api/client/v1/bookings', [...$payload, 'payment_method' => 'credit_card'])
+            ->postJson('/api/client/v1/bookings', [...$payload, 'payment_method' => 'gcash'])
             ->assertCreated()
             ->assertJsonPath('data.payment_status', 'unpaid')
+            ->assertJsonPath('data.payment_method', 'gcash')
             ->json('data');
 
         $this->withToken($token)

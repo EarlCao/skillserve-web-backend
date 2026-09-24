@@ -3,10 +3,12 @@
 namespace App\Modules\Commissions\Services;
 
 use App\Models\User;
+use App\Modules\Bookings\Enums\PaymentMethod;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Events\CommissionSettled;
 use App\Modules\Commissions\Events\CommissionWaived;
 use App\Modules\Commissions\Models\CommissionSettlement;
+use App\Modules\Payments\Services\PaymentGatewayManager;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
@@ -28,6 +30,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
  */
 class CommissionLedger extends BaseService
 {
+    public function __construct(private readonly PaymentGatewayManager $gateways) {}
+
     /** Nothing is owed yet, but it still could be. */
     public const PENDING = 'pending';
 
@@ -57,10 +61,35 @@ class CommissionLedger extends BaseService
 
             $owed = round((float) $booking->platform_fee, 2);
 
-            $booking->update($owed > 0
-                ? ['commission_status' => self::OUTSTANDING]
-                : ['commission_status' => self::SETTLED, 'commission_settled_at' => now()]);
+            // Nothing to chase, so it settles itself rather than blocking the
+            // provider over ₱0.
+            if ($owed <= 0 || $this->platformCollected($booking)) {
+                $booking->update([
+                    'commission_status' => self::SETTLED,
+                    'commission_settled_at' => now(),
+                ]);
+
+                return;
+            }
+
+            $booking->update(['commission_status' => self::OUTSTANDING]);
         });
+    }
+
+    /**
+     * Whether SkillServe's share reached it directly instead of passing
+     * through the provider's hands.
+     *
+     * Asked of the gateway rather than the payment method, so that switching
+     * GCash to PayMongo in config/payments.php makes those commissions settle
+     * on payment without this class changing. Today every gateway is manual,
+     * so this is always false.
+     */
+    private function platformCollected(Booking $booking): bool
+    {
+        $method = PaymentMethod::fromInput($booking->payment_method);
+
+        return $method !== null && $this->gateways->for($method)->collectsPayment();
     }
 
     /**

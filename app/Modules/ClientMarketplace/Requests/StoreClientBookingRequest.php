@@ -2,22 +2,33 @@
 
 namespace App\Modules\ClientMarketplace\Requests;
 
+use App\Modules\Bookings\Enums\PaymentMethod;
 use App\Shared\Helpers\BusinessTime;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreClientBookingRequest extends BaseFormRequest
 {
-    /** @var array<int, string> */
-    public const PAYMENT_METHODS = [
-        'cash', 'credit_card', 'debit_card', 'bank_transfer', 'gcash', 'paypal',
-    ];
+    /**
+     * @var array<int, string>
+     *
+     * @deprecated Use PaymentMethod::accepted(). Kept because the Swagger
+     * attributes and the api-docs generator reference this constant.
+     */
+    public const PAYMENT_METHODS = ['on_hand', 'gcash', 'cash'];
 
     protected function prepareForValidation(): void
     {
-        $this->merge([
-            'idempotency_key' => $this->header('Idempotency-Key'),
-        ]);
+        $merge = ['idempotency_key' => $this->header('Idempotency-Key')];
+
+        // Canonicalise before validation so the deprecated "cash" alias the
+        // current mobile build sends is stored as "on_hand".
+        if ($this->has('payment_method')) {
+            $method = PaymentMethod::fromInput($this->input('payment_method'));
+            $merge['payment_method'] = $method?->value ?? $this->input('payment_method');
+        }
+
+        $this->merge($merge);
     }
 
     public function rules(): array
@@ -30,7 +41,7 @@ class StoreClientBookingRequest extends BaseFormRequest
             'client_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'service_address' => ['sometimes', 'nullable', 'string', 'max:255'],
             'contact_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'payment_method' => ['sometimes', 'nullable', 'string', Rule::in(self::PAYMENT_METHODS)],
+            'payment_method' => ['sometimes', 'nullable', 'string', Rule::in(PaymentMethod::canonical())],
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
