@@ -57,16 +57,4 @@ enum PaymentMethod: string
             self::GCash => 'GCash',
         };
     }
-
-    /**
-     * Whether the money reaches the provider directly, which is what makes
-     * them hold SkillServe's commission and owe it back.
-     */
-    public function isCollectedByProvider(): bool
-    {
-        // GCash is settled provider-to-customer by hand today. Once PayMongo
-        // collects it, this becomes false for GCash and the commission is
-        // never outstanding on those bookings.
-        return true;
-    }
 }
