@@ -31,6 +31,7 @@ class ClientMarketplaceServiceProvider extends ServiceProvider
                 Route::group([], base_path('app/Modules/ClientMarketplace/Routes/api.php'));
                 Route::group([], base_path('app/Modules/ClientCommunication/Routes/api.php'));
                 Route::group([], base_path('app/Modules/ClientPreferences/Routes/api.php'));
+                Route::group([], base_path('app/Modules/IdentityVerification/Routes/api.php'));
             });
     }
 }

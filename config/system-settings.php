@@ -17,6 +17,25 @@ return [
             'featured_services_enabled' => ['label' => 'Enable featured services', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'commission_rate' => ['label' => 'Platform commission rate (%)', 'type' => 'number', 'default' => 10, 'rules' => ['numeric', 'min:0', 'max:100']],
         ],
+        'identity' => [
+            // How long National ID images are kept after a decision. They are
+            // only needed while a submission is under review or under dispute;
+            // holding them longer widens the blast radius of a breach for no
+            // operational gain.
+            // The master switch. Ships OFF: turning it on is a deliberate
+            // decision, because it stops unverified accounts transacting.
+            'identity_verification_required' => ['label' => 'Require National ID verification to transact', 'type' => 'boolean', 'default' => false, 'rules' => ['boolean']],
+
+            // Grandfathering. Accounts created BEFORE this date keep
+            // transacting without a National ID; accounts created on or after
+            // it must verify. Leaving it empty applies the requirement to
+            // every account, including existing ones — which freezes the live
+            // marketplace until the review queue is cleared, so it is not the
+            // intended configuration.
+            'identity_verification_enforced_from' => ['label' => 'Require it for accounts created from', 'type' => 'date', 'default' => '', 'rules' => ['nullable', 'date']],
+
+            'identity_document_retention_days' => ['label' => 'Keep National ID images for (days)', 'type' => 'number', 'default' => 90, 'rules' => ['integer', 'min:1', 'max:3650']],
+        ],
         'booking' => [
             'booking_enabled' => ['label' => 'Enable bookings', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'cancellation_window_hours' => ['label' => 'Cancellation window (hours)', 'type' => 'number', 'default' => 24, 'rules' => ['integer', 'min:0', 'max:720']],

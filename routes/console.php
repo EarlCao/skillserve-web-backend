@@ -16,3 +16,7 @@ Schedule::command('users:unban-expired')->everyMinute();
 // Permanently remove deleted records 30 days after deletion (records that
 // related data still references are kept).
 Schedule::command('data-management:purge-expired')->daily();
+
+// National ID images are deleted once System Settings → Identity says their
+// retention has passed. The verification decision and its history are kept.
+Schedule::command('identity:purge-documents')->daily();

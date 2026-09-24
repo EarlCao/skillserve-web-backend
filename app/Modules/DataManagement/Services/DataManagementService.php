@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\DataManagement\Models\DataArchive;
+use App\Modules\IdentityVerification\Models\IdentityVerification;
+use App\Modules\IdentityVerification\Services\IdentityVerificationService;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Reviews\Models\Review;
@@ -249,6 +251,17 @@ class DataManagementService extends BaseService
         DataArchive::query()->where('resource_type', $type)->where('resource_id', $model->getKey())->delete();
 
         if ($model instanceof User) {
+            // Permanent deletion is what frees the account's National ID for
+            // reuse. It deliberately does NOT happen on soft deletion: a
+            // soft-deleted account can be restored for 30 days, and releasing
+            // the ID earlier would let a second account claim it and leave two
+            // live accounts on one ID after that restore. The verification
+            // record itself survives (user_id is nullOnDelete) as the audit
+            // trail for the decision.
+            if ($record = IdentityVerification::query()->where('user_id', $model->getKey())->first()) {
+                app(IdentityVerificationService::class)->release($record);
+            }
+
             // Login tokens and role links: they would otherwise block (refresh
             // tokens) or outlive (Sanctum tokens, role pivot rows) the account.
             ClientRefreshToken::query()->where('user_id', $model->getKey())->delete();

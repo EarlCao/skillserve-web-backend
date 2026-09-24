@@ -49,6 +49,12 @@ use App\Modules\Commissions\Policies\CommissionPolicy;
 use App\Modules\Commissions\Policies\CommissionTierPolicy;
 use App\Modules\Commissions\Services\CommissionCalculator;
 use App\Modules\Dashboard\Policies\DashboardPolicy;
+use App\Modules\IdentityVerification\Events\IdentityVerificationApproved;
+use App\Modules\IdentityVerification\Events\IdentityVerificationRejected;
+use App\Modules\IdentityVerification\Events\IdentityVerificationSubmitted;
+use App\Modules\IdentityVerification\Listeners\LogIdentityVerificationActivity;
+use App\Modules\IdentityVerification\Models\IdentityVerification;
+use App\Modules\IdentityVerification\Policies\IdentityVerificationPolicy;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
@@ -205,6 +211,16 @@ class AppServiceProvider extends ServiceProvider
             return $limits;
         });
 
+        // Submitting a National ID: deliberately tight. Repeated calls are
+        // the one way to probe whether a given ID is already registered, and
+        // a genuine person submits once, occasionally twice.
+        RateLimiter::for('identity-verification', function (Request $request) {
+            return [
+                Limit::perHour(5)->by('user:'.($request->user()?->id ?: $request->ip())),
+                Limit::perHour(20)->by('ip:'.$request->ip()),
+            ];
+        });
+
         // Super-admins bypass every authorization gate (authorization is
         // still enforced for every other role through policies/gates).
         Gate::before(function ($user, string $ability) {
@@ -334,6 +350,13 @@ class AppServiceProvider extends ServiceProvider
         // A cancelled job earns SkillServe nothing, so anything still owed
         // on it is dropped.
         Event::listen(BookingCancelled::class, VoidCommissionOnCancellation::class);
+
+        // Identity Verification module. Deciding who a person is must be
+        // accountable, so every submission and decision is audited.
+        Gate::policy(IdentityVerification::class, IdentityVerificationPolicy::class);
+        Event::listen(IdentityVerificationSubmitted::class, LogIdentityVerificationActivity::class);
+        Event::listen(IdentityVerificationApproved::class, LogIdentityVerificationActivity::class);
+        Event::listen(IdentityVerificationRejected::class, LogIdentityVerificationActivity::class);
 
         // Service Management module policies.
         Gate::policy(Service::class, ServicePolicy::class);

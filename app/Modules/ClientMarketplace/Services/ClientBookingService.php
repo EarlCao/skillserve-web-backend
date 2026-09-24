@@ -10,6 +10,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientMarketplace\Actions\CancelClientBookingAction;
 use App\Modules\ClientMarketplace\Actions\CreateClientBookingAction;
+use App\Modules\Commissions\Services\TransactionEligibility;
 use App\Modules\Providers\Models\ProviderAvailability;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Models\Service;
@@ -28,6 +29,7 @@ class ClientBookingService extends BaseService
         private readonly CreateClientBookingAction $createBookingAction,
         private readonly CancelClientBookingAction $cancelBookingAction,
         private readonly BookingRules $rules,
+        private readonly TransactionEligibility $eligibility,
     ) {}
 
     public function index(User $client, array $filters): LengthAwarePaginator
@@ -59,6 +61,11 @@ class ClientBookingService extends BaseService
 
     public function create(User $client, array $data, ?string $idempotencyKey): Booking
     {
+        // Booking is a protected transactional action: the customer must have
+        // verified their National ID, when the platform requires it of them.
+        // Browsing, searching and viewing services stay open to everyone.
+        $this->eligibility->assertIdentityVerified($client);
+
         $this->rules->assertBookingEnabled();
 
         try {

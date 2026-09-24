@@ -47,6 +47,18 @@ return [
             'report' => false,
         ],
 
+        // National ID images. Separate from 'verification' so identity
+        // documents can be purged on their own retention timer without
+        // touching provider business documents, and so access to them can be
+        // narrowed independently.
+        'identity' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         // Dispute evidence is private to the two parties and the administrators
         // reviewing the case, so it is never exposed through the public link.
         'dispute_evidence' => [
