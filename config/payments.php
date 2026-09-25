@@ -40,7 +40,10 @@ return [
         // local .env. `sk_test_` / `pk_test_` keys during development:
         // `sk_live_` moves real money.
         'secret_key' => env('PAYMONGO_SECRET_KEY'),
-        'public_key' => env('PAYMONGO_PUBLIC_KEY'),
+
+        // No public key: intents are created server-side, so the publishable
+        // key is only needed for in-browser card tokenisation, which
+        // SkillServe does not do.
 
         // Issued when the webhook endpoint is registered with PayMongo. This
         // is NOT the secret key — it is the only thing that distinguishes a
