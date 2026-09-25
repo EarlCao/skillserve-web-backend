@@ -12,8 +12,8 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Seeds the Role-Based Access Control catalog and the bootstrap
- * super-admin and admin accounts used for the first login.
+ * Seeds the Role-Based Access Control catalog and the single bootstrap
+ * super-admin account used for the first login.
  *
  * Permission names use the "manage <entity>" convention and are meant to
  * grow with each phase — modules create their own permissions here later.
@@ -24,12 +24,9 @@ class RolePermissionSeeder extends Seeder
     {
         if (app()->environment('production')) {
             $adminPassword = (string) env('ADMIN_PASSWORD', '');
-            $systemPassword = (string) env('SYSTEM_ADMIN_PASSWORD', '');
 
-            if ($adminPassword === '' || $systemPassword === ''
-                || $adminPassword === 'SkillServe#2026'
-                || $systemPassword === 'SkillServe#2026') {
-                throw new LogicException('Production seeding requires non-default ADMIN_PASSWORD and SYSTEM_ADMIN_PASSWORD values.');
+            if ($adminPassword === '' || $adminPassword === 'SkillServe#2026') {
+                throw new LogicException('Production seeding requires a non-default ADMIN_PASSWORD value.');
             }
         }
 
@@ -140,20 +137,9 @@ class RolePermissionSeeder extends Seeder
             $adminUser->assignRole('super-admin');
         }
 
-        // Exactly one ordinary administrator, seeded in every mode (override via
-        // SYSTEM_ADMIN_EMAIL / SYSTEM_ADMIN_PASSWORD in .env). Role-bearing accounts
-        // are managed in the Administrator Management module, never in User Management.
-        $systemAdmin = User::query()->firstOrCreate(
-            ['email' => env('SYSTEM_ADMIN_EMAIL', 'system@skillserve.test')],
-            [
-                'name' => 'System Admin',
-                'password' => Hash::make(env('SYSTEM_ADMIN_PASSWORD', 'SkillServe#2026')),
-                'role_id' => AccountRole::Admin->value,
-            ],
-        );
-
-        if (! $systemAdmin->hasRole('admin')) {
-            $systemAdmin->assignRole('admin');
-        }
+        // Deliberately no second administrator. Seeding creates the super-admin
+        // and nothing else; any further staff account is created by hand in the
+        // Administrator Management module, so a fresh deployment starts with
+        // exactly one way in.
     }
 }

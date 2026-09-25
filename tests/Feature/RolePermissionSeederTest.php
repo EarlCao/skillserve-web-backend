@@ -21,7 +21,7 @@ class RolePermissionSeederTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_admin_only_mode_seeds_the_super_admin_and_admin_accounts(): void
+    public function test_admin_only_mode_seeds_the_super_admin_and_nothing_else(): void
     {
         putenv('SEED_MODE=admin-only');
         $_ENV['SEED_MODE'] = $_SERVER['SEED_MODE'] = 'admin-only';
@@ -29,26 +29,24 @@ class RolePermissionSeederTest extends TestCase
         $this->seed(DatabaseSeeder::class);
 
         $superAdmin = User::query()->where('email', 'admin@skillserve.test')->firstOrFail();
-        $admin = User::query()->where('email', 'system@skillserve.test')->firstOrFail();
 
         $this->assertSame(AccountRole::SuperAdmin->value, (int) $superAdmin->role_id);
-        $this->assertSame(AccountRole::Admin->value, (int) $admin->role_id);
-        $this->assertTrue($admin->hasRole('admin'));
-        $this->assertFalse($admin->hasRole('super-admin'));
-        $this->assertSame(2, User::query()->count());
+        $this->assertTrue($superAdmin->hasRole('super-admin'));
 
-        foreach ([$superAdmin, $admin] as $user) {
-            $this->postJson('/api/auth/login', [
-                'email' => $user->email,
-                'password' => 'SkillServe#2026',
-            ])->assertOk();
-        }
+        // Exactly one way in: no second administrator is seeded any more.
+        $this->assertSame(1, User::query()->count());
+        $this->assertSame(0, User::query()->where('email', 'system@skillserve.test')->count());
+
+        $this->postJson('/api/auth/login', [
+            'email' => $superAdmin->email,
+            'password' => 'SkillServe#2026',
+        ])->assertOk();
     }
 
-    public function test_reseeding_does_not_duplicate_the_admin_account(): void
+    public function test_reseeding_does_not_duplicate_the_super_admin(): void
     {
         $this->seed([RolePermissionSeeder::class, RolePermissionSeeder::class]);
 
-        $this->assertSame(1, User::query()->where('email', 'system@skillserve.test')->count());
+        $this->assertSame(1, User::query()->where('email', 'admin@skillserve.test')->count());
     }
 }
