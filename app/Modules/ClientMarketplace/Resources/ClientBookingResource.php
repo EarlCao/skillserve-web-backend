@@ -48,6 +48,41 @@ class ClientBookingResource extends BaseResource
                 'business_name' => $this->provider->business_name,
                 'average_rating' => $this->provider->average_rating,
             ] : null),
+
+            // Where to send the money. SkillServe is not in the payment path:
+            // the customer pays the provider directly and the provider then
+            // remits the commission (ADR-021), so the customer needs the
+            // provider's own GCash details.
+            //
+            // Shown only on a GCash booking that is still unpaid, and only on
+            // the customer's own booking — these are the provider's personal
+            // payment details, not a public profile field, so they are not
+            // handed out for a finished or cancelled job.
+            'payment_instructions' => $this->when(
+                $this->payment_method === 'gcash'
+                    && $this->payment_status === 'unpaid'
+                    && ! in_array($this->status, ['cancelled'], true)
+                    && $this->relationLoaded('provider'),
+                fn () => $this->provider?->canReceiveGcash() === true
+                    ? [
+                        'method' => 'gcash',
+                        'gcash_number' => $this->provider->gcash_number,
+                        'gcash_name' => $this->provider->gcash_name,
+                        'amount' => $this->total_price,
+                        'reference' => $this->booking_number,
+                        'note' => 'Send this amount to the provider in GCash, then ask them to confirm it. '
+                            .'Check the name GCash shows you matches before you send.',
+                    ]
+                    : [
+                        'method' => 'gcash',
+                        'gcash_number' => null,
+                        'gcash_name' => null,
+                        'amount' => $this->total_price,
+                        'reference' => $this->booking_number,
+                        'note' => 'This provider has not added their GCash details yet. '
+                            .'Message them to arrange payment.',
+                    ],
+            ),
             'review' => $this->whenLoaded('review', fn () => $this->review
                 ? new ClientReviewResource($this->review)
                 : null),

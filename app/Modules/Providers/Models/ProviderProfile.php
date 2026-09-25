@@ -26,6 +26,8 @@ class ProviderProfile extends Model
         'latitude',
         'longitude',
         'website',
+        'gcash_number',
+        'gcash_name',
         'social_links',
         'portfolio',
         'skills',
@@ -141,6 +143,18 @@ class ProviderProfile extends Model
     public function latestVerificationRequest(): HasOne
     {
         return $this->hasOne(VerificationRequest::class)->latestOfMany();
+    }
+
+    /**
+     * Whether this provider can be paid by GCash at all.
+     *
+     * Both parts matter: the number is where the money goes, and the name is
+     * what lets the customer confirm the GCash app is showing the right
+     * person before they send it.
+     */
+    public function canReceiveGcash(): bool
+    {
+        return filled($this->gcash_number) && filled($this->gcash_name);
     }
 
     /**

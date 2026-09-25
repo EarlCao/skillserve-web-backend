@@ -17,13 +17,20 @@ return [
     |
     */
     'gateways' => [
+        // BOTH methods are settled directly between the customer and the
+        // provider. SkillServe is never in the payment path and never holds
+        // customer money: the customer sends GCash to the provider's own
+        // number (or pays cash on the job), and the provider then owes
+        // SkillServe its commission.
+        //
+        // This is deliberate and must not be flipped to 'paymongo' for a
+        // booking. Collecting the booking total into SkillServe's account
+        // would make SkillServe owe every provider their share — a payout
+        // obligation the platform has no mechanism for, and one that carries
+        // licensing exposure for holding other people's money.
+        // See ADR-021.
         PaymentMethod::OnHand->value => 'manual',
-
-        // GCash goes through PayMongo. Falls back to manual settlement when
-        // no secret key is configured, so a deployment without credentials
-        // still works exactly as it did before rather than failing at the
-        // moment a customer tries to pay.
-        PaymentMethod::GCash->value => env('PAYMONGO_SECRET_KEY') ? 'paymongo' : 'manual',
+        PaymentMethod::GCash->value => 'manual',
     ],
 
     /*

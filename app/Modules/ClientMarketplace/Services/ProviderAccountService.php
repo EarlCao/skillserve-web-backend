@@ -31,6 +31,11 @@ class ProviderAccountService
      * letting a provider write them would let them mark themselves verified.
      */
     private const EDITABLE = [
+        // Where customers send payment (ADR-021: SkillServe is not in the
+        // payment path, so the provider's own details are what the customer
+        // pays into).
+        'gcash_number',
+        'gcash_name',
         'business_name',
         'bio',
         'specialization',

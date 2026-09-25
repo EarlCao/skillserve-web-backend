@@ -17,6 +17,14 @@ class ProviderProfileResource extends ClientProviderResource
             'rejection_reason' => $this->rejection_reason,
             // is_featured comes from the parent resource.
             'is_suspended' => $this->suspended_at !== null,
+
+            // Where customers send payment. Only ever on the provider's OWN
+            // profile — ClientProviderResource, which the public catalog uses,
+            // deliberately does not carry these.
+            'gcash_number' => $this->gcash_number,
+            'gcash_name' => $this->gcash_name,
+            // Whether this provider can actually be paid by GCash yet.
+            'can_receive_gcash' => $this->canReceiveGcash(),
         ]);
     }
 }
