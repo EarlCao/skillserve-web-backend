@@ -7286,6 +7286,83 @@
                 }
             }
         },
+        "/api/client/v1/bookings/{booking}/pay": {
+            "post": {
+                "tags": [
+                    "Client Payments"
+                ],
+                "summary": "Start an online payment for a booking",
+                "description": "Available on the customer's own unpaid booking once it is confirmed, active, completed or disputed, and only when the booking's payment method maps to a gateway that collects money (today: `gcash`, once PayMongo is configured). An `on_hand` booking is refused — it is settled in person.\n\nReturns `redirect_url`; send the customer there. The booking becomes paid when PayMongo calls the webhook, **not** when the customer returns, so poll the booking afterwards rather than assuming success.\n\nTapping pay again returns the same in-flight payment rather than starting a second one.",
+                "operationId": "8880cbb747a2e0c81854fd84f192dad9",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "Reuse across retries of the same attempt",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment started",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Payment started.",
+                                    "data": {
+                                        "redirect_url": "https://secure-authentication.paymongo.com/sources?id=src_...",
+                                        "status": "awaiting_next_action",
+                                        "amount": "200.00",
+                                        "currency": "PHP"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not the customer on this booking, or identity not verified"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Already paid"
+                    },
+                    "422": {
+                        "description": "Not payable online, or wrong status"
+                    },
+                    "502": {
+                        "description": "The payment provider refused the request"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/reviews": {
             "get": {
                 "tags": [
@@ -11200,6 +11277,24 @@
                         "bearerAuth": []
                     }
                 ]
+            }
+        },
+        "/api/webhooks/paymongo": {
+            "post": {
+                "tags": [
+                    "Payment Webhooks"
+                ],
+                "summary": "PayMongo webhook receiver",
+                "description": "Called by PayMongo, not by SkillServe clients. Verifies the `Paymongo-Signature` header (`t=<unix>,te=<test>,li=<live>`; HMAC-SHA256 of `<t>.<raw body>` under the webhook secret) against the raw request body, then applies `payment.paid` / `payment.failed` to the booking.\n\nA booking is marked paid **here**, never from the customer's return redirect. Events are deduplicated by event id, because PayMongo redelivers.",
+                "operationId": "26cdfb71c9afc6a12ec23d06bd766203",
+                "responses": {
+                    "200": {
+                        "description": "Event accepted (or acknowledged and ignored)"
+                    },
+                    "401": {
+                        "description": "Missing or invalid signature — the event is discarded"
+                    }
+                }
             }
         },
         "/api/provider-recognition/badges": {
@@ -21636,6 +21731,10 @@
             "description": "Public customer catalog discovery"
         },
         {
+            "name": "Client Payments",
+            "description": "Pay for a booking online"
+        },
+        {
             "name": "Client Reviews",
             "description": "Customer reviews for completed bookings"
         },
@@ -21694,6 +21793,10 @@
         {
             "name": "Notifications",
             "description": "View notification history and send targeted announcements"
+        },
+        {
+            "name": "Payment Webhooks",
+            "description": "Signed callbacks from the payment provider"
         },
         {
             "name": "Provider Recognition",

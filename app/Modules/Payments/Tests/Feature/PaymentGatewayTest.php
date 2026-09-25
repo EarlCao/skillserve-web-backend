@@ -8,7 +8,6 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Payments\Contracts\PaymentGateway;
-use App\Modules\Payments\Exceptions\GatewayNotImplemented;
 use App\Modules\Payments\Gateways\ManualGateway;
 use App\Modules\Payments\Gateways\PayMongoGateway;
 use App\Modules\Payments\Services\PaymentGatewayManager;
@@ -83,22 +82,32 @@ class PaymentGatewayTest extends TestCase
         $gateway->collect(new Booking, 'key-1');
     }
 
-    public function test_the_paymongo_gateway_is_scaffolding_and_says_so(): void
+    public function test_the_paymongo_gateway_collects_payment_itself(): void
     {
-        $gateway = new PayMongoGateway;
+        $gateway = app(PayMongoGateway::class);
 
         $this->assertInstanceOf(PaymentGateway::class, $gateway);
         $this->assertSame('paymongo', $gateway->name());
 
-        // Never silently succeed: a booking marked paid with no money moved is
-        // the worst failure this subsystem has.
-        $this->expectException(GatewayNotImplemented::class);
-        $gateway->collect(new Booking, 'key-1');
+        // Unlike the manual gateway, PayMongo takes the money into
+        // SkillServe's account, so the provider never holds the commission.
+        $this->assertTrue($gateway->collectsPayment());
     }
 
     public function test_an_unverified_webhook_is_refused_not_trusted(): void
     {
-        $this->assertFalse((new PayMongoGateway)->verifyWebhook('{"paid":true}', 'forged'));
+        config(['payments.paymongo.webhook_secret' => 'whsk_test']);
+
+        $this->assertFalse(app(PayMongoGateway::class)->verifyWebhook('{"paid":true}', 'forged'));
+    }
+
+    public function test_a_webhook_is_refused_when_no_secret_is_configured(): void
+    {
+        config(['payments.paymongo.webhook_secret' => '']);
+
+        // Without the secret there is nothing separating a real event from a
+        // forged one, so everything is refused rather than trusted.
+        $this->assertFalse(app(PayMongoGateway::class)->verifyWebhook('{}', 't=1,te=x,li=y'));
     }
 
     public function test_no_paymongo_credentials_are_committed(): void

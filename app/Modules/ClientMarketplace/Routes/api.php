@@ -3,6 +3,7 @@
 use App\Modules\ClientMarketplace\Controllers\BookingDisputeController;
 use App\Modules\ClientMarketplace\Controllers\ClientBookingController;
 use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
+use App\Modules\ClientMarketplace\Controllers\ClientPaymentController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
 use App\Modules\ClientMarketplace\Controllers\FavoriteProviderController;
 use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
@@ -30,6 +31,10 @@ Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): voi
         Route::get('/{booking}', [ClientBookingController::class, 'show']);
         Route::patch('/{booking}/cancel', [ClientBookingController::class, 'cancel']);
         Route::patch('/{booking}/reschedule', [ClientBookingController::class, 'reschedule']);
+
+        // Starts an online payment. The booking is marked paid by the
+        // gateway's webhook, never by the customer returning from it.
+        Route::post('/{booking}/pay', [ClientPaymentController::class, 'store'])->whereNumber('booking');
     });
 
     Route::get('/favorites', [FavoriteProviderController::class, 'index']);
