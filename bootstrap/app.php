@@ -50,6 +50,19 @@ return Application::configure(basePath: dirname(__DIR__))
         // Force JSON on every API request so errors always come back as the
         // standard envelope. appendToGroup keeps the framework's defaults
         // (throttle:api, SubstituteBindings, future Sanctum stateful API).
+        // This application has no `login` route: it is an API, and the admin
+        // web signs in through it. Laravel's Authenticate middleware still
+        // calls route('login') to build a redirect for any guest request that
+        // does not expect JSON, which throws RouteNotFoundException and turns
+        // a plain 401 into a 500. Returning null keeps it throwing
+        // AuthenticationException, which the handler below renders as the
+        // standard 401 envelope.
+        //
+        // ForceJsonResponse sets the Accept header, but only once the request
+        // reaches it — a guest rejected earlier in the stack never gets that
+        // far, which is why the header alone was not enough.
+        $middleware->redirectGuestsTo(fn () => null);
+
         $middleware->appendToGroup('api', ForceJsonResponse::class);
         $middleware->appendToGroup('api', CacheApiResponse::class);
         $middleware->appendToGroup('api', AddRateLimitHeaders::class);

@@ -85,6 +85,25 @@ class ApiFoundationTest extends TestCase
             ->assertJson(['success' => false, 'message' => 'Resource not found.']);
     }
 
+    /**
+     * A guest hitting a protected endpoint must get 401, whether or not the
+     * client sent `Accept: application/json`.
+     *
+     * Laravel's Authenticate middleware builds a redirect for guests that do
+     * not expect JSON by calling route('login'). This application has no such
+     * route, so that threw RouteNotFoundException and every protected
+     * endpoint answered **500** to any client that omitted the header —
+     * including curl, which is how it went unnoticed.
+     */
+    public function test_a_guest_without_an_accept_header_gets_401_not_500(): void
+    {
+        foreach (['/api/bookings', '/api/settings', '/api/commission-tiers', '/api/identity-verifications'] as $path) {
+            $this->get($path)
+                ->assertStatus(401)
+                ->assertJson(['success' => false, 'message' => 'Unauthenticated.']);
+        }
+    }
+
     public function test_api_routes_use_the_named_api_throttle(): void
     {
         for ($attempt = 0; $attempt < 60; $attempt++) {
