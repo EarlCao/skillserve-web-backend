@@ -8,12 +8,11 @@ return [
     | Gateway per payment method
     |--------------------------------------------------------------------------
     |
-    | Both methods are settled by hand today: the customer pays the provider
-    | off-platform and somebody records it (see ADR-007).
+    | Both methods are settled directly between the customer and the provider:
+    | SkillServe records the payment, it never collects it (ADR-007, ADR-021).
     |
-    | Pointing `gcash` at "paymongo" is what switches GCash to live online
-    | payment. Do NOT change it until the PayMongo integration is actually
-    | implemented — the gateway throws on every money-moving call, by design.
+    | The PayMongo gateway below is built and tested, but no booking is routed
+    | to it — see the note on the mapping itself.
     |
     */
     'gateways' => [
@@ -38,8 +37,9 @@ return [
     | PayMongo credentials
     |--------------------------------------------------------------------------
     |
-    | Placeholders only. These are intentionally empty: no keys are committed,
-    | and none have been issued for this project. The integration is not built.
+    | The integration is built and tested; no keys are committed. Nothing uses
+    | it while both booking methods map to the manual gateway above, so an
+    | empty value here changes no booking behaviour.
     |
     */
     'paymongo' => [
@@ -64,6 +64,18 @@ return [
         // Paymongo-Signature header. Derived from the secret key so it cannot
         // drift out of step with the credentials in use.
         'live' => str_starts_with((string) env('PAYMONGO_SECRET_KEY'), 'sk_live_'),
+
+        // Whether an `sk_live_` key may be used at all.
+        //
+        // Off, because under ADR-021 nothing is supposed to reach PayMongo: a
+        // live key in the environment is a mistake by default, and the cost of
+        // that mistake is real money moving on a flow that has never been run.
+        // PayMongoClient refuses every request while a live key is configured
+        // and this is false, and says so in the log.
+        //
+        // Turning it on is a deliberate decision that belongs with whoever
+        // accepts the consequence — it is not a deployment detail.
+        'allow_live' => (bool) env('PAYMONGO_ALLOW_LIVE', false),
 
         // PayMongo refuses amounts outside this range (in pesos).
         'min_amount' => 1.00,
