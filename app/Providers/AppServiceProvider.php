@@ -43,6 +43,7 @@ use App\Modules\Commissions\Events\CommissionTierUpdated;
 use App\Modules\Commissions\Events\CommissionWaived;
 use App\Modules\Commissions\Listeners\LogCommissionActivity;
 use App\Modules\Commissions\Listeners\LogCommissionSettlementActivity;
+use App\Modules\Commissions\Listeners\NotifyProviderOfCommissionSettlement;
 use App\Modules\Commissions\Listeners\VoidCommissionOnCancellation;
 use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Commissions\Policies\CommissionPolicy;
@@ -346,6 +347,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('settle commissions', [CommissionPolicy::class, 'settle']);
         Event::listen(CommissionSettled::class, LogCommissionSettlementActivity::class);
         Event::listen(CommissionWaived::class, LogCommissionSettlementActivity::class);
+        Event::listen([CommissionSettled::class, CommissionWaived::class], NotifyProviderOfCommissionSettlement::class);
 
         // A cancelled job earns SkillServe nothing, so anything still owed
         // on it is dropped.

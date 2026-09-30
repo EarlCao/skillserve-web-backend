@@ -6,12 +6,14 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Models\CommissionSettlement;
 use App\Modules\Commissions\Models\CommissionTier;
+use App\Modules\Commissions\Notifications\CommissionSettlementNotification;
 use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
@@ -519,6 +521,43 @@ class CommissionLedgerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.eligible', false)
             ->assertJsonPath('data.reason', 'outstanding_commission');
+    }
+
+    public function test_the_provider_is_told_when_a_commission_is_settled_or_waived(): void
+    {
+        Notification::fake();
+        [$profile, $providerUser] = $this->provider();
+        [$client] = $this->customer();
+        [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
+        $first = $this->owed($profile, $client, now());
+        $second = $this->owed($profile, $client, now());
+
+        $this->withToken($adminToken)
+            ->patchJson("/api/commissions/{$first->id}/settle", ['method' => 'gcash', 'reference' => 'GC-1'])
+            ->assertOk();
+
+        Notification::assertSentTo($providerUser, CommissionSettlementNotification::class, function ($notification) use ($providerUser, $first): bool {
+            $data = $notification->toArray($providerUser);
+
+            return $data['type'] === 'booking_commission'
+                && $data['action'] === 'settled'
+                && $data['booking_id'] === $first->id
+                && str_contains($data['message'], "₱20.00 commission for booking {$first->booking_number}")
+                && str_contains($data['message'], 'You still owe ₱20.00 across 1 booking.');
+        });
+
+        $this->withToken($adminToken)
+            ->patchJson("/api/commissions/{$second->id}/waive", ['reason' => 'Goodwill after a dispute.'])
+            ->assertOk();
+
+        Notification::assertSentTo($providerUser, CommissionSettlementNotification::class, function ($notification) use ($providerUser, $second): bool {
+            $data = $notification->toArray($providerUser);
+
+            return $data['action'] === 'waived'
+                && $data['booking_id'] === $second->id
+                && str_contains($data['message'], 'Reason: Goodwill after a dispute.')
+                && str_contains($data['message'], 'You have no outstanding commission.');
+        });
     }
 
     /** An unremitted ₱20 commission on a job the customer paid at [$paidAt]. */
