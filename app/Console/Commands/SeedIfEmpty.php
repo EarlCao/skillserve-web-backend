@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Shared\Enums\AccountRole;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -14,9 +15,8 @@ use Illuminate\Support\Facades\DB;
  * inserting the entire demo dataset (hundreds of row-by-row writes to Neon)
  * before the HTTP server started listening. That regularly pushed boot past
  * two minutes, so the first login after an idle period timed out in the
- * browser. This command makes re-seeding a no-op: once the always-required
- * seeders have run (roles exist), it exits in milliseconds and `artisan
- * serve` starts immediately.
+ * browser. This command makes re-seeding a no-op: once the super-admin
+ * exists, it exits in milliseconds and the server starts immediately.
  */
 class SeedIfEmpty extends Command
 {
@@ -38,15 +38,17 @@ class SeedIfEmpty extends Command
     }
 
     /**
-     * Roles are seeded first and are always required (see DatabaseSeeder),
-     * so their presence is a reliable "already seeded" marker. A missing
-     * table (fresh database, or migrations that never ran) counts as
-     * unseeded — the downstream db:seed then surfaces the real error.
+     * Seeded means the super-admin account exists, the one thing a deployment
+     * cannot work without. Roles are not a usable marker: the 2026_09_18
+     * migration inserts the fixed roles, so a freshly migrated database
+     * already has them and used to be skipped, leaving nobody able to sign
+     * in. A missing table (migrations never ran) counts as unseeded; the
+     * downstream db:seed then surfaces the real error.
      */
     private function isAlreadySeeded(): bool
     {
         try {
-            return DB::table('roles')->exists();
+            return DB::table('users')->where('role_id', AccountRole::SuperAdmin->value)->exists();
         } catch (QueryException) {
             return false;
         }
