@@ -16,9 +16,14 @@ class UpdateProviderProfileRequest extends BaseFormRequest
 {
     protected function prepareForValidation(): void
     {
+        // Trim what was sent, but keep an explicit null as null: a nullable
+        // column cleared by the client should end up empty, not holding an
+        // empty string that `filled()` and `nullable` rules then disagree
+        // about.
         foreach (['business_name', 'specialization', 'location', 'website', 'gcash_name'] as $field) {
             if ($this->has($field)) {
-                $this->merge([$field => trim((string) $this->input($field))]);
+                $trimmed = trim((string) $this->input($field));
+                $this->merge([$field => $trimmed === '' ? null : $trimmed]);
             }
         }
 

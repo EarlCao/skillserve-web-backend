@@ -199,6 +199,30 @@ class DirectPaymentTest extends TestCase
         }
     }
 
+    public function test_a_provider_can_remove_their_gcash_details(): void
+    {
+        // A provider who stops using GCash must be able to stop advertising a
+        // number, or customers keep being sent to a dead one. Both columns end
+        // up null, not an empty string, so `canReceiveGcash()` and the
+        // nullable rules agree.
+        [$profile] = $this->scenario(['gcash_number' => '09171234567', 'gcash_name' => 'Juan Dela Cruz']);
+        $token = $profile->user->createToken('provider', ['client:auth'])->plainTextToken;
+
+        $this->withToken($token)
+            ->patchJson('/api/client/v1/provider/profile', [
+                'gcash_number' => null,
+                'gcash_name' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.gcash_number', null)
+            ->assertJsonPath('data.gcash_name', null)
+            ->assertJsonPath('data.can_receive_gcash', false);
+
+        $profile->refresh();
+        $this->assertNull($profile->gcash_number);
+        $this->assertNull($profile->gcash_name);
+    }
+
     public function test_an_invalid_gcash_number_is_refused(): void
     {
         [$profile] = $this->scenario();
