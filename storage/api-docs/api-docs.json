@@ -1869,7 +1869,8 @@
                                 "services",
                                 "bookings",
                                 "reviews",
-                                "activity"
+                                "activity",
+                                "commissions"
                             ]
                         }
                     },
@@ -1990,7 +1991,8 @@
                                 "services",
                                 "bookings",
                                 "reviews",
-                                "activity"
+                                "activity",
+                                "commissions"
                             ]
                         }
                     },
@@ -2064,6 +2066,63 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/analytics/reports/general/export": {
+            "get": {
+                "tags": [
+                    "Reports and Analytics"
+                ],
+                "summary": "Export a general report of every category to Excel",
+                "description": "One .xlsx workbook: a Summary sheet (record counts per category with a status breakdown, and commission totals in pesos), then one sheet per report category (Users, Providers, Services, Bookings, Reviews, Activity, Commissions). The optional date range filters every category by creation date. Each category sheet is capped at 5,000 rows; the Summary sheet always shows the full counts.",
+                "operationId": "02e1c6f004e56cb5f25a54fb26823f5d",
+                "parameters": [
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Excel workbook download",
+                        "content": {
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the export analytics permission"
+                    },
+                    "422": {
+                        "description": "Invalid date range"
                     }
                 },
                 "security": [
@@ -7292,7 +7351,7 @@
                     "Client Payments"
                 ],
                 "summary": "Start an online payment for a booking",
-                "description": "Available on the customer's own unpaid booking once it is confirmed, active, completed or disputed, and only when the booking's payment method maps to a gateway that collects money (today: `gcash`, once PayMongo is configured). An `on_hand` booking is refused — it is settled in person.\n\nReturns `redirect_url`; send the customer there. The booking becomes paid when PayMongo calls the webhook, **not** when the customer returns, so poll the booking afterwards rather than assuming success.\n\nTapping pay again returns the same in-flight payment rather than starting a second one.",
+                "description": "**No booking is payable online today.** SkillServe is never in the payment path (ADR-021): both `gcash` and `on_hand` are settled directly between the customer and the provider, so every request to this endpoint is refused with a 422. A customer paying by GCash uses the `payment_instructions` on their own unpaid booking instead, and the provider confirms the payment afterwards.\n\nThe endpoint remains for a payment method routed to a gateway that collects money. In that case it is available on the customer's own unpaid booking once it is confirmed, active, completed or disputed; it returns `redirect_url` for the app to open, the booking becomes paid when the gateway calls the webhook — **not** when the customer returns — and tapping pay again returns the same in-flight payment rather than starting a second one.",
                 "operationId": "8880cbb747a2e0c81854fd84f192dad9",
                 "parameters": [
                     {
@@ -8184,7 +8243,7 @@
                     "Provider Commissions"
                 ],
                 "summary": "The provider's outstanding commission and transaction eligibility",
-                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. While anything is outstanding the provider cannot accept or start jobs, or publish services; declining and cancelling stay available so they can still clear their queue.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.",
+                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.",
                 "operationId": "5dacd0fd7595da346a2e5956064e8a63",
                 "parameters": [
                     {
@@ -8213,6 +8272,8 @@
                                         "reason": "outstanding_commission",
                                         "outstanding_total": "20.00",
                                         "outstanding_count": 1,
+                                        "block_threshold": "0.00",
+                                        "block_deadline": null,
                                         "currency": "PHP",
                                         "outstanding": [
                                             {
@@ -9943,12 +10004,115 @@
                 ]
             }
         },
+        "/api/commission-tiers/presets": {
+            "get": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "List commission rate presets",
+                "description": "Ready-made tier sets that can replace the active tiers in one step.",
+                "operationId": "ec9a0639950616a9770ab5f4e6edeea0",
+                "responses": {
+                    "200": {
+                        "description": "Commission presets",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Commission presets retrieved.",
+                                    "data": [
+                                        {
+                                            "key": "flat_10",
+                                            "name": "Flat 10%",
+                                            "description": "The same 10% on every booking, whatever its amount.",
+                                            "tiers": [
+                                                {
+                                                    "name": "All bookings",
+                                                    "min_amount": "0.00",
+                                                    "max_amount": null,
+                                                    "percentage": "10.00"
+                                                }
+                                            ]
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": null
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-tiers/presets/{preset}/apply": {
+            "post": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Apply a commission rate preset",
+                "description": "Retires every enabled tier and creates the preset's bands in their place, in one transaction. Disabled tiers are left alone. Bookings already made keep their own rate snapshot.",
+                "operationId": "b16c2f6d8ff9c8afb5848e80ece1e519",
+                "parameters": [
+                    {
+                        "name": "preset",
+                        "in": "path",
+                        "description": "Preset key from GET /api/commission-tiers/presets",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "standard"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Preset applied; the new tiers, lowest band first",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage commissions permission"
+                    },
+                    "404": {
+                        "description": "Preset not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/dashboard": {
             "get": {
                 "tags": [
                     "Dashboard"
                 ],
                 "summary": "Get dashboard summaries and analytics",
+                "description": "commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings' value.",
                 "operationId": "33685f6af2ec69af17a3c5ebe6caa1ef",
                 "responses": {
                     "200": {
@@ -9995,6 +10159,24 @@
                                             "rejected": 0
                                         },
                                         "recent_activities": [],
+                                        "commission_summary": {
+                                            "collected": "12450.00",
+                                            "collected_booking_value": "129700.00",
+                                            "collected_rate": "9.60",
+                                            "outstanding": "1200.00",
+                                            "waived": "0.00",
+                                            "rate_source": "tiers",
+                                            "fallback_rate": "10.00",
+                                            "tiers": [
+                                                {
+                                                    "id": 1,
+                                                    "name": "Under ₱200",
+                                                    "min_amount": "0.00",
+                                                    "max_amount": "199.99",
+                                                    "percentage": "5.00"
+                                                }
+                                            ]
+                                        },
                                         "analytics": {
                                             "monthly_activity": [],
                                             "booking_statuses": [],
@@ -10947,7 +11129,7 @@
                     "Transaction Eligibility"
                 ],
                 "summary": "Whether this account may transact, and what is blocking it",
-                "description": "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total.\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
+                "description": "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total, `block_threshold` (the unpaid total at which the commission block starts; `0.00` means any debt) and `block_deadline` (when the oldest unpaid commission starts blocking by age, or null when that trigger is off or nothing is owed).\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
                 "operationId": "383df0b86c2a6529a7b7192ee5565b85",
                 "responses": {
                     "200": {
@@ -10967,7 +11149,9 @@
                                         "identity_status": "unverified",
                                         "identity_required": true,
                                         "outstanding_total": "0.00",
-                                        "outstanding_count": 0
+                                        "outstanding_count": 0,
+                                        "block_threshold": "0.00",
+                                        "block_deadline": null
                                     },
                                     "errors": null,
                                     "meta": []
@@ -19787,6 +19971,30 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "cancellation_fee": {
+                        "description": "A late-cancellation fee recorded when the booking was cancelled",
+                        "type": "string",
+                        "example": "150.00",
+                        "nullable": true
+                    },
+                    "cancellation_policy": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/BookingCancellationPolicy"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The cancellation rule and what cancelling now would cost; present only while this side can still cancel"
+                    },
+                    "payment_instructions": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/BookingPaymentInstructions"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Where to send the money. Present only on the customer's own unpaid, uncancelled GCash booking"
+                    },
                     "scheduled_date": {
                         "type": "string",
                         "format": "date-time",
@@ -19859,6 +20067,62 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "BookingCancellationPolicy": {
+                "description": "What cancelling this booking would cost the side asking, under the current booking rules.",
+                "properties": {
+                    "window_hours": {
+                        "type": "integer",
+                        "example": 24
+                    },
+                    "fee_percent": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 10
+                    },
+                    "is_late": {
+                        "description": "Whether cancelling now falls inside the window",
+                        "type": "boolean"
+                    },
+                    "fee_if_cancelled_now": {
+                        "type": "string",
+                        "example": "150.00"
+                    }
+                },
+                "type": "object"
+            },
+            "BookingPaymentInstructions": {
+                "description": "Where a customer sends a GCash payment. SkillServe is never in the payment path (ADR-021): the customer pays the provider's own GCash number and the provider then remits the commission. These are the provider's personal payment details, so they are returned only to the customer on that booking, only while it is unpaid, and never through the public catalog. `gcash_number` is null when the provider has not saved theirs, and `note` then says what to do instead.",
+                "properties": {
+                    "method": {
+                        "type": "string",
+                        "example": "gcash"
+                    },
+                    "gcash_number": {
+                        "type": "string",
+                        "example": "09171234567",
+                        "nullable": true
+                    },
+                    "gcash_name": {
+                        "description": "The name GCash shows for that number, for the customer to check before sending",
+                        "type": "string",
+                        "example": "Juan Dela Cruz",
+                        "nullable": true
+                    },
+                    "amount": {
+                        "type": "string",
+                        "example": "200.00"
+                    },
+                    "reference": {
+                        "description": "The booking number, for the GCash message",
+                        "type": "string",
+                        "example": "BK-AB12CD34EF56"
+                    },
+                    "note": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
