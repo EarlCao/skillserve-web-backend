@@ -3,6 +3,7 @@
 namespace App\Modules\Analytics\Services;
 
 use App\Models\User;
+use App\Modules\Analytics\Requests\ReportRequest;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Reviews\Models\Review;
@@ -23,7 +24,37 @@ use Spatie\Activitylog\Models\Activity;
  */
 class ReportService extends BaseService
 {
+    /** Most rows one export (a CSV, or one sheet of the general report) holds. */
+    public const EXPORT_LIMIT = 5000;
+
     private const SORTABLE = ['created_at', 'id'];
+
+    private const LABELS = [
+        'users' => 'Users',
+        'providers' => 'Providers',
+        'services' => 'Services',
+        'bookings' => 'Bookings',
+        'reviews' => 'Reviews',
+        'activity' => 'System Activity',
+        'commissions' => 'Commissions',
+    ];
+
+    /** The column each report type's records are counted by in the summary. */
+    private const BREAKDOWN_COLUMNS = [
+        'users' => 'status',
+        'providers' => 'verification_status',
+        'services' => 'status',
+        'bookings' => 'status',
+        'reviews' => 'status',
+        'activity' => 'log_name',
+        'commissions' => 'commission_status',
+    ];
+
+    /** The human name of a report type, as used for sheet titles. */
+    public static function label(string $type): string
+    {
+        return self::LABELS[$type];
+    }
 
     /**
      * Ordered [field => label] mapping for each report type.
@@ -62,7 +93,77 @@ class ReportService extends BaseService
                 'id' => 'ID', 'description' => 'Action', 'log_name' => 'Module', 'actor' => 'Administrator',
                 'subject_type' => 'Subject', 'created_at' => 'Logged at',
             ],
+            'commissions' => [
+                'id' => 'ID', 'booking_number' => 'Booking #', 'provider' => 'Provider', 'service' => 'Service',
+                'total_price' => 'Amount paid', 'commission_rate' => 'Rate (%)', 'platform_fee' => 'Commission',
+                'commission_status' => 'Commission status', 'commission_settled_at' => 'Settled at',
+                'created_at' => 'Booked',
+            ],
         };
+    }
+
+    /**
+     * Record counts for every report type over the same filters, each broken
+     * down by the column that best describes its state, plus the commission
+     * totals. This is the Summary sheet of the general report.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array{categories: array<int, array{type: string, total: int, breakdown: array<string, int>}>, commission_totals: array<string, string>}
+     */
+    public function summary(array $filters): array
+    {
+        $categories = array_map(function (string $type) use ($filters): array {
+            $column = self::BREAKDOWN_COLUMNS[$type];
+            $breakdown = $this->buildQuery($type, $filters)
+                ->select($column)
+                ->selectRaw('COUNT(*) as aggregate')
+                ->groupBy($column)
+                ->orderBy($column)
+                ->pluck('aggregate', $column)
+                ->map(fn ($count): int => (int) $count)
+                ->all();
+
+            return ['type' => $type, 'total' => array_sum($breakdown), 'breakdown' => $breakdown];
+        }, ReportRequest::TYPES);
+
+        $commissionTotals = $this->buildQuery('commissions', $filters)
+            ->select('commission_status')
+            ->selectRaw('COALESCE(SUM(platform_fee), 0) as aggregate')
+            ->groupBy('commission_status')
+            ->pluck('aggregate', 'commission_status');
+
+        return [
+            'categories' => $categories,
+            'commission_totals' => collect(['settled', 'outstanding', 'waived'])
+                ->mapWithKeys(fn (string $status): array => [
+                    $status => number_format((float) ($commissionTotals[$status] ?? 0), 2, '.', ''),
+                ])
+                ->all(),
+        ];
+    }
+
+    /**
+     * A report value as written to a CSV or spreadsheet cell. Text that a
+     * spreadsheet would run as a formula is prefixed with an apostrophe,
+     * because report rows carry user-entered text (names, comments).
+     */
+    public function exportCell(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+
+        $cell = (string) $value;
+
+        if ($cell !== '' && str_contains("=+-@\t\r", $cell[0])) {
+            $cell = "'".$cell;
+        }
+
+        return $cell;
     }
 
     /**
@@ -90,7 +191,7 @@ class ReportService extends BaseService
     {
         return $this->buildQuery($type, $filters)
             ->orderBy($this->sort($filters), $this->direction($filters))
-            ->limit(5000)
+            ->limit(self::EXPORT_LIMIT)
             ->get()
             ->map(fn ($model) => $this->mapRow($type, $model))
             ->all();
@@ -116,6 +217,9 @@ class ReportService extends BaseService
                 ->with(['reviewer:id,name,email', 'provider:id,business_name', 'service:id,title']),
             'activity' => Activity::query()
                 ->with('causer:id,name'),
+            'commissions' => Booking::query()
+                ->whereNotNull('platform_fee')
+                ->with(['provider:id,business_name', 'service:id,title']),
         };
 
         $this->applyDateRange($query, $type, $filters);
@@ -191,6 +295,10 @@ class ReportService extends BaseService
                     ->orWhereRaw('LOWER(COALESCE(log_name, \'\')) LIKE ?', [$term])
                     ->orWhereHas('causer', fn ($c) => $c->whereRaw('LOWER(name) LIKE ?', [$term]));
             }),
+            'commissions' => $query->where(function ($q) use ($term): void {
+                $q->whereRaw('LOWER(booking_number) LIKE ?', [$term])
+                    ->orWhereHas('provider', fn ($p) => $p->whereRaw('LOWER(business_name) LIKE ?', [$term]));
+            }),
             default => null,
         };
     }
@@ -212,6 +320,7 @@ class ReportService extends BaseService
             'services' => $query->where('status', $status),
             'bookings' => $query->where('status', $status),
             'reviews' => $query->where('status', $status),
+            'commissions' => $query->where('commission_status', $status),
             default => null,
         };
     }
@@ -289,6 +398,18 @@ class ReportService extends BaseService
                 'log_name' => $model->log_name,
                 'actor' => $model->causer?->name,
                 'subject_type' => $this->humanizeSubject($model->subject_type),
+                'created_at' => $model->created_at?->toIso8601String(),
+            ],
+            'commissions' => [
+                'id' => $model->id,
+                'booking_number' => $model->booking_number,
+                'provider' => $model->provider?->business_name,
+                'service' => $model->service?->title,
+                'total_price' => $model->total_price,
+                'commission_rate' => $model->commission_rate,
+                'platform_fee' => $model->platform_fee,
+                'commission_status' => $model->commission_status,
+                'commission_settled_at' => $model->commission_settled_at?->toIso8601String(),
                 'created_at' => $model->created_at?->toIso8601String(),
             ],
         };

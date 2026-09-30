@@ -3,11 +3,15 @@
 namespace App\Modules\Analytics\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Analytics\Exports\GeneralReportExport;
+use App\Modules\Analytics\Requests\GeneralReportRequest;
 use App\Modules\Analytics\Requests\ReportRequest;
 use App\Modules\Analytics\Services\ReportService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Maatwebsite\Excel\Facades\Excel;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Reports and Analytics', description: 'Generate and export user, provider, service, booking, review, and system activity reports')]
@@ -86,7 +90,7 @@ class ReportController extends Controller
 
             foreach ($rows as $row) {
                 fputcsv($output, array_map(
-                    fn ($key) => $this->csvCell($row[$key] ?? null),
+                    fn ($key) => $this->reportService->exportCell($row[$key] ?? null),
                     $keys,
                 ));
             }
@@ -95,23 +99,30 @@ class ReportController extends Controller
         }, $filename, ['Content-Type' => 'text/csv']);
     }
 
-    private function csvCell(mixed $value): string
+    #[OA\Get(
+        path: '/api/analytics/reports/general/export',
+        summary: 'Export a general report of every category to Excel',
+        description: 'One .xlsx workbook: a Summary sheet (record counts per category with a status breakdown, and commission totals in pesos), then one sheet per report category (Users, Providers, Services, Bookings, Reviews, Activity, Commissions). The optional date range filters every category by creation date. Each category sheet is capped at 5,000 rows; the Summary sheet always shows the full counts.',
+        tags: ['Reports and Analytics'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'from', in: 'query', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'to', in: 'query', required: false, schema: new OA\Schema(type: 'string', format: 'date')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Excel workbook download', content: new OA\MediaType(mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', schema: new OA\Schema(type: 'string', format: 'binary'))),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the export analytics permission'),
+            new OA\Response(response: 422, description: 'Invalid date range'),
+        ],
+    )]
+    public function generalExport(GeneralReportRequest $request): BinaryFileResponse
     {
-        if ($value === null) {
-            return '';
-        }
+        $this->authorize('export analytics');
 
-        if (is_bool($value)) {
-            return $value ? 'Yes' : 'No';
-        }
-
-        $cell = (string) $value;
-
-        // Neutralize spreadsheet formula injection for untrusted cell values.
-        if ($cell !== '' && str_contains("=+-@\t\r", $cell[0])) {
-            $cell = "'".$cell;
-        }
-
-        return $cell;
+        return Excel::download(
+            new GeneralReportExport($this->reportService, $request->validated()),
+            'general-report-'.now()->format('Y-m-d').'.xlsx',
+        );
     }
 }

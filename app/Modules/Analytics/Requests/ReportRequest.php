@@ -7,7 +7,7 @@ use Illuminate\Validation\Rule;
 
 class ReportRequest extends BaseFormRequest
 {
-    public const TYPES = ['users', 'providers', 'services', 'bookings', 'reviews', 'activity'];
+    public const TYPES = ['users', 'providers', 'services', 'bookings', 'reviews', 'activity', 'commissions'];
 
     public function rules(): array
     {

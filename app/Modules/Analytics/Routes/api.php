@@ -16,4 +16,5 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('analytics')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/reports/export', [ReportController::class, 'export']);
+    Route::get('/reports/general/export', [ReportController::class, 'generalExport']);
 });
