@@ -14,6 +14,7 @@ use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 
 /**
  * Whether SkillServe has been paid its share of each booking.
@@ -258,17 +259,21 @@ class CommissionLedger extends BaseService
     }
 
     /**
-     * What [$providerProfileId] owes in total, and across how many bookings.
+     * What [$providerProfileId] owes in total, across how many bookings, and
+     * since when: `oldest_paid_at` is the payment date of the oldest unremitted
+     * commission, which is when that debt began.
      *
-     * @return array{total: float, count: int}
+     * @return array{total: float, count: int, oldest_paid_at: Carbon|null}
      */
     public function outstandingFor(int $providerProfileId): array
     {
         $query = $this->outstandingQuery($providerProfileId);
+        $oldest = (clone $query)->min('paid_at');
 
         return [
             'total' => round((float) (clone $query)->sum('platform_fee'), 2),
             'count' => (clone $query)->count(),
+            'oldest_paid_at' => $oldest === null ? null : Carbon::parse($oldest),
         ];
     }
 }

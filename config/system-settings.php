@@ -16,6 +16,11 @@ return [
             'service_approval_required' => ['label' => 'Require service approval', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'featured_services_enabled' => ['label' => 'Enable featured services', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'commission_rate' => ['label' => 'Platform commission rate (%)', 'type' => 'number', 'default' => 10, 'rules' => ['numeric', 'min:0', 'max:100']],
+            // When unremitted commission stops a provider taking new work
+            // (TransactionEligibility). Either trigger blocks. The defaults
+            // block on any debt at once, which is the original behaviour.
+            'commission_block_min_amount' => ['label' => 'Block providers once unpaid commission reaches (₱, 0 = any amount)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:1000000']],
+            'commission_block_after_days' => ['label' => 'Also block when a commission stays unpaid for (days, 0 = off)', 'type' => 'number', 'default' => 0, 'rules' => ['integer', 'min:0', 'max:365']],
         ],
         'identity' => [
             // How long National ID images are kept after a decision. They are

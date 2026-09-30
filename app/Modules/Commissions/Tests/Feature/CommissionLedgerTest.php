@@ -10,6 +10,7 @@ use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
@@ -447,5 +448,91 @@ class CommissionLedgerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.eligible', true)
             ->assertJsonPath('data.outstanding_total', '0.00');
+    }
+
+    public function test_by_default_any_unpaid_commission_blocks_and_no_deadline_is_reported(): void
+    {
+        [$profile, , $providerToken] = $this->provider();
+        [$client] = $this->customer();
+        $this->owed($profile, $client, now()->subDays(40));
+
+        $this->withToken($providerToken)
+            ->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', false)
+            ->assertJsonPath('data.block_threshold', '0.00')
+            ->assertJsonPath('data.block_deadline', null);
+    }
+
+    public function test_a_debt_below_the_minimum_does_not_block_until_it_reaches_it(): void
+    {
+        $this->setting('commission_block_min_amount', 50);
+        [$profile, , $providerToken] = $this->provider();
+        [$client] = $this->customer();
+        $this->owed($profile, $client, now());
+        $pending = $this->completedBooking($profile, $client, [
+            'status' => 'pending',
+            'completed_at' => null,
+            'commission_status' => CommissionLedger::PENDING,
+        ]);
+
+        // ₱20 owed against a ₱50 minimum: still free to take new work.
+        $this->withToken($providerToken)
+            ->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', true)
+            ->assertJsonPath('data.outstanding_total', '20.00')
+            ->assertJsonPath('data.block_threshold', '50.00');
+        $this->withToken($providerToken)
+            ->patchJson("/api/client/v1/provider/bookings/{$pending->id}/confirm")
+            ->assertOk();
+
+        // ₱60 owed: the minimum is reached and the block applies.
+        $this->owed($profile, $client, now());
+        $this->owed($profile, $client, now());
+        $this->withToken($providerToken)
+            ->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', false)
+            ->assertJsonPath('data.reason', 'outstanding_commission');
+    }
+
+    public function test_a_small_debt_blocks_once_it_is_older_than_the_grace_period(): void
+    {
+        $this->setting('commission_block_min_amount', 500);
+        $this->setting('commission_block_after_days', 7);
+        [$profile, , $providerToken] = $this->provider();
+        [$client] = $this->customer();
+        $paidAt = now()->subDays(3)->startOfSecond();
+        $this->owed($profile, $client, $paidAt);
+
+        $this->withToken($providerToken)
+            ->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', true)
+            ->assertJsonPath('data.block_deadline', $paidAt->copy()->addDays(7)->toIso8601String());
+
+        $this->travel(5)->days();
+
+        $this->withToken($providerToken)
+            ->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.eligible', false)
+            ->assertJsonPath('data.reason', 'outstanding_commission');
+    }
+
+    /** An unremitted ₱20 commission on a job the customer paid at [$paidAt]. */
+    private function owed(ProviderProfile $profile, User $client, \DateTimeInterface $paidAt): Booking
+    {
+        return $this->completedBooking($profile, $client, [
+            'payment_status' => 'paid',
+            'paid_at' => $paidAt,
+            'commission_status' => CommissionLedger::OUTSTANDING,
+        ]);
+    }
+
+    private function setting(string $name, int|float $value): void
+    {
+        Setting::updateOrCreate(['group' => 'marketplace', 'name' => $name], ['payload' => $value]);
     }
 }

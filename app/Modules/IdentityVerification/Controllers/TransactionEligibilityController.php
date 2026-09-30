@@ -29,7 +29,7 @@ class TransactionEligibilityController extends Controller
     #[OA\Get(
         path: '/api/client/v1/transaction-eligibility',
         summary: 'Whether this account may transact, and what is blocking it',
-        description: "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total.\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
+        description: "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total, `block_threshold` (the unpaid total at which the commission block starts; `0.00` means any debt) and `block_deadline` (when the oldest unpaid commission starts blocking by age, or null when that trigger is off or nothing is owed).\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
         tags: ['Transaction Eligibility'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -46,6 +46,8 @@ class TransactionEligibilityController extends Controller
                         'identity_required' => true,
                         'outstanding_total' => '0.00',
                         'outstanding_count' => 0,
+                        'block_threshold' => '0.00',
+                        'block_deadline' => null,
                     ],
                     'errors' => null,
                     'meta' => [],

@@ -4,7 +4,9 @@ namespace App\Modules\Commissions\Services;
 
 use App\Models\User;
 use App\Modules\IdentityVerification\Services\IdentityGate;
+use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
+use Illuminate\Support\Carbon;
 
 /**
  * Whether an account is currently allowed to transact.
@@ -19,6 +21,11 @@ use App\Shared\Exceptions\ApiException;
  * the platform — and a provider paid up front would otherwise be unable to
  * begin the very job that put them in debt.
  *
+ * An administrator can soften the block in System Settings → Marketplace:
+ * it applies once the unpaid total reaches a minimum amount, or once the
+ * oldest unpaid commission is older than a number of days — whichever comes
+ * first. The defaults (₱0, off) block on any debt at once.
+ *
  * Customers are never blocked by this: they paid the advertised price in full,
  * and the unremitted share is not theirs to settle.
  *
@@ -30,6 +37,7 @@ class TransactionEligibility
     public function __construct(
         private readonly CommissionLedger $ledger,
         private readonly IdentityGate $identity,
+        private readonly SettingsService $settings,
     ) {}
 
     /**
@@ -86,7 +94,12 @@ class TransactionEligibility
      * The eligibility of [$user] as a provider, safe to expose to the app so
      * it can explain the block rather than guess at it.
      *
-     * @return array{eligible: bool, reason: string|null, identity_status: string, identity_required: bool, outstanding_total: string, outstanding_count: int}
+     * `block_threshold` is the unpaid total at which the block starts, and
+     * `block_deadline` the moment the oldest unpaid commission blocks by age
+     * (null when that trigger is off or nothing is owed), so the app can warn
+     * a provider before they are stopped.
+     *
+     * @return array{eligible: bool, reason: string|null, identity_status: string, identity_required: bool, outstanding_total: string, outstanding_count: int, block_threshold: string, block_deadline: string|null}
      */
     public function forProvider(User $user): array
     {
@@ -100,11 +113,18 @@ class TransactionEligibility
                 'identity_required' => $this->identity->appliesTo($user),
                 'outstanding_total' => '0.00',
                 'outstanding_count' => 0,
+                'block_threshold' => $this->money($this->blockThreshold()),
+                'block_deadline' => null,
             ];
         }
 
         $outstanding = $this->ledger->outstandingFor($profileId);
-        $owes = $outstanding['count'] > 0;
+        $threshold = $this->blockThreshold();
+        $deadline = $this->blockDeadline($outstanding['oldest_paid_at']);
+        $owes = $outstanding['count'] > 0 && (
+            $outstanding['total'] >= $threshold
+            || ($deadline !== null && ! now()->isBefore($deadline))
+        );
         $identity = $this->identityState($user);
 
         // Identity is reported first: it is the more fundamental block, and
@@ -121,9 +141,33 @@ class TransactionEligibility
             'reason' => $reason,
             'identity_status' => $identity['identity_status'],
             'identity_required' => $identity['identity_required'],
-            'outstanding_total' => number_format($outstanding['total'], 2, '.', ''),
+            'outstanding_total' => $this->money($outstanding['total']),
             'outstanding_count' => $outstanding['count'],
+            'block_threshold' => $this->money($threshold),
+            'block_deadline' => $deadline?->toIso8601String(),
         ];
+    }
+
+    /** The unpaid total at which a provider is blocked; 0 means any debt. */
+    private function blockThreshold(): float
+    {
+        return max(0.0, (float) $this->settings->value('marketplace', 'commission_block_min_amount'));
+    }
+
+    /**
+     * When a debt that began at [$oldestPaidAt] starts blocking by age, or
+     * null when the age trigger is off or nothing is owed.
+     */
+    private function blockDeadline(?Carbon $oldestPaidAt): ?Carbon
+    {
+        $days = (int) $this->settings->value('marketplace', 'commission_block_after_days');
+
+        return $days > 0 && $oldestPaidAt !== null ? $oldestPaidAt->copy()->addDays($days) : null;
+    }
+
+    private function money(float $amount): string
+    {
+        return number_format($amount, 2, '.', '');
     }
 
     /**
