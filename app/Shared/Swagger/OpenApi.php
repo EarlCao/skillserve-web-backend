@@ -310,6 +310,9 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'service_address', type: 'string', nullable: true),
         new OA\Property(property: 'contact_phone', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
+        new OA\Property(property: 'cancellation_fee', type: 'string', nullable: true, example: '150.00', description: 'A late-cancellation fee recorded when the booking was cancelled'),
+        new OA\Property(property: 'cancellation_policy', ref: '#/components/schemas/BookingCancellationPolicy', nullable: true, description: 'The cancellation rule and what cancelling now would cost; present only while this side can still cancel'),
+        new OA\Property(property: 'payment_instructions', ref: '#/components/schemas/BookingPaymentInstructions', nullable: true, description: "Where to send the money. Present only on the customer's own unpaid, uncancelled GCash booking"),
         new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'scheduled_end_date', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'confirmed_at', type: 'string', format: 'date-time', nullable: true),
@@ -323,6 +326,28 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'review', ref: '#/components/schemas/ClientReview', nullable: true),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'BookingCancellationPolicy',
+    description: 'What cancelling this booking would cost the side asking, under the current booking rules.',
+    properties: [
+        new OA\Property(property: 'window_hours', type: 'integer', example: 24),
+        new OA\Property(property: 'fee_percent', type: 'number', format: 'float', example: 10),
+        new OA\Property(property: 'is_late', type: 'boolean', description: 'Whether cancelling now falls inside the window'),
+        new OA\Property(property: 'fee_if_cancelled_now', type: 'string', example: '150.00'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'BookingPaymentInstructions',
+    description: "Where a customer sends a GCash payment. SkillServe is never in the payment path (ADR-021): the customer pays the provider's own GCash number and the provider then remits the commission. These are the provider's personal payment details, so they are returned only to the customer on that booking, only while it is unpaid, and never through the public catalog. `gcash_number` is null when the provider has not saved theirs, and `note` then says what to do instead.",
+    properties: [
+        new OA\Property(property: 'method', type: 'string', example: 'gcash'),
+        new OA\Property(property: 'gcash_number', type: 'string', nullable: true, example: '09171234567'),
+        new OA\Property(property: 'gcash_name', type: 'string', nullable: true, example: 'Juan Dela Cruz', description: 'The name GCash shows for that number, for the customer to check before sending'),
+        new OA\Property(property: 'amount', type: 'string', example: '200.00'),
+        new OA\Property(property: 'reference', type: 'string', example: 'BK-AB12CD34EF56', description: 'The booking number, for the GCash message'),
+        new OA\Property(property: 'note', type: 'string'),
     ],
 )]
 #[OA\Schema(
