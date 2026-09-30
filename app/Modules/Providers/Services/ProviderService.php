@@ -87,7 +87,6 @@ class ProviderService extends BaseService
             ? $filters['sort']
             : 'created_at';
         $sort = match ($sort) {
-            'average_rating' => 'average_rating_avg',
             'total_bookings' => 'total_bookings_count',
             default => $sort,
         };
@@ -278,9 +277,6 @@ class ProviderService extends BaseService
                 'bookings as total_bookings_count',
                 'bookings as completed_bookings_count' => fn ($bookingQuery) => $bookingQuery->where('status', 'completed'),
                 'reviews as total_reviews_count' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
-            ])
-            ->withAvg([
-                'reviews as average_rating_avg' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
-            ], 'rating');
+            ]);
     }
 }

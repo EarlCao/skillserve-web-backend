@@ -10,6 +10,7 @@ use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Services\IdentityVerificationService;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\Reviews\Actions\RecalculateRatingAggregatesAction;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
@@ -167,6 +168,7 @@ class DataManagementService extends BaseService
                     'removed_by' => null,
                     'removed_at' => null,
                 ]);
+                app(RecalculateRatingAggregatesAction::class)->handle($model->service_id, $model->provider_id);
             }
 
             activity('data_management')->causedBy($actor)->withProperties(['resource_type' => $type, 'resource_id' => $id])->log('Deleted record restored');

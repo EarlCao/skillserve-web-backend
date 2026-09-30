@@ -5,8 +5,8 @@ namespace App\Modules\ClientMarketplace\Services;
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientMarketplace\Actions\CreateClientReviewAction;
-use App\Modules\ClientMarketplace\Actions\RecalculateClientReviewAggregatesAction;
 use App\Modules\ClientMarketplace\Actions\UpdateClientReviewAction;
+use App\Modules\Reviews\Actions\RecalculateRatingAggregatesAction;
 use App\Modules\Reviews\Models\Review;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
@@ -18,7 +18,7 @@ class ClientReviewService extends BaseService
     public function __construct(
         private readonly CreateClientReviewAction $createReviewAction,
         private readonly UpdateClientReviewAction $updateReviewAction,
-        private readonly RecalculateClientReviewAggregatesAction $recalculateAggregatesAction,
+        private readonly RecalculateRatingAggregatesAction $recalculateAggregatesAction,
     ) {}
 
     public function index(User $client, array $filters): LengthAwarePaginator

@@ -94,13 +94,10 @@ class ProviderRecognitionService extends BaseService
         $this->applyProviderFilters($query, $filters);
 
         if (! empty($filters['min_rating'])) {
-            $query->whereRaw(
-                '(SELECT COALESCE(AVG(reviews.rating), 0) FROM reviews WHERE reviews.provider_id = provider_profiles.id AND reviews.status = ?) >= ?',
-                ['active', (float) $filters['min_rating']],
-            );
+            $query->where('average_rating', '>=', (float) $filters['min_rating']);
         }
 
-        return $query->orderByDesc('average_rating_avg')->orderByDesc('total_reviews_count')->paginate($this->perPage($filters));
+        return $query->orderByDesc('average_rating')->orderByDesc('total_reviews_count')->paginate($this->perPage($filters));
     }
 
     public function assignBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor): ProviderProfile
@@ -190,16 +187,12 @@ class ProviderRecognitionService extends BaseService
                 'bookings as total_bookings_count',
                 'bookings as completed_bookings_count' => fn ($bookingQuery) => $bookingQuery->where('status', 'completed'),
                 'reviews as total_reviews_count' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
-            ])
-            ->withAvg([
-                'reviews as average_rating_avg' => fn ($reviewQuery) => $reviewQuery->where('status', 'active'),
-            ], 'rating');
+            ]);
     }
 
     private function aggregateSortColumn(string $sort): string
     {
         return match ($sort) {
-            'average_rating' => 'average_rating_avg',
             'total_bookings' => 'total_bookings_count',
             'total_reviews' => 'total_reviews_count',
             default => $sort,

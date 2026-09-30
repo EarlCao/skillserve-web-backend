@@ -8,6 +8,10 @@ use App\Shared\Actions\BaseAction;
 
 final class RemoveReviewAction extends BaseAction
 {
+    public function __construct(
+        private readonly RecalculateRatingAggregatesAction $recalculateRatingAggregates,
+    ) {}
+
     public function handle(Review $review, User $actor): void
     {
         $review->update([
@@ -16,5 +20,6 @@ final class RemoveReviewAction extends BaseAction
             'removed_at' => now(),
         ]);
         $review->delete();
+        $this->recalculateRatingAggregates->handle($review->service_id, $review->provider_id);
     }
 }

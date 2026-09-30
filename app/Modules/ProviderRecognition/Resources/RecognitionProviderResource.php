@@ -18,7 +18,7 @@ class RecognitionProviderResource extends BaseResource
             ]),
             'verification_status' => $this->verification_status,
             'is_featured' => (bool) $this->is_featured,
-            'average_rating' => $this->average_rating_avg ?? '0.00',
+            'average_rating' => $this->average_rating,
             'total_reviews' => (int) ($this->total_reviews_count ?? 0),
             'total_bookings' => (int) ($this->total_bookings_count ?? 0),
             'completed_bookings' => (int) ($this->completed_bookings_count ?? 0),
