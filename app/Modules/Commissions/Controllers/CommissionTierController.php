@@ -171,6 +171,75 @@ class CommissionTierController extends Controller
         );
     }
 
+    #[OA\Get(
+        path: '/api/commission-tiers/presets',
+        summary: 'List commission rate presets',
+        description: 'Ready-made tier sets that can replace the active tiers in one step.',
+        tags: ['Commission Tiers'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Commission presets', content: new OA\JsonContent(
+                ref: '#/components/schemas/ApiEnvelope',
+                example: [
+                    'success' => true,
+                    'message' => 'Commission presets retrieved.',
+                    'data' => [[
+                        'key' => 'flat_10',
+                        'name' => 'Flat 10%',
+                        'description' => 'The same 10% on every booking, whatever its amount.',
+                        'tiers' => [['name' => 'All bookings', 'min_amount' => '0.00', 'max_amount' => null, 'percentage' => '10.00']],
+                    ]],
+                    'errors' => null,
+                    'meta' => null,
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the view commissions permission'),
+        ],
+    )]
+    public function presets(): JsonResponse
+    {
+        $this->authorize('viewAny', CommissionTier::class);
+
+        $presets = collect($this->tiers->presets())->map(fn (array $preset, string $key): array => [
+            'key' => $key,
+            'name' => $preset['name'],
+            'description' => $preset['description'],
+            'tiers' => array_map(fn (array $band): array => [
+                'name' => $band['name'],
+                'min_amount' => number_format((float) $band['min_amount'], 2, '.', ''),
+                'max_amount' => $band['max_amount'] === null ? null : number_format((float) $band['max_amount'], 2, '.', ''),
+                'percentage' => number_format((float) $band['percentage'], 2, '.', ''),
+            ], $preset['tiers']),
+        ])->values();
+
+        return $this->success($presets, 'Commission presets retrieved.');
+    }
+
+    #[OA\Post(
+        path: '/api/commission-tiers/presets/{preset}/apply',
+        summary: 'Apply a commission rate preset',
+        description: 'Retires every enabled tier and creates the preset\'s bands in their place, in one transaction. Disabled tiers are left alone. Bookings already made keep their own rate snapshot.',
+        tags: ['Commission Tiers'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'preset', in: 'path', required: true, description: 'Preset key from GET /api/commission-tiers/presets', schema: new OA\Schema(type: 'string', example: 'standard'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Preset applied; the new tiers, lowest band first', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the manage commissions permission'),
+            new OA\Response(response: 404, description: 'Preset not found'),
+        ],
+    )]
+    public function applyPreset(Request $request, string $preset): JsonResponse
+    {
+        $this->authorize('create', CommissionTier::class);
+
+        return $this->success(
+            CommissionTierResource::collection($this->tiers->applyPreset($preset, $request->user())),
+            'Commission preset applied.',
+        );
+    }
+
     #[OA\Delete(
         path: '/api/commission-tiers/{commissionTier}',
         summary: 'Retire a commission tier',

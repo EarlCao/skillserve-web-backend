@@ -7,6 +7,7 @@ use App\Modules\Commissions\Events\CommissionTierCreated;
 use App\Modules\Commissions\Events\CommissionTierDeleted;
 use App\Modules\Commissions\Events\CommissionTierUpdated;
 use App\Modules\Commissions\Models\CommissionTier;
+use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
@@ -175,6 +176,39 @@ class CommissionTierService extends BaseService
             $tier->delete();
 
             event(new CommissionTierDeleted(tier: $tier, actor: $actor));
+        });
+    }
+
+    /**
+     * The ready-made tier sets in `config/commissions.php`, keyed by preset.
+     *
+     * @return array<string, array{name: string, description: string, tiers: array<int, array<string, mixed>>}>
+     */
+    public function presets(): array
+    {
+        return config('commissions.presets', []);
+    }
+
+    /**
+     * Replace the active tiers with a preset's bands in one step. Every active
+     * band is retired (soft-deleted, as a manual retirement would be) before
+     * the new ones are created, so they never overlap. Disabled bands charge
+     * nobody and are left alone. Bookings already made keep their snapshot.
+     *
+     * @return Collection<int, CommissionTier> the new bands, lowest first
+     */
+    public function applyPreset(string $key, User $actor): Collection
+    {
+        $preset = $this->presets()[$key] ?? throw new ApiException('Commission preset not found.', 404);
+
+        return $this->transaction(function () use ($preset, $actor): Collection {
+            CommissionTier::query()->active()->lockForUpdate()->get()
+                ->each(fn (CommissionTier $tier) => $this->destroy($tier, $actor));
+
+            $created = collect($preset['tiers'])
+                ->map(fn (array $band): CommissionTier => $this->store([...$band, 'is_active' => true], $actor));
+
+            return new Collection($created->all());
         });
     }
 

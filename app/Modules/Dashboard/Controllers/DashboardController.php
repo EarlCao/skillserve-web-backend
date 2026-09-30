@@ -7,6 +7,7 @@ use App\Modules\Dashboard\Resources\DashboardResource;
 use App\Modules\Dashboard\Services\DashboardService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'Dashboard', description: 'Administrative dashboard summaries, activity, and analytics')]
@@ -19,6 +20,7 @@ class DashboardController extends Controller
     #[OA\Get(
         path: '/api/dashboard',
         summary: 'Get dashboard summaries and analytics',
+        description: 'commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings\' value.',
         tags: ['Dashboard'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -34,6 +36,16 @@ class DashboardController extends Controller
                         'verification_summary' => ['pending' => 0, 'approved' => 0, 'rejected' => 0, 'additional_info_required' => 0],
                         'reports_summary' => ['pending' => 0, 'investigating' => 0, 'resolved' => 0, 'rejected' => 0],
                         'recent_activities' => [],
+                        'commission_summary' => [
+                            'collected' => '12450.00',
+                            'collected_booking_value' => '129700.00',
+                            'collected_rate' => '9.60',
+                            'outstanding' => '1200.00',
+                            'waived' => '0.00',
+                            'rate_source' => 'tiers',
+                            'fallback_rate' => '10.00',
+                            'tiers' => [['id' => 1, 'name' => 'Under ₱200', 'min_amount' => '0.00', 'max_amount' => '199.99', 'percentage' => '5.00']],
+                        ],
                         'analytics' => ['monthly_activity' => [], 'booking_statuses' => [], 'user_statuses' => []],
                     ],
                 ],
@@ -42,12 +54,12 @@ class DashboardController extends Controller
             new OA\Response(response: 403, description: 'Dashboard permission required'),
         ],
     )]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('view dashboard');
 
         return $this->success(
-            new DashboardResource($this->dashboardService->summary()),
+            new DashboardResource($this->dashboardService->summary($request->user())),
             'Dashboard retrieved.',
         );
     }

@@ -4,10 +4,14 @@ namespace App\Modules\Dashboard\Services;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Commissions\Models\CommissionTier;
+use App\Modules\Commissions\Services\CommissionLedger;
+use App\Modules\Commissions\Services\CommissionTierService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Models\VerificationRequest;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Services\SettingsService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -18,16 +22,25 @@ class DashboardService
 
     private const BOOKING_STATUSES = ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'disputed'];
 
+    public function __construct(
+        private readonly CommissionLedger $ledger,
+        private readonly CommissionTierService $tiers,
+        private readonly SettingsService $settings,
+    ) {}
+
     /**
-     * Build the dashboard read model from the existing module tables.
+     * Build the dashboard read model from the existing module tables. The
+     * commission block is revenue data, so it is only included for viewers
+     * who may read commissions.
      *
      * @return array<string, mixed>
      */
-    public function summary(): array
+    public function summary(User $viewer): array
     {
         $bookingSummary = $this->bookingSummary();
 
         return [
+            ...($viewer->can('viewAny', CommissionTier::class) ? ['commission_summary' => $this->commissionSummary()] : []),
             'user_summary' => $this->userSummary(),
             'service_summary' => $this->serviceSummary(),
             'booking_summary' => $bookingSummary,
@@ -117,6 +130,50 @@ class DashboardService
             'resolved' => $counts['resolved'] ?? 0,
             'rejected' => $counts['rejected'] ?? 0,
         ];
+    }
+
+    /**
+     * What SkillServe has collected in commission, as pesos and as a share of
+     * the bookings it was collected on, plus the rates currently in force.
+     *
+     * `collected_rate` is the effective percentage: settled commission over
+     * the value of the settled bookings. It differs from any single tier's
+     * rate when bookings fell into different bands, or were charged before a
+     * rate change (each booking keeps its own snapshot).
+     *
+     * @return array<string, mixed>
+     */
+    private function commissionSummary(): array
+    {
+        $totals = $this->ledger->totals([]);
+        $collectedValue = (float) Booking::query()
+            ->where('commission_status', CommissionLedger::SETTLED)
+            ->sum('total_price');
+        $tiers = $this->tiers->activeTiers()->sortBy('min_amount')->values();
+
+        return [
+            'collected' => $totals['settled'],
+            'collected_booking_value' => $this->money($collectedValue),
+            'collected_rate' => $this->money($collectedValue > 0 ? (float) $totals['settled'] / $collectedValue * 100 : 0),
+            'outstanding' => $totals['outstanding'],
+            'waived' => $totals['waived'],
+            // tiers: the bands below decide the rate. fallback: no band is
+            // active, so every booking is charged the flat settings rate.
+            'rate_source' => $tiers->isEmpty() ? 'fallback' : 'tiers',
+            'fallback_rate' => $this->money((float) $this->settings->value('marketplace', 'commission_rate')),
+            'tiers' => $tiers->map(fn (CommissionTier $tier): array => [
+                'id' => $tier->id,
+                'name' => $tier->name,
+                'min_amount' => $tier->min_amount,
+                'max_amount' => $tier->max_amount,
+                'percentage' => $tier->percentage,
+            ])->all(),
+        ];
+    }
+
+    private function money(float $value): string
+    {
+        return number_format($value, 2, '.', '');
     }
 
     /** @return array<int, array<string, mixed>> */

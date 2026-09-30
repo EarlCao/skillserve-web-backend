@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('commission-tiers')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [CommissionTierController::class, 'index']);
     Route::post('/', [CommissionTierController::class, 'store']);
+    Route::get('/presets', [CommissionTierController::class, 'presets']);
+    Route::post('/presets/{preset}/apply', [CommissionTierController::class, 'applyPreset'])->where('preset', '[a-z0-9_]+');
     Route::get('/{commissionTier}', [CommissionTierController::class, 'show'])->whereNumber('commissionTier');
     Route::put('/{commissionTier}', [CommissionTierController::class, 'update'])->whereNumber('commissionTier');
     Route::patch('/{commissionTier}', [CommissionTierController::class, 'update'])->whereNumber('commissionTier');

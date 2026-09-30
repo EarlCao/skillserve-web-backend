@@ -288,6 +288,70 @@ class CommissionTierTest extends TestCase
         $this->assertSame($actor->id, $activity->causer_id);
     }
 
+    public function test_presets_can_be_listed_with_the_view_permission(): void
+    {
+        [, $token] = $this->actingAdministrator(['view commissions']);
+
+        $this->withToken($token)
+            ->getJson('/api/commission-tiers/presets')
+            ->assertOk()
+            ->assertJsonPath('data.0.key', 'standard')
+            ->assertJsonCount(4, 'data.0.tiers')
+            ->assertJsonPath('data.0.tiers.3.max_amount', null)
+            ->assertJsonPath('data.1.key', 'flat_10')
+            ->assertJsonPath('data.1.tiers.0.percentage', '10.00');
+    }
+
+    public function test_applying_a_preset_replaces_the_active_tiers(): void
+    {
+        [$admin, $token] = $this->actingAdministrator();
+        $old = $this->tier(['min_amount' => 0, 'max_amount' => null, 'percentage' => 12]);
+        $disabled = $this->tier(['name' => 'Old promo', 'is_active' => false]);
+
+        $this->withToken($token)
+            ->postJson('/api/commission-tiers/presets/standard/apply')
+            ->assertOk()
+            ->assertJsonCount(4, 'data')
+            ->assertJsonPath('data.0.min_amount', '0.00')
+            ->assertJsonPath('data.0.percentage', '5.00')
+            ->assertJsonPath('data.3.is_open_ended', true);
+
+        $this->assertSoftDeleted('commission_tiers', ['id' => $old->id]);
+        $this->assertDatabaseHas('commission_tiers', ['id' => $disabled->id, 'deleted_at' => null]);
+        $this->assertSame(4, CommissionTier::query()->active()->count());
+        $this->assertSame(15.0, (float) app(CommissionTierService::class)->resolve(750)->percentage);
+        $this->assertSame($admin->id, CommissionTier::query()->active()->first()->created_by);
+
+        // Applying another preset over it replaces it just the same.
+        $this->withToken($token)
+            ->postJson('/api/commission-tiers/presets/flat_10/apply')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+        $this->assertSame(10.0, (float) app(CommissionTierService::class)->resolve(5000)->percentage);
+        $this->assertSame(1, CommissionTier::query()->active()->count());
+    }
+
+    public function test_applying_a_preset_needs_the_manage_permission(): void
+    {
+        [, $token] = $this->actingAdministrator(['view commissions']);
+
+        $this->withToken($token)
+            ->postJson('/api/commission-tiers/presets/standard/apply')
+            ->assertForbidden();
+        $this->assertSame(0, CommissionTier::query()->count());
+    }
+
+    public function test_an_unknown_preset_is_not_found(): void
+    {
+        [, $token] = $this->actingAdministrator();
+        $tier = $this->tier();
+
+        $this->withToken($token)
+            ->postJson('/api/commission-tiers/presets/generous/apply')
+            ->assertNotFound();
+        $this->assertDatabaseHas('commission_tiers', ['id' => $tier->id, 'deleted_at' => null]);
+    }
+
     public function test_resolving_picks_the_band_that_covers_the_amount(): void
     {
         $this->tier(['name' => 'Low', 'min_amount' => 0, 'max_amount' => 199.99, 'percentage' => 5]);
