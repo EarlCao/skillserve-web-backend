@@ -42,7 +42,7 @@ class UserController extends Controller
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Search by name, email or user ID', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'status', in: 'query', description: 'Filter by account status', required: false, schema: new OA\Schema(type: 'string', enum: ['active', 'suspended', 'banned'])),
-            new OA\Parameter(name: 'verification', in: 'query', description: 'Filter by verification status', required: false, schema: new OA\Schema(type: 'string', enum: ['verified', 'unverified'])),
+            new OA\Parameter(name: 'verification', in: 'query', description: 'Filter by email confirmation (the sign-up OTP), not the National ID', required: false, schema: new OA\Schema(type: 'string', enum: ['verified', 'unverified'])),
             new OA\Parameter(name: 'sort', in: 'query', description: 'Sort column', required: false, schema: new OA\Schema(type: 'string', enum: ['name', 'created_at', 'last_login_at'], default: 'created_at')),
             new OA\Parameter(name: 'direction', in: 'query', description: 'Sort direction', required: false, schema: new OA\Schema(type: 'string', enum: ['asc', 'desc'], default: 'desc')),
             new OA\Parameter(name: 'per_page', in: 'query', description: 'Items per page', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
@@ -69,6 +69,7 @@ class UserController extends Controller
                                 'phone' => '+1 555 0100',
                                 'status' => 'active',
                                 'verification' => 'verified',
+                                'identity_status' => 'pending',
                                 'last_login_at' => null,
                                 'created_by' => null,
                                 'created_at' => '2026-08-07T08:00:00+00:00',

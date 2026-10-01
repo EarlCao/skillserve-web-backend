@@ -4,6 +4,7 @@ namespace App\Modules\Users\Resources;
 
 use App\Modules\Authentication\Resources\UserResource;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
+use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Shared\Enums\AccountRole;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
@@ -40,7 +41,14 @@ class UserManagementResource extends UserResource
             // until then.
             'profile_photo_url' => ClientProfileService::photoUrl($this->profile_photo_path),
             'status' => $this->status,
+            // Email confirmation (the sign-up OTP), not the National ID.
             'verification' => $this->email_verified_at ? 'verified' : 'unverified',
+            // The National ID review: unverified (never submitted), pending,
+            // verified or rejected.
+            'identity_status' => $this->when(
+                $this->resource->relationLoaded('identityVerification'),
+                fn () => $this->identityVerification?->status ?? IdentityVerification::UNVERIFIED,
+            ),
             'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_by' => $this->whenLoaded('createdBy', fn () => $this->createdBy ? [

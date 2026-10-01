@@ -11,10 +11,12 @@ use App\Modules\Services\Models\Service;
 use App\Modules\Users\Mail\UserBannedMail;
 use App\Modules\Users\Mail\UserUnbannedMail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -154,6 +156,37 @@ class UserManagementTest extends TestCase
             ->getJson('/api/users')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 0);
+    }
+
+    public function test_email_confirmation_and_national_id_review_are_reported_separately(): void
+    {
+        Storage::fake('identity');
+        [, $token] = $this->actingManager();
+        $customer = $this->createUser(['email' => 'pending.id@skillserve.test', 'email_verified_at' => now()]);
+        $this->createUser(['email' => 'no.id@skillserve.test', 'email_verified_at' => now()]);
+
+        $this->withToken($customer->createToken('client', ['client:auth'])->plainTextToken)
+            ->postJson('/api/client/v1/identity-verification', [
+                'id_number' => '1234567890123456',
+                'full_name' => 'Alice Customer',
+                'birthdate' => '1995-04-02',
+                'documents' => [
+                    ['type' => 'id_front', 'file' => UploadedFile::fake()->create('front.jpg', 120, 'image/jpeg')],
+                ],
+            ])
+            ->assertCreated();
+        $this->app['auth']->forgetGuards();
+
+        // A confirmed email is not a verified identity: the ID is still awaiting review.
+        $rows = collect($this->withToken($token)->getJson('/api/users?per_page=50')->assertOk()->json('data'))->keyBy('email');
+        $this->assertSame('verified', $rows['pending.id@skillserve.test']['verification']);
+        $this->assertSame('pending', $rows['pending.id@skillserve.test']['identity_status']);
+        $this->assertSame('unverified', $rows['no.id@skillserve.test']['identity_status']);
+
+        $this->withToken($token)->getJson("/api/users/{$customer->id}")
+            ->assertOk()
+            ->assertJsonPath('data.verification', 'verified')
+            ->assertJsonPath('data.identity_status', 'pending');
     }
 
     public function test_show_returns_a_single_user_profile(): void

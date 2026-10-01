@@ -58,7 +58,7 @@ class UserManagementService extends BaseService
             ->customers()
             // roles + permissions are read by the base UserResource — eager
             // loading them avoids an N+1 on every row of the listing.
-            ->with(['roles', 'roles.permissions', 'createdBy:id,name'])
+            ->with(['roles', 'roles.permissions', 'createdBy:id,name', 'identityVerification:id,user_id,status'])
             ->withCount([
                 'services',
                 'clientBookings as bookings_count',
@@ -117,6 +117,7 @@ class UserManagementService extends BaseService
             'activatedBy:id,name',
             'bannedBy:id,name',
             'deletedBy:id,name',
+            'identityVerification:id,user_id,status',
             'activities' => fn ($query) => $query->latest()->limit(20),
         ])->loadCount([
             'services',
