@@ -27,6 +27,9 @@ final class CreateServiceAction extends BaseAction
             'currency' => $validated['currency'] ?? 'PHP',
             'duration' => $validated['duration'] ?? null,
             'location' => $validated['location'] ?? null,
+            ...array_intersect_key($validated, array_flip([
+                'location_region_code', 'location_province_code', 'location_city_code', 'location_barangay_code',
+            ])),
             'status' => 'draft',
             'approval_status' => 'pending',
             'created_by' => $actor->id,

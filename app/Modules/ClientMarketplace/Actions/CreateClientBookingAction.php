@@ -41,6 +41,10 @@ final class CreateClientBookingAction extends BaseAction
             'payment_method' => $data['payment_method'] ?? null,
             'client_notes' => $data['client_notes'] ?? null,
             'service_address' => $data['service_address'] ?? null,
+            ...array_intersect_key($data, array_flip([
+                'service_region_code', 'service_province_code', 'service_city_code',
+                'service_barangay_code', 'service_street', 'service_postal_code',
+            ])),
             'contact_phone' => $data['contact_phone'] ?? null,
             'scheduled_date' => $data['scheduled_date'],
             'scheduled_end_date' => $data['scheduled_end_date'],

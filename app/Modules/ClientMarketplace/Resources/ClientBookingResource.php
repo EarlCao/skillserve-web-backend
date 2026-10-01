@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\Bookings\Services\BookingRules;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Resources\BaseResource;
 
 class ClientBookingResource extends BaseResource
@@ -25,6 +26,7 @@ class ClientBookingResource extends BaseResource
             'cancellation_payment_policy' => $this->when($this->isCancelled(), fn () => $this->cancellationPaymentPolicy()),
             'client_notes' => $this->client_notes,
             'service_address' => $this->service_address,
+            'service_address_details' => app(PhAddressService::class)->present($this->resource, 'service', PhAddressService::STREET),
             'contact_phone' => $this->contact_phone,
             'cancellation_reason' => $this->cancellation_reason,
             'cancellation_fee' => $this->cancellation_fee,

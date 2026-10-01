@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Requests;
 
 use App\Modules\Bookings\Enums\PaymentMethod;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Helpers\BusinessTime;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
@@ -39,7 +40,10 @@ class StoreClientBookingRequest extends BaseFormRequest
             // When omitted, the service duration determines the end time.
             'scheduled_end_date' => ['sometimes', 'nullable', 'date', 'after:scheduled_date'],
             'client_notes' => ['sometimes', 'nullable', 'string', 'max:2000'],
+            // Free text from older app versions; the structured address below
+            // replaces it when sent.
             'service_address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            ...PhAddressService::rules('service_address_details', PhAddressService::STREET),
             'contact_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
             'payment_method' => ['sometimes', 'nullable', 'string', Rule::in(PaymentMethod::canonical())],
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:100'],

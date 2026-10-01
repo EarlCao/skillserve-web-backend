@@ -21,6 +21,55 @@ use OpenApi\Attributes as OA;
     description: 'Paste the Sanctum token returned by POST /api/auth/login.',
 )]
 #[OA\Schema(
+    schema: 'PhPlace',
+    description: 'A place from the PSA PSGC list (GET /api/client/v1/locations/*).',
+    properties: [
+        new OA\Property(property: 'code', type: 'string', example: '137404000'),
+        new OA\Property(property: 'name', type: 'string', example: 'Quezon City'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'PhAddressInput',
+    description: 'A door address. Send only the barangay; the server derives its city, province and region, and stores a formatted copy in the matching text field. Null clears it.',
+    required: ['barangay_code'],
+    properties: [
+        new OA\Property(property: 'barangay_code', type: 'string', pattern: '^[0-9]{9}$', example: '137404009'),
+        new OA\Property(property: 'street', type: 'string', maxLength: 255, nullable: true, example: '123 Rizal St'),
+        new OA\Property(property: 'postal_code', type: 'string', pattern: '^[0-9]{4}$', nullable: true, example: '1105'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'PhAreaInput',
+    description: 'A service area: a city or municipality, optionally narrowed to one of its barangays (422 when the barangay is elsewhere). The server derives province and region and stores a formatted copy in `location`. Null clears it.',
+    required: ['city_code'],
+    properties: [
+        new OA\Property(property: 'city_code', type: 'string', pattern: '^[0-9]{9}$', example: '045805000'),
+        new OA\Property(property: 'barangay_code', type: 'string', pattern: '^[0-9]{9}$', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'PhAddress',
+    description: 'A stored door address as codes and names, to pre-fill the picker. `province` is null for NCR cities. The whole object is null when only free text was ever entered.',
+    properties: [
+        new OA\Property(property: 'region', ref: '#/components/schemas/PhPlace'),
+        new OA\Property(property: 'province', ref: '#/components/schemas/PhPlace', nullable: true),
+        new OA\Property(property: 'city', ref: '#/components/schemas/PhPlace'),
+        new OA\Property(property: 'barangay', ref: '#/components/schemas/PhPlace', nullable: true),
+        new OA\Property(property: 'street', type: 'string', nullable: true),
+        new OA\Property(property: 'postal_code', type: 'string', nullable: true),
+    ],
+)]
+#[OA\Schema(
+    schema: 'PhArea',
+    description: 'A stored service area as codes and names; null when only free text was ever entered.',
+    properties: [
+        new OA\Property(property: 'region', ref: '#/components/schemas/PhPlace'),
+        new OA\Property(property: 'province', ref: '#/components/schemas/PhPlace', nullable: true),
+        new OA\Property(property: 'city', ref: '#/components/schemas/PhPlace'),
+        new OA\Property(property: 'barangay', ref: '#/components/schemas/PhPlace', nullable: true),
+    ],
+)]
+#[OA\Schema(
     schema: 'ApiEnvelope',
     required: ['success', 'message'],
     // Schema-level example: Swagger UI uses it as the fallback for any
@@ -91,6 +140,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
         new OA\Property(property: 'phone', type: 'string', nullable: true, example: '+639171234567'),
         new OA\Property(property: 'address', type: 'string', nullable: true),
+        new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddress', nullable: true),
         new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true),
         new OA\Property(property: 'status', type: 'string', example: 'active'),
         new OA\Property(property: 'role_id', type: 'integer', example: 4, description: 'users.role_id → roles.id: 1 super-admin, 2 admin, 3 provider, 4 customer'),
@@ -149,6 +199,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'currency', type: 'string', example: 'PHP'),
         new OA\Property(property: 'duration', type: 'string', nullable: true),
         new OA\Property(property: 'location', type: 'string', nullable: true),
+        new OA\Property(property: 'location_details', ref: '#/components/schemas/PhArea', nullable: true),
         new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
         new OA\Property(property: 'total_reviews', type: 'integer'),
         new OA\Property(property: 'total_bookings', type: 'integer'),
@@ -188,7 +239,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'price', type: 'number', format: 'float', minimum: 0, description: 'Amount in Philippine pesos'),
         new OA\Property(property: 'price_type', type: 'string', enum: ['fixed', 'hourly', 'custom']),
         new OA\Property(property: 'duration', type: 'string', maxLength: 100, nullable: true),
-        new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true),
+        new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true, description: 'Free text from older app versions; location_details replaces it'),
+        new OA\Property(property: 'location_details', ref: '#/components/schemas/PhAreaInput', nullable: true),
     ],
 )]
 #[OA\Schema(
@@ -308,6 +360,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'cancellation_payment_policy', type: 'string', nullable: true),
         new OA\Property(property: 'client_notes', type: 'string', nullable: true),
         new OA\Property(property: 'service_address', type: 'string', nullable: true),
+        new OA\Property(property: 'service_address_details', ref: '#/components/schemas/PhAddress', nullable: true),
         new OA\Property(property: 'contact_phone', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_fee', type: 'string', nullable: true, example: '150.00', description: 'A late-cancellation fee recorded when the booking was cancelled'),
@@ -379,6 +432,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'client_notes', type: 'string', nullable: true),
         new OA\Property(property: 'provider_notes', type: 'string', nullable: true),
         new OA\Property(property: 'service_address', type: 'string', nullable: true),
+        new OA\Property(property: 'service_address_details', ref: '#/components/schemas/PhAddress', nullable: true),
         new OA\Property(property: 'contact_phone', type: 'string', nullable: true),
         new OA\Property(property: 'cancellation_reason', type: 'string', nullable: true),
         new OA\Property(property: 'scheduled_date', type: 'string', format: 'date-time', nullable: true),

@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Requests;
 
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Requests\BaseFormRequest;
 
 /**
@@ -28,7 +29,10 @@ class UpdateClientProfileRequest extends BaseFormRequest
             'first_name' => ['sometimes', 'required', 'string', 'max:255'],
             'last_name' => ['sometimes', 'required', 'string', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            // Free text from older app versions; the structured address below
+            // replaces it when sent.
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
+            ...PhAddressService::rules('address_details', PhAddressService::STREET),
         ];
     }
 }

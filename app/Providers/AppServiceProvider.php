@@ -56,6 +56,7 @@ use App\Modules\IdentityVerification\Events\IdentityVerificationSubmitted;
 use App\Modules\IdentityVerification\Listeners\LogIdentityVerificationActivity;
 use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Policies\IdentityVerificationPolicy;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
@@ -153,6 +154,10 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(RealtimeChangeTracker::class);
+
+        // Place names looked up while presenting addresses are reused for the
+        // rest of the request.
+        $this->app->scoped(PhAddressService::class);
 
         // Commission rates are the same for every amount priced in a request,
         // so the calculator fetches the tiers once and the whole request

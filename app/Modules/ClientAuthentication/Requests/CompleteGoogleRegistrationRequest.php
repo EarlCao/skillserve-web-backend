@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Requests;
 
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -36,6 +37,10 @@ class CompleteGoogleRegistrationRequest extends BaseFormRequest
             'specialization' => ['required_if:role,provider', 'nullable', 'string', 'max:255'],
             'experience_years' => ['sometimes', 'integer', 'min:0', 'max:80'],
             'bio' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            // Read from the National ID at sign-up; optional so older app
+            // versions, which do not send them, keep working.
+            'birthday' => ['sometimes', 'nullable', 'date', 'before:today', 'after:1900-01-01'],
+            ...PhAddressService::rules('address_details', PhAddressService::STREET),
         ];
     }
 }

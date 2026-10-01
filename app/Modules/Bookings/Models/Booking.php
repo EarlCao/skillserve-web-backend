@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'payment_method', 'payment_reference', 'paid_at', 'payment_recorded_by',
     'refunded_amount', 'refunded_at', 'refund_reason', 'client_notes', 'provider_notes',
     'service_address', 'contact_phone',
+    'service_region_code', 'service_province_code', 'service_city_code', 'service_barangay_code',
+    'service_street', 'service_postal_code',
     'cancellation_reason', 'cancellation_fee', 'scheduled_date', 'scheduled_end_date',
     'confirmed_at', 'started_at', 'completed_at', 'cancelled_at', 'rescheduled_at',
     'dispute_reason', 'disputed_at', 'dispute_status', 'dispute_resolution',

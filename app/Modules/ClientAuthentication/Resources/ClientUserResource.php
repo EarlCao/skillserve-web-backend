@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Resources;
 
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\AccountRestrictedException;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ class ClientUserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'address' => $this->address,
+            // The same address as codes and names for the picker; null when
+            // only free text was ever entered.
+            'address_details' => app(PhAddressService::class)->present($this->resource, 'address', PhAddressService::STREET),
             // Absolute URL derived from the stored path, so the app can
             // load it directly without knowing where photos are kept.
             'profile_picture' => ClientProfileService::photoUrl($this->profile_photo_path),

@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Services;
 
 use App\Models\User;
 use App\Modules\Commissions\Services\TransactionEligibility;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Actions\CreateServiceAction;
 use App\Modules\Services\Actions\DeleteServiceAction;
@@ -57,6 +58,7 @@ class ProviderServiceService extends BaseService
     public function create(User $providerUser, array $data): Service
     {
         $profile = $this->verifiedProfile($providerUser);
+        $data = $this->withLocation($data);
 
         return $this->transaction(function () use ($providerUser, $profile, $data): Service {
             $service = $this->createServiceAction->handle(
@@ -75,6 +77,7 @@ class ProviderServiceService extends BaseService
     {
         $this->verifiedProfile($providerUser);
         $service = $this->owned($providerUser, $service);
+        $data = $this->withLocation($data);
 
         // Saving identical values must not pull a live service back into review.
         if (! (clone $service)->fill($data)->isDirty()) {
@@ -164,5 +167,31 @@ class ProviderServiceService extends BaseService
         }
 
         return $service;
+    }
+
+    /**
+     * A structured `location_details` (city/municipality, optionally a
+     * barangay) becomes the location columns and their formatted text in
+     * `location`; a plain `location` (older app versions) clears the codes.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function withLocation(array $data): array
+    {
+        $addresses = app(PhAddressService::class);
+
+        if (array_key_exists('location_details', $data)) {
+            $location = $addresses->resolve($data['location_details'], 'location', PhAddressService::AREA, 'location_details');
+            unset($data['location_details']);
+
+            return [...$data, ...$location['columns'], 'location' => $location['formatted']];
+        }
+
+        if (array_key_exists('location', $data)) {
+            return [...$data, ...$addresses->resolve(null, 'location', PhAddressService::AREA, 'location_details')['columns']];
+        }
+
+        return $data;
     }
 }

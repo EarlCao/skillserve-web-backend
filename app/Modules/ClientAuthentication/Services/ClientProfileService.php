@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
+use App\Modules\Locations\Services\PhAddressService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -38,7 +39,11 @@ class ClientProfileService
      * request are written, so a partial update cannot blank a field the
      * screen did not send.
      *
-     * @param  array{first_name?: string, last_name?: string, phone?: string|null, address?: string|null}  $validated
+     * A structured `address_details` sets the address codes and writes their
+     * formatted text to `address`; a plain `address` (older app versions)
+     * clears the codes, which no longer describe it.
+     *
+     * @param  array{first_name?: string, last_name?: string, phone?: string|null, address?: string|null, address_details?: array<string, mixed>|null}  $validated
      */
     public function update(User $user, array $validated): User
     {
@@ -48,6 +53,13 @@ class ClientProfileService
             'phone',
             'address',
         ]));
+
+        if (array_key_exists('address_details', $validated)) {
+            $address = app(PhAddressService::class)->resolve($validated['address_details'], 'address', PhAddressService::STREET, 'address_details');
+            $attributes = [...$attributes, ...$address['columns'], 'address' => $address['formatted']];
+        } elseif (array_key_exists('address', $attributes)) {
+            $attributes = [...$attributes, ...app(PhAddressService::class)->resolve(null, 'address', PhAddressService::STREET, 'address_details')['columns']];
+        }
 
         if ($attributes === []) {
             return $user;

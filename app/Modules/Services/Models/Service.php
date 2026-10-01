@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 #[Fillable([
     'provider_id', 'category_id', 'subcategory_id', 'title', 'description',
     'price', 'price_type', 'currency', 'duration', 'location',
+    'location_region_code', 'location_province_code', 'location_city_code', 'location_barangay_code',
     'status', 'approval_status', 'rejection_reason', 'is_featured', 'is_hidden',
     'total_bookings', 'completed_bookings', 'average_rating', 'total_reviews',
     'created_by', 'updated_by', 'approved_by', 'approved_at', 'deleted_by',

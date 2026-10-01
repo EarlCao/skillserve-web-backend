@@ -31,7 +31,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'role_id', 'user_type', 'phone', 'address', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
+#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'role_id', 'user_type', 'phone', 'address', 'address_region_code', 'address_province_code', 'address_city_code', 'address_barangay_code', 'address_street', 'address_postal_code', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {

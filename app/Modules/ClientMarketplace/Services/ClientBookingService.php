@@ -11,6 +11,7 @@ use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientMarketplace\Actions\CancelClientBookingAction;
 use App\Modules\ClientMarketplace\Actions\CreateClientBookingAction;
 use App\Modules\Commissions\Services\TransactionEligibility;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Modules\Providers\Models\ProviderAvailability;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Services\Models\Service;
@@ -67,6 +68,14 @@ class ClientBookingService extends BaseService
         $this->eligibility->assertIdentityVerified($client);
 
         $this->rules->assertBookingEnabled();
+
+        // A structured address becomes the booking's address columns and its
+        // formatted text, so everything downstream (idempotency, the
+        // provider's view) reads one `service_address`.
+        if (! empty($data['service_address_details'])) {
+            $address = app(PhAddressService::class)->resolve($data['service_address_details'], 'service', PhAddressService::STREET, 'service_address_details');
+            $data = [...$data, ...$address['columns'], 'service_address' => $address['formatted']];
+        }
 
         try {
             $booking = $this->transaction(function () use ($client, $data, $idempotencyKey): Booking {

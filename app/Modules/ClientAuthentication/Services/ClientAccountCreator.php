@@ -18,8 +18,17 @@ use Illuminate\Support\Facades\DB;
  */
 class ClientAccountCreator
 {
+    /** Profile fields carried over from the sign-up form. */
+    private const PROFILE = [
+        'birthday', 'address', 'address_region_code', 'address_province_code', 'address_city_code',
+        'address_barangay_code', 'address_street', 'address_postal_code',
+    ];
+
     /**
-     * @param  array{first_name: string, last_name: string, email: string, password: string, role_id: int, business_name?: string|null, specialization?: string|null, experience_years?: int|null, bio?: string|null}  $attributes
+     * `birthday`, `address` and the `address_*` columns are copied when
+     * present: they come from the National ID scanned at sign-up.
+     *
+     * @param  array{first_name: string, last_name: string, email: string, password: string, role_id: int, business_name?: string|null, specialization?: string|null, experience_years?: int|null, bio?: string|null, birthday?: mixed, address?: string|null}  $attributes
      */
     public function create(array $attributes, ?string $googleSub = null): User
     {
@@ -37,6 +46,7 @@ class ClientAccountCreator
                 'password' => $attributes['password'],
                 'role_id' => $roleId,
                 'status' => 'active',
+                ...array_intersect_key($attributes, array_flip(self::PROFILE)),
             ]);
 
             // Not mass-assignable: the account only reaches this point once

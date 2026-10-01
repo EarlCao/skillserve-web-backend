@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
@@ -38,6 +39,7 @@ class ClientGoogleAuthService
         private readonly ClientSessionService $sessionService,
         private readonly ClientAccountCreator $accountCreator,
         private readonly ClientEmailOtpService $otpService,
+        private readonly PhAddressService $addresses,
     ) {}
 
     /**
@@ -97,6 +99,10 @@ class ClientGoogleAuthService
             ? AccountRole::Provider->value
             : AccountRole::Customer->value;
 
+        // Read from the National ID at sign-up; resolved before the account
+        // exists so an address in the wrong city is a validation error.
+        $address = $this->addresses->resolve($validated['address_details'] ?? null, 'address', PhAddressService::STREET, 'address_details');
+
         try {
             $user = $this->accountCreator->create([
                 'first_name' => $validated['first_name'],
@@ -109,6 +115,9 @@ class ClientGoogleAuthService
                 'specialization' => $validated['specialization'] ?? null,
                 'experience_years' => $validated['experience_years'] ?? 0,
                 'bio' => $validated['bio'] ?? null,
+                'birthday' => $validated['birthday'] ?? null,
+                ...$address['columns'],
+                'address' => $address['formatted'],
             ], $googleSub !== '' ? $googleSub : null);
         } catch (UniqueConstraintViolationException $e) {
             // A concurrent submission of the same form won the race; sign

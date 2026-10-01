@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Requests;
 
+use App\Modules\Locations\Services\PhAddressService;
 use App\Modules\Services\Models\Service;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,7 @@ class UpdateProviderServiceRequest extends BaseFormRequest
             'price_type' => ['sometimes', 'string', Rule::in(['fixed', 'hourly', 'custom'])],
             'duration' => ['sometimes', 'nullable', 'string', 'max:100'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            ...PhAddressService::rules('location_details', PhAddressService::AREA),
         ];
     }
 

@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\ClientMarketplace\Services\ClientCatalogService;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Resources\BaseResource;
 
 class ClientServiceResource extends BaseResource
@@ -18,6 +19,9 @@ class ClientServiceResource extends BaseResource
             'currency' => $this->currency,
             'duration' => $this->duration,
             'location' => $this->location,
+            // The service area as codes and names for the picker; null when
+            // only free text was ever entered.
+            'location_details' => app(PhAddressService::class)->present($this->resource, 'location', PhAddressService::AREA),
             'is_featured' => (bool) $this->is_featured && ClientCatalogService::featuredServicesEnabled(),
             'average_rating' => $this->average_rating,
             'total_reviews' => $this->total_reviews,

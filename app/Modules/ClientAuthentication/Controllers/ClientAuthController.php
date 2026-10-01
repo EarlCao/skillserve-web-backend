@@ -66,6 +66,8 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'password123'),
                 new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),
         responses: [
@@ -101,6 +103,8 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, example: 'Home Repair'),
                 new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
                 new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),
         responses: [
@@ -309,6 +313,8 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, nullable: true, description: 'Required when role is provider', example: 'Home Repair'),
                 new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
                 new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),
         responses: [
@@ -403,7 +409,8 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Juan'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Dela Cruz'),
                 new OA\Property(property: 'phone', type: 'string', maxLength: 30, nullable: true, example: '09171234567'),
-                new OA\Property(property: 'address', type: 'string', maxLength: 500, nullable: true, example: '123 Mabini St, Manila'),
+                new OA\Property(property: 'address', type: 'string', maxLength: 500, nullable: true, example: '123 Mabini St, Manila', description: 'Free text from older app versions; clears address_details'),
+                new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Sets the structured address and writes its formatted text to address'),
             ],
         )),
         responses: [

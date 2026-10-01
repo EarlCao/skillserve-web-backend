@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Requests;
 
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -23,6 +24,7 @@ class StoreProviderServiceRequest extends BaseFormRequest
             'price_type' => ['required', 'string', Rule::in(['fixed', 'hourly', 'custom'])],
             'duration' => ['sometimes', 'nullable', 'string', 'max:100'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            ...PhAddressService::rules('location_details', PhAddressService::AREA),
         ];
     }
 

@@ -4,6 +4,7 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
+use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -25,6 +26,7 @@ class PendingRegistrationService
         private readonly ClientEmailOtpService $otpService,
         private readonly ClientAccountCreator $accountCreator,
         private readonly ClientSessionService $sessionService,
+        private readonly PhAddressService $addresses,
     ) {}
 
     /**
@@ -37,6 +39,9 @@ class PendingRegistrationService
         $this->pruneExpired();
 
         $email = strtolower((string) $validated['email']);
+        // Resolved before anything is written, so an address in the wrong
+        // city is a validation error rather than a half-stored sign-up.
+        $address = $this->addresses->resolve($validated['address_details'] ?? null, 'address', PhAddressService::STREET, 'address_details');
 
         // A code sent moments ago is still valid. Refuse before replacing
         // anything, so signing up twice in quick succession cannot destroy
@@ -53,7 +58,7 @@ class PendingRegistrationService
             );
         }
 
-        $registration = DB::transaction(function () use ($validated, $roleId, $email): PendingRegistration {
+        $registration = DB::transaction(function () use ($validated, $roleId, $email, $address): PendingRegistration {
             // A repeat sign-up for the same address replaces the previous
             // attempt, so the newest details (and role) always win.
             PendingRegistration::query()->where('email', $email)->delete();
@@ -68,6 +73,8 @@ class PendingRegistrationService
                 'specialization' => $validated['specialization'] ?? null,
                 'experience_years' => $validated['experience_years'] ?? 0,
                 'bio' => $validated['bio'] ?? null,
+                'birthday' => $validated['birthday'] ?? null,
+                ...$address['columns'],
                 // Placeholders: issueForRegistration() writes the real code.
                 'email_otp_hash' => '',
                 'email_otp_expires_at' => now(),
@@ -148,6 +155,8 @@ class PendingRegistrationService
                 'specialization' => $claimed->specialization,
                 'experience_years' => $claimed->experience_years,
                 'bio' => $claimed->bio,
+                'birthday' => $claimed->birthday,
+                ...$this->addressOf($claimed),
             ]);
 
             $claimed->delete();
@@ -193,5 +202,31 @@ class PendingRegistrationService
     private function pruneExpired(): void
     {
         PendingRegistration::query()->where('expires_at', '<=', now())->delete();
+    }
+
+    /**
+     * The structured address parked with a sign-up, plus its formatted text
+     * for `users.address`.
+     *
+     * @return array<string, mixed>
+     */
+    private function addressOf(PendingRegistration $registration): array
+    {
+        $columns = array_filter($registration->only([
+            'address_region_code', 'address_province_code', 'address_city_code',
+            'address_barangay_code', 'address_street', 'address_postal_code',
+        ]), fn ($value) => $value !== null);
+
+        if (! isset($columns['address_barangay_code'])) {
+            return [];
+        }
+
+        $resolved = $this->addresses->resolve([
+            'barangay_code' => $columns['address_barangay_code'],
+            'street' => $columns['address_street'] ?? null,
+            'postal_code' => $columns['address_postal_code'] ?? null,
+        ], 'address', PhAddressService::STREET, 'address_details');
+
+        return [...$resolved['columns'], 'address' => $resolved['formatted']];
     }
 }

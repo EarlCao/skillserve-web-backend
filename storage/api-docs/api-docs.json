@@ -4032,6 +4032,21 @@
                                         "type": "string",
                                         "format": "password",
                                         "example": "password123"
+                                    },
+                                    "birthday": {
+                                        "description": "Read from the National ID",
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "address_details": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/PhAddressInput"
+                                            }
+                                        ],
+                                        "nullable": true,
+                                        "description": "Read from the National ID; becomes the account address"
                                     }
                                 },
                                 "type": "object"
@@ -4151,6 +4166,21 @@
                                         "type": "string",
                                         "nullable": true,
                                         "maxLength": 5000
+                                    },
+                                    "birthday": {
+                                        "description": "Read from the National ID",
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "address_details": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/PhAddressInput"
+                                            }
+                                        ],
+                                        "nullable": true,
+                                        "description": "Read from the National ID; becomes the account address"
                                     }
                                 },
                                 "type": "object"
@@ -4564,6 +4594,21 @@
                                         "type": "string",
                                         "nullable": true,
                                         "maxLength": 5000
+                                    },
+                                    "birthday": {
+                                        "description": "Read from the National ID",
+                                        "type": "string",
+                                        "format": "date",
+                                        "nullable": true
+                                    },
+                                    "address_details": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/PhAddressInput"
+                                            }
+                                        ],
+                                        "nullable": true,
+                                        "description": "Read from the National ID; becomes the account address"
                                     }
                                 },
                                 "type": "object"
@@ -4888,10 +4933,20 @@
                                         "maxLength": 30
                                     },
                                     "address": {
+                                        "description": "Free text from older app versions; clears address_details",
                                         "type": "string",
                                         "example": "123 Mabini St, Manila",
                                         "nullable": true,
                                         "maxLength": 500
+                                    },
+                                    "address_details": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/PhAddressInput"
+                                            }
+                                        ],
+                                        "nullable": true,
+                                        "description": "Sets the structured address and writes its formatted text to address"
                                     }
                                 },
                                 "type": "object"
@@ -6756,6 +6811,26 @@
                                         "type": "string",
                                         "nullable": true,
                                         "maxLength": 2000
+                                    },
+                                    "service_address": {
+                                        "description": "Free text from older app versions; service_address_details replaces it",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 255
+                                    },
+                                    "service_address_details": {
+                                        "oneOf": [
+                                            {
+                                                "$ref": "#/components/schemas/PhAddressInput"
+                                            }
+                                        ],
+                                        "nullable": true,
+                                        "description": "Where the provider should go; its formatted text becomes service_address"
+                                    },
+                                    "contact_phone": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 32
                                     },
                                     "payment_method": {
                                         "description": "SkillServe supports two payment methods: `on_hand` and `gcash`. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`; new clients should send `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422. Selection only — the booking stays unpaid, because no payment provider is called yet.",
@@ -19211,6 +19286,129 @@
     },
     "components": {
         "schemas": {
+            "PhPlace": {
+                "description": "A place from the PSA PSGC list (GET /api/client/v1/locations/*).",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "example": "137404000"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Quezon City"
+                    }
+                },
+                "type": "object"
+            },
+            "PhAddressInput": {
+                "description": "A door address. Send only the barangay; the server derives its city, province and region, and stores a formatted copy in the matching text field. Null clears it.",
+                "required": [
+                    "barangay_code"
+                ],
+                "properties": {
+                    "barangay_code": {
+                        "type": "string",
+                        "pattern": "^[0-9]{9}$",
+                        "example": "137404009"
+                    },
+                    "street": {
+                        "type": "string",
+                        "example": "123 Rizal St",
+                        "nullable": true,
+                        "maxLength": 255
+                    },
+                    "postal_code": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4}$",
+                        "example": "1105",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PhAreaInput": {
+                "description": "A service area: a city or municipality, optionally narrowed to one of its barangays (422 when the barangay is elsewhere). The server derives province and region and stores a formatted copy in `location`. Null clears it.",
+                "required": [
+                    "city_code"
+                ],
+                "properties": {
+                    "city_code": {
+                        "type": "string",
+                        "pattern": "^[0-9]{9}$",
+                        "example": "045805000"
+                    },
+                    "barangay_code": {
+                        "type": "string",
+                        "pattern": "^[0-9]{9}$",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PhAddress": {
+                "description": "A stored door address as codes and names, to pre-fill the picker. `province` is null for NCR cities. The whole object is null when only free text was ever entered.",
+                "properties": {
+                    "region": {
+                        "$ref": "#/components/schemas/PhPlace"
+                    },
+                    "province": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhPlace"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "city": {
+                        "$ref": "#/components/schemas/PhPlace"
+                    },
+                    "barangay": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhPlace"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "street": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "postal_code": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "PhArea": {
+                "description": "A stored service area as codes and names; null when only free text was ever entered.",
+                "properties": {
+                    "region": {
+                        "$ref": "#/components/schemas/PhPlace"
+                    },
+                    "province": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhPlace"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "city": {
+                        "$ref": "#/components/schemas/PhPlace"
+                    },
+                    "barangay": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhPlace"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "ApiEnvelope": {
                 "required": [
                     "success",
@@ -19384,6 +19582,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "address_details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhAddress"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "birthday": {
                         "type": "string",
                         "format": "date",
@@ -19551,6 +19757,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "location_details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhArea"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "average_rating": {
                         "type": "string",
                         "example": "4.50"
@@ -19697,9 +19911,18 @@
                         "maxLength": 100
                     },
                     "location": {
+                        "description": "Free text from older app versions; location_details replaces it",
                         "type": "string",
                         "nullable": true,
                         "maxLength": 255
+                    },
+                    "location_details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhAreaInput"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "type": "object"
@@ -20116,6 +20339,14 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "service_address_details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhAddress"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "contact_phone": {
                         "type": "string",
                         "nullable": true
@@ -20378,6 +20609,14 @@
                     },
                     "service_address": {
                         "type": "string",
+                        "nullable": true
+                    },
+                    "service_address_details": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/PhAddress"
+                            }
+                        ],
                         "nullable": true
                     },
                     "contact_phone": {
