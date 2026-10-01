@@ -11,6 +11,7 @@ use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ResolveDisputeRequest;
 use App\Modules\Bookings\Resources\BookingResource;
 use App\Modules\Bookings\Services\DisputeService;
+use App\Shared\Helpers\StoredFile;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -164,7 +165,7 @@ class DisputeController extends Controller
         abort_unless(is_array($item) && ! empty($item['path']), 404);
 
         $disk = Storage::disk('dispute_evidence');
-        abort_unless($disk->exists($item['path']), 404);
+        StoredFile::ensureExists($disk, $item['path'], 'This evidence file is no longer stored on the server.');
 
         return $disk->download($item['path'], basename($item['path']), [
             'Content-Type' => $item['mime_type'] ?? 'application/octet-stream',

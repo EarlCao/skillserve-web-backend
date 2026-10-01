@@ -308,8 +308,10 @@ class IdentityVerificationReviewTest extends TestCase
 
         Storage::disk('identity')->delete($document->file_path);
 
+        // Says why, rather than a bare 404 the admin web cannot explain.
         $this->withToken($token)
-            ->get("/api/identity-verifications/{$record->id}/documents/{$document->id}/download")
-            ->assertStatus(404);
+            ->getJson("/api/identity-verifications/{$record->id}/documents/{$document->id}/download")
+            ->assertStatus(404)
+            ->assertJsonPath('message', 'This ID image is no longer stored on the server. Ask the user to submit their National ID again.');
     }
 }

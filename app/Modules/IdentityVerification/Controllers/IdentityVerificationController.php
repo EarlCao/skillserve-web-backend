@@ -10,6 +10,7 @@ use App\Modules\IdentityVerification\Requests\IdentityVerificationIndexRequest;
 use App\Modules\IdentityVerification\Requests\RejectIdentityVerificationRequest;
 use App\Modules\IdentityVerification\Resources\AdminIdentityVerificationResource;
 use App\Modules\IdentityVerification\Services\IdentityVerificationService;
+use App\Shared\Helpers\StoredFile;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Storage;
@@ -181,7 +182,7 @@ class IdentityVerificationController extends Controller
         abort_unless($document->identity_verification_id === $identityVerification->id, 404);
 
         $disk = Storage::disk(config('identity.disk'));
-        abort_unless($disk->exists($document->file_path), 404);
+        StoredFile::ensureExists($disk, $document->file_path, 'This ID image is no longer stored on the server. Ask the user to submit their National ID again.');
 
         activity('identity_verifications')
             ->causedBy(request()->user())

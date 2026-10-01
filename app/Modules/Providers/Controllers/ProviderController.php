@@ -11,6 +11,7 @@ use App\Modules\Providers\Requests\RequestAdditionalInfoRequest;
 use App\Modules\Providers\Requests\SuspendProviderRequest;
 use App\Modules\Providers\Resources\ProviderResource;
 use App\Modules\Providers\Services\ProviderService;
+use App\Shared\Helpers\StoredFile;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -1316,7 +1317,7 @@ class ProviderController extends Controller
         abort_unless($document->verificationRequest?->provider_profile_id === $provider->id, 404);
 
         $disk = Storage::disk('verification');
-        abort_unless($disk->exists($document->file_path), 404);
+        StoredFile::ensureExists($disk, $document->file_path, 'This document is no longer stored on the server. Ask the provider to upload it again.');
 
         return $disk->download($document->file_path, $document->file_name, [
             'Content-Type' => $document->file_mime_type,
