@@ -32,6 +32,8 @@ php artisan view:cache
 php artisan storage:link --force
 php artisan migrate --force
 php artisan db:seed-if-empty
+# The address pickers' region/province/city/barangay list; a no-op once loaded.
+php artisan locations:import
 
 # Keep a background process alive: restart it shortly after it exits.
 supervise() {

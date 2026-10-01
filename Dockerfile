@@ -43,6 +43,7 @@ EXPOSE 8000
 CMD ["sh", "-c", "composer install --prefer-dist --no-progress --no-interaction \
     && (php artisan key:generate --no-interaction || true) \
     && php artisan migrate --force \
+    && php artisan locations:import \
     && (php artisan schedule:work > /dev/null 2>&1 &) \
     && (php artisan queue:work --queue=default --sleep=3 --tries=3 --timeout=90 > /dev/null 2>&1 &) \
     && php artisan serve --host=0.0.0.0 --port=8000"]

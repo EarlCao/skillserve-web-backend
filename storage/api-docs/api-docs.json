@@ -11173,6 +11173,158 @@
                 ]
             }
         },
+        "/api/client/v1/locations/regions": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "List the regions",
+                "description": "The first level of the address picker, in PSGC order. No authentication.",
+                "operationId": "f910c0942808c5892d085d04fe54b281",
+                "responses": {
+                    "200": {
+                        "description": "Regions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Regions retrieved.",
+                                    "data": [
+                                        {
+                                            "code": "130000000",
+                                            "name": "National Capital Region (NCR)",
+                                            "level": "region",
+                                            "parent_code": null
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/locations/{code}/children": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "List the places one level below a place",
+                "description": "A region's children are its provinces plus any city without a province (all of NCR), so check each item's `level`: `province` leads to its cities/municipalities, `city`/`municipality` leads to barangays. A barangay has no children. Sorted by name. No authentication.",
+                "operationId": "fe1c10a36614b539dbba58ed953953db",
+                "parameters": [
+                    {
+                        "name": "code",
+                        "in": "path",
+                        "description": "9-digit PSGC code",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^[0-9]{9}$",
+                            "example": "137404000"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The places below",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Locations retrieved.",
+                                    "data": [
+                                        {
+                                            "code": "137404009",
+                                            "name": "Bagong Pag-asa",
+                                            "level": "barangay",
+                                            "parent_code": "137404000"
+                                        }
+                                    ],
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown code"
+                    }
+                }
+            }
+        },
+        "/api/client/v1/locations/match": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Turn a free-text address into picker selections",
+                "description": "Used after scanning a National ID: the printed address (e.g. `123 RIZAL ST, BRGY BAGONG PAG-ASA, QUEZON CITY, METRO MANILA`) is matched to its region, province, city/municipality and barangay, and the part before them is returned as `street`. Tolerates ID spellings (`STA.`, `BRGY`, `X CITY` / `CITY OF X`) and a misread character. Anything it cannot decide is `null` rather than guessed — e.g. a municipality name shared by several provinces when no province is given — and the user confirms in the picker. `province` is null for NCR cities. No authentication.",
+                "operationId": "2c5bac285ae952ad93e579c06b8d5cd5",
+                "parameters": [
+                    {
+                        "name": "address",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 300
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Best match",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Address matched.",
+                                    "data": {
+                                        "region": {
+                                            "code": "130000000",
+                                            "name": "National Capital Region (NCR)",
+                                            "level": "region",
+                                            "parent_code": null
+                                        },
+                                        "province": null,
+                                        "city": {
+                                            "code": "137404000",
+                                            "name": "Quezon City",
+                                            "level": "city",
+                                            "parent_code": "130000000"
+                                        },
+                                        "barangay": {
+                                            "code": "137404009",
+                                            "name": "Bagong Pag-asa",
+                                            "level": "barangay",
+                                            "parent_code": "137404000"
+                                        },
+                                        "street": "123 RIZAL ST"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Missing or too long address"
+                    }
+                }
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -17796,7 +17948,7 @@
                     {
                         "name": "verification",
                         "in": "query",
-                        "description": "Filter by verification status",
+                        "description": "Filter by email confirmation (the sign-up OTP), not the National ID",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -17870,6 +18022,7 @@
                                             "phone": "+1 555 0100",
                                             "status": "active",
                                             "verification": "verified",
+                                            "identity_status": "pending",
                                             "last_login_at": null,
                                             "created_by": null,
                                             "created_at": "2026-08-07T08:00:00+00:00"
@@ -22053,6 +22206,10 @@
         {
             "name": "Transaction Eligibility",
             "description": "Whether the signed-in account may transact, and what is blocking it"
+        },
+        {
+            "name": "Locations",
+            "description": "Philippine regions, provinces, cities/municipalities and barangays (PSA PSGC) for address pickers"
         },
         {
             "name": "Notifications",
