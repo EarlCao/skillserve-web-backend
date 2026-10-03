@@ -6,9 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * The two outcomes of POST /auth/google, told apart by
- * `registration_required`: an issued session, or a draft to prefill the
- * sign-up form with because no account exists for this Google identity yet.
+ * The three outcomes of POST /auth/google:
+ *  - `password_required`: the account exists; ask for its password and call again;
+ *  - `registration_required`: no account yet; a draft to prefill the sign-up form;
+ *  - otherwise an issued session.
  */
 class ClientGoogleAuthResource extends JsonResource
 {
@@ -21,8 +22,16 @@ class ClientGoogleAuthResource extends JsonResource
             ];
         }
 
+        if ($this->resource['password_required'] ?? false) {
+            return [
+                'registration_required' => false,
+                'password_required' => true,
+                'email' => $this->resource['email'],
+            ];
+        }
+
         return array_merge(
-            ['registration_required' => false],
+            ['registration_required' => false, 'password_required' => false],
             (new ClientAuthResource($this->resource))->toArray($request),
         );
     }

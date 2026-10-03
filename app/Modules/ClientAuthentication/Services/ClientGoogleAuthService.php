@@ -4,14 +4,12 @@ namespace App\Modules\ClientAuthentication\Services;
 
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
-use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\AccountRestrictedException;
 use App\Shared\Exceptions\ApiException;
-use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 /**
  * Google Sign-In for the mobile app.
@@ -20,16 +18,21 @@ use Illuminate\Support\Str;
  * here. We validate it against Google's tokeninfo endpoint and require the
  * audience to match the configured client ID.
  *
+ * Google identifies the person; the account password is still required,
+ * so Google is never a way into an account on its own.
+ *
  * Resolution order, for both the Login and the Sign-up button:
- *  1. an account already linked to this Google `sub` signs in;
- *  2. an account owning the (Google-verified) email is linked to this
- *     Google account and signs in — the address has been proven, and the
- *     same person could take the account over with a password reset
- *     anyway, so refusing only locked people out of their own account;
+ *  1. an account already linked to this Google `sub`, or
+ *  2. an account owning the (Google-verified) email
+ *     -> without a password the caller is told one is needed
+ *        (`password_required`); with the right one it signs in, linking the
+ *        Google account. Accounts made by Google sign-up before passwords
+ *        were required set theirs through Forgot password;
  *  3. otherwise NOTHING is written. The caller is told a registration is
  *     required and gets Google's name/email to prefill the sign-up form,
- *     which comes back to {@see completeRegistration()}. Abandoning that
- *     form therefore leaves no half-made account behind.
+ *     which comes back to {@see startRegistration()}: like an email sign-up
+ *     it then confirms an emailed code and chooses a password before the
+ *     account exists.
  */
 class ClientGoogleAuthService
 {
@@ -37,18 +40,18 @@ class ClientGoogleAuthService
 
     public function __construct(
         private readonly ClientSessionService $sessionService,
-        private readonly ClientAccountCreator $accountCreator,
-        private readonly ClientEmailOtpService $otpService,
-        private readonly PhAddressService $addresses,
+        private readonly PendingRegistrationService $pendingRegistrations,
     ) {}
 
     /**
-     * Sign in with Google, or report that a sign-up must be completed.
+     * Sign in with Google and the account password, or report what is
+     * missing: the password, or the whole sign-up.
      *
-     * @return array<string, mixed> Session payload, or a registration draft
+     * @return array<string, mixed> Session payload; `password_required` with
+     *                              the account email; or a registration draft
      *                              under `registration_required`.
      */
-    public function authenticate(string $idToken): array
+    public function authenticate(string $idToken, ?string $password = null): array
     {
         $claims = $this->verifyIdToken($idToken);
 
@@ -58,6 +61,18 @@ class ClientGoogleAuthService
         $user = $this->findLinkedAccount($googleSub) ?? $this->findAccountByEmail($email);
 
         if ($user) {
+            if ($password === null) {
+                return [
+                    'registration_required' => false,
+                    'password_required' => true,
+                    'email' => $user->email,
+                ];
+            }
+
+            if (! Hash::check($password, $user->password)) {
+                throw new ApiException('Incorrect password.', 401, errors: ['password' => ['Incorrect password.']]);
+            }
+
             return $this->signIn($user, $googleSub);
         }
 
@@ -68,14 +83,15 @@ class ClientGoogleAuthService
     }
 
     /**
-     * Finish a Google sign-up once the user has supplied their details.
-     * The ID token is re-verified, so the caller cannot claim an address
-     * it does not own.
+     * Start a Google sign-up once the user has supplied their details. The
+     * ID token is re-verified, so the caller cannot claim an address it does
+     * not own. Like an email sign-up, nothing is created yet: a code goes to
+     * the Google address, and the account is made once it is confirmed and a
+     * password chosen ({@see PendingRegistrationService}).
      *
      * @param  array{id_token: string, role: string, first_name: string, last_name: string, business_name?: string|null, specialization?: string|null, experience_years?: int|null, bio?: string|null}  $validated
-     * @return array<string, mixed> Session payload (user + tokens).
      */
-    public function completeRegistration(array $validated): array
+    public function startRegistration(array $validated): PendingRegistration
     {
         $claims = $this->verifyIdToken((string) $validated['id_token']);
 
@@ -83,12 +99,10 @@ class ClientGoogleAuthService
         $googleSub = (string) ($claims['sub'] ?? '');
 
         // The account may have appeared between the two calls (a second
-        // device, or a retry): sign in rather than failing on the unique
-        // email index.
-        $existing = $this->findLinkedAccount($googleSub) ?? $this->findAccountByEmail($email);
-
-        if ($existing) {
-            return $this->signIn($existing, $googleSub);
+        // device, or a retry). Signing in needs its password now, so send
+        // the user to log in rather than parking a sign-up that would fail.
+        if ($this->findLinkedAccount($googleSub) ?? $this->findAccountByEmail($email)) {
+            throw new ApiException('This Google account already has a SkillServe account. Log in with Google and your password.', 409);
         }
 
         if ($validated['role'] === 'provider') {
@@ -99,43 +113,11 @@ class ClientGoogleAuthService
             ? AccountRole::Provider->value
             : AccountRole::Customer->value;
 
-        // Read from the National ID at sign-up; resolved before the account
-        // exists so an address in the wrong city is a validation error.
-        $address = $this->addresses->resolve($validated['address_details'] ?? null, 'address', PhAddressService::STREET, 'address_details');
-
-        try {
-            $user = $this->accountCreator->create([
-                'first_name' => $validated['first_name'],
-                'last_name' => $validated['last_name'],
-                'email' => $email,
-                // Google logins never use it, but the column requires a hash.
-                'password' => Str::random(64),
-                'role_id' => $roleId,
-                'business_name' => $validated['business_name'] ?? null,
-                'specialization' => $validated['specialization'] ?? null,
-                'experience_years' => $validated['experience_years'] ?? 0,
-                'bio' => $validated['bio'] ?? null,
-                'birthday' => $validated['birthday'] ?? null,
-                ...$address['columns'],
-                'address' => $address['formatted'],
-            ], $googleSub !== '' ? $googleSub : null);
-        } catch (UniqueConstraintViolationException $e) {
-            // A concurrent submission of the same form won the race; sign
-            // in to the account it created rather than failing this one.
-            $created = $this->findLinkedAccount($googleSub) ?? $this->findAccountByEmail($email);
-
-            if (! $created) {
-                throw $e;
-            }
-
-            return $this->signIn($created, $googleSub);
-        }
-
-        // An email/password sign-up for the same address is now moot.
-        PendingRegistration::query()->where('email', $email)->delete();
-        $this->otpService->clearCooldown($email);
-
-        return $this->sessionService->issue($user);
+        return $this->pendingRegistrations->start(
+            [...$validated, 'email' => $email],
+            $roleId,
+            $googleSub !== '' ? $googleSub : null,
+        );
     }
 
     private function findLinkedAccount(string $googleSub): ?User

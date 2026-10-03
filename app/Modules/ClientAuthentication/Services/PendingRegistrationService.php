@@ -9,16 +9,24 @@ use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
  * Deferred mobile sign-up.
  *
  * A registration is parked in `pending_registrations` and only becomes a
- * real account once the emailed OTP is confirmed. Abandoning the OTP screen
- * therefore leaves nothing behind: the address stays free and the same
- * person can sign up again immediately, which is the whole point of the
- * table.
+ * real account once it has been seen through. Abandoning it therefore leaves
+ * nothing behind: the address stays free and the same person can sign up
+ * again immediately, which is the whole point of the table.
+ *
+ * Email and Google sign-ups take the same three steps:
+ *  1. {@see start()} parks the details and emails a 6-digit code;
+ *  2. {@see verify()} confirms the code;
+ *  3. {@see completeWithPassword()} takes the password and creates the account.
+ *
+ * Sign-ups parked by older app versions already carry a password and are
+ * created by {@see complete()} as soon as the code is confirmed.
  */
 class PendingRegistrationService
 {
@@ -30,11 +38,13 @@ class PendingRegistrationService
     ) {}
 
     /**
-     * Park a sign-up and email its verification code.
+     * Park a sign-up and email its verification code. The returned row
+     * carries the registration token in plain text, for this response only.
      *
-     * @param  array{first_name: string, last_name: string, email: string, password: string, business_name?: string|null, specialization?: string|null, experience_years?: int|null, bio?: string|null}  $validated
+     * @param  array{first_name: string, last_name: string, email: string, password?: string|null, business_name?: string|null, specialization?: string|null, experience_years?: int|null, bio?: string|null}  $validated
+     * @param  string|null  $googleSub  The Google identity the sign-up started from.
      */
-    public function start(array $validated, int $roleId): PendingRegistration
+    public function start(array $validated, int $roleId, ?string $googleSub = null): PendingRegistration
     {
         $this->pruneExpired();
 
@@ -58,7 +68,9 @@ class PendingRegistrationService
             );
         }
 
-        $registration = DB::transaction(function () use ($validated, $roleId, $email, $address): PendingRegistration {
+        $token = Str::random(64);
+
+        $registration = DB::transaction(function () use ($validated, $roleId, $email, $address, $googleSub, $token): PendingRegistration {
             // A repeat sign-up for the same address replaces the previous
             // attempt, so the newest details (and role) always win.
             PendingRegistration::query()->where('email', $email)->delete();
@@ -67,7 +79,10 @@ class PendingRegistrationService
                 'email' => $email,
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
-                'password' => $validated['password'],
+                // Chosen after the code is confirmed; only older app versions send it here.
+                'password' => $validated['password'] ?? null,
+                'google_sub' => $googleSub,
+                'registration_token_hash' => $this->hashToken($token),
                 'role_id' => $roleId,
                 'business_name' => $validated['business_name'] ?? null,
                 'specialization' => $validated['specialization'] ?? null,
@@ -106,7 +121,10 @@ class PendingRegistrationService
             );
         }
 
-        return $registration->fresh();
+        $registration->refresh();
+        $registration->plainRegistrationToken = $token;
+
+        return $registration;
     }
 
     /** Email a fresh code for an in-flight sign-up. */
@@ -116,7 +134,31 @@ class PendingRegistrationService
     }
 
     /**
-     * Confirm the code and create the real account, returning its session.
+     * Confirm the emailed code. The password is chosen next, with
+     * {@see completeWithPassword()}. Confirming again is harmless, so a
+     * repeated submission of the same screen does not fail.
+     */
+    public function verify(PendingRegistration $registration, string $code): PendingRegistration
+    {
+        if ($registration->hasVerifiedEmail()) {
+            return $registration;
+        }
+
+        $this->otpService->verifyRegistration($registration, $code);
+
+        $registration->forceFill([
+            'email_verified_at' => now(),
+            // The code is spent; the column itself is NOT NULL.
+            'email_otp_hash' => '',
+            'email_otp_attempts' => 0,
+        ])->save();
+
+        return $registration;
+    }
+
+    /**
+     * Confirm the code of a sign-up that already carries its password (one
+     * parked by an older app version) and create the account.
      *
      * @return array<string, mixed>
      */
@@ -124,7 +166,40 @@ class PendingRegistrationService
     {
         $this->otpService->verifyRegistration($registration, $code);
 
-        $user = DB::transaction(function () use ($registration): User {
+        return $this->promote($registration);
+    }
+
+    /**
+     * The last step: set the password on a sign-up whose code was confirmed
+     * and create the account. The registration token proves this is the
+     * device that started the sign-up, so the email alone is not enough.
+     *
+     * @return array<string, mixed> Session payload (user + tokens).
+     */
+    public function completeWithPassword(string $email, string $registrationToken, string $password): array
+    {
+        $registration = $this->findUnexpired($email);
+
+        if (! $registration || ! $this->tokenMatches($registration, $registrationToken)) {
+            throw new ApiException('This sign-up has expired. Please start again.', 422);
+        }
+
+        if (! $registration->hasVerifiedEmail()) {
+            throw new ApiException('Enter the code we emailed you before choosing a password.', 422);
+        }
+
+        return $this->promote($registration, $password);
+    }
+
+    /**
+     * Turn a registration into the real account and sign it in.
+     *
+     * @param  string|null  $password  Plain password from the last step; null keeps the one parked with the sign-up.
+     * @return array<string, mixed>
+     */
+    private function promote(PendingRegistration $registration, ?string $password = null): array
+    {
+        $user = DB::transaction(function () use ($registration, $password): User {
             // Claim the registration under a row lock: a double submission
             // (the OTP screen auto-submits on the sixth digit) must not
             // race two account creations onto the same email.
@@ -149,7 +224,8 @@ class PendingRegistrationService
                 'first_name' => $claimed->first_name,
                 'last_name' => $claimed->last_name,
                 'email' => $claimed->email,
-                'password' => $claimed->password,
+                // Plain or already hashed: the `hashed` cast handles both.
+                'password' => $password ?? $claimed->password,
                 'role_id' => $claimed->role_id,
                 'business_name' => $claimed->business_name,
                 'specialization' => $claimed->specialization,
@@ -157,7 +233,7 @@ class PendingRegistrationService
                 'bio' => $claimed->bio,
                 'birthday' => $claimed->birthday,
                 ...$this->addressOf($claimed),
-            ]);
+            ], $claimed->google_sub);
 
             $claimed->delete();
 
@@ -170,15 +246,23 @@ class PendingRegistrationService
     }
 
     /**
-     * Drop an in-flight sign-up after the user backed out of verification.
-     * Guarded by the password chosen at registration so the endpoint cannot
-     * be used to cancel somebody else's sign-up.
+     * Drop an in-flight sign-up after the user backed out of it. Guarded by
+     * the registration token (or, for sign-ups parked by older app versions,
+     * the password chosen at registration) so the endpoint cannot be used to
+     * cancel somebody else's sign-up.
      */
-    public function cancel(string $email, string $password): void
+    public function cancel(string $email, ?string $password, ?string $registrationToken = null): void
     {
         $registration = $this->findUnexpired($email);
 
-        if (! $registration || ! Hash::check($password, $registration->password)) {
+        if (! $registration) {
+            return;
+        }
+
+        $owned = ($registrationToken !== null && $this->tokenMatches($registration, $registrationToken))
+            || ($password !== null && $registration->password !== null && Hash::check($password, $registration->password));
+
+        if (! $owned) {
             return;
         }
 
@@ -196,6 +280,18 @@ class PendingRegistrationService
             ->where('email', strtolower($email))
             ->unexpired()
             ->first();
+    }
+
+    private function tokenMatches(PendingRegistration $registration, string $token): bool
+    {
+        return $registration->registration_token_hash !== null
+            && hash_equals($registration->registration_token_hash, $this->hashToken($token));
+    }
+
+    /** SHA-256 is enough: the token is 64 random characters, not a password. */
+    private function hashToken(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     /** Remove sign-ups that were never verified within their window. */

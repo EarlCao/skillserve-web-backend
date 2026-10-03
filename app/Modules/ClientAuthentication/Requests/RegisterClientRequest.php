@@ -23,7 +23,9 @@ class RegisterClientRequest extends BaseFormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
+            // Chosen after the emailed code is confirmed (POST /auth/complete-registration).
+            // Still accepted here so older app versions keep working.
+            'password' => ['sometimes', 'string', 'min:8', 'max:255', 'confirmed'],
             // Read from the National ID at sign-up; optional so older app
             // versions, which do not send them, keep working.
             'birthday' => ['sometimes', 'nullable', 'date', 'before:today', 'after:1900-01-01'],

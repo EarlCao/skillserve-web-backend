@@ -15,7 +15,6 @@ return [
     // symlink; in production storage/app is a Render persistent disk, so they
     // survive a redeploy (DEPLOYMENT.md → "Uploaded files").
     'profile_photo_disk' => env('CLIENT_PROFILE_PHOTO_DISK', 'public'),
-    'password_reset_url' => env('CLIENT_PASSWORD_RESET_URL', env('APP_URL', 'http://localhost:8000').'/client/reset-password'),
     // Minutes a refresh token lives, counted from its last use: every refresh
     // issues a new one, so an app that keeps being opened stays signed in
     // indefinitely. A year means only a user who never opens the app in that

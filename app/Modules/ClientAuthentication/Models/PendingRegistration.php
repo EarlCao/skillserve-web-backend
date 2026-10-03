@@ -22,6 +22,13 @@ class PendingRegistration extends Model
     /** How long an unfinished registration is kept before it is pruned. */
     public const LIFETIME_HOURS = 24;
 
+    /**
+     * The registration token in plain text. Only set on the instance that
+     * created the row, so it is returned once to the device that started
+     * the sign-up and stored only as a hash.
+     */
+    public ?string $plainRegistrationToken = null;
+
     protected $fillable = [
         'email',
         'first_name',
@@ -42,10 +49,13 @@ class PendingRegistration extends Model
         'email_otp_hash',
         'email_otp_expires_at',
         'email_otp_attempts',
+        'google_sub',
+        'email_verified_at',
+        'registration_token_hash',
         'expires_at',
     ];
 
-    protected $hidden = ['password', 'email_otp_hash'];
+    protected $hidden = ['password', 'email_otp_hash', 'registration_token_hash'];
 
     protected function casts(): array
     {
@@ -56,6 +66,7 @@ class PendingRegistration extends Model
             'birthday' => 'date',
             'email_otp_attempts' => 'integer',
             'email_otp_expires_at' => 'datetime',
+            'email_verified_at' => 'datetime',
             'expires_at' => 'datetime',
         ];
     }
@@ -64,6 +75,20 @@ class PendingRegistration extends Model
     public function scopeUnexpired(Builder $query): Builder
     {
         return $query->where('expires_at', '>', now());
+    }
+
+    /**
+     * Whether the user still has to choose a password. Sign-ups parked by
+     * older app versions carry one already and complete on the code alone.
+     */
+    public function needsPassword(): bool
+    {
+        return $this->password === null;
+    }
+
+    public function hasVerifiedEmail(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 
     public function isProvider(): bool

@@ -10,6 +10,8 @@ class GoogleClientAuthRequest extends BaseFormRequest
     {
         return [
             'id_token' => ['required', 'string', 'min:20'],
+            // The account password; without it an existing account answers `password_required`.
+            'password' => ['sometimes', 'string', 'max:255'],
         ];
     }
 }

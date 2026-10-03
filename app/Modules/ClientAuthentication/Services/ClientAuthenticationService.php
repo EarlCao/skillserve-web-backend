@@ -5,8 +5,8 @@ namespace App\Modules\ClientAuthentication\Services;
 use App\Models\User;
 use App\Modules\ClientAuthentication\Models\ClientRefreshToken;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
+use App\Modules\ClientAuthentication\Notifications\ClientEmailOtpNotification;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
-use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Enums\AccountRole;
 use App\Shared\Exceptions\AccountRestrictedException;
@@ -14,8 +14,9 @@ use App\Shared\Exceptions\ApiException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Throwable;
 
 class ClientAuthenticationService
 {
@@ -40,24 +41,30 @@ class ClientAuthenticationService
     /**
      * Drop a sign-up whose owner backed out of email verification.
      *
-     * Normally this only removes the parked registration. Accounts created
-     * before sign-ups were deferred can still sit unverified in `users`,
-     * so those are hard-deleted here too. Both paths are guarded by the
-     * registration password, and failures are silent so the response cannot
+     * Normally this only removes the parked registration, guarded by its
+     * registration token. Accounts created before sign-ups were deferred can
+     * still sit unverified in `users`, so those are hard-deleted here too,
+     * guarded by their password. Failures are silent so the response cannot
      * enumerate accounts.
      *
-     * @param  array{email: string, password: string}  $validated
+     * @param  array{email: string, password?: string|null, registration_token?: string|null}  $validated
      */
     public function cancelUnverifiedRegistration(array $validated): void
     {
-        $this->pendingRegistrations->cancel($validated['email'], (string) $validated['password']);
+        $password = isset($validated['password']) ? (string) $validated['password'] : null;
+
+        $this->pendingRegistrations->cancel($validated['email'], $password, $validated['registration_token'] ?? null);
+
+        if ($password === null) {
+            return;
+        }
 
         $user = User::query()
             ->where('email', $validated['email'])
             ->mobileAccounts()
             ->first();
 
-        if (! $user || ! Hash::check((string) $validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             return;
         }
 
@@ -189,22 +196,54 @@ class ClientAuthenticationService
         });
     }
 
+    /**
+     * Email a 6-digit code that proves the address before the password is
+     * replaced ({@see verifyPasswordResetCode()}).
+     *
+     * Unknown, administrative and inactive addresses get no code but the same
+     * response, and so does an address that was sent one moments ago, so the
+     * endpoint cannot enumerate accounts.
+     */
     public function requestPasswordReset(string $email): void
     {
         $user = $this->clientQuery()->where('email', $email)->first();
 
-        // Keep the response identical for unknown, administrative, and
-        // inactive addresses so the endpoint cannot enumerate accounts.
-        if ($user?->isActive()) {
-            Password::broker('clients')->sendResetLink(
-                ['email' => $email],
-                function (User $resetUser, string $token): string {
-                    Notification::send($resetUser, new ClientPasswordResetNotification($token));
-
-                    return Password::RESET_LINK_SENT;
-                },
-            );
+        if (! $user?->isActive() || $this->otpService->isCoolingDown($user->email)) {
+            return;
         }
+
+        try {
+            $this->otpService->issue($user, ClientEmailOtpNotification::PURPOSE_PASSWORD_RESET);
+        } catch (ApiException) {
+            // Lost the race for the resend cooldown: a code is already on its way.
+        } catch (Throwable $e) {
+            Log::channel('stderr')->error('Failed to send password reset code.', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new ApiException('We could not send your code. Please try again in a moment.', 503);
+        }
+    }
+
+    /**
+     * Confirm the emailed reset code and hand back a single-use reset token
+     * for {@see resetPassword()}, so the new password is chosen on the next
+     * screen. Every failure reads the same, so the endpoint cannot enumerate
+     * accounts.
+     */
+    public function verifyPasswordResetCode(string $email, string $code): string
+    {
+        $user = $this->clientQuery()->where('email', $email)->first();
+
+        if (! $user?->isActive()) {
+            throw new ApiException('This verification code has expired. Please request a new one.', 422);
+        }
+
+        // Proving the inbox also confirms the address, if it was not already.
+        $this->otpService->verify($user, $code);
+
+        return Password::broker('clients')->createToken($user);
     }
 
     /**

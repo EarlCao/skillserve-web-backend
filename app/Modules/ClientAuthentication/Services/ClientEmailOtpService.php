@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Six-digit email OTP verification for mobile sign-ups.
+ * Six-digit email OTP verification for mobile sign-ups and password resets.
  *
  * Codes are hashed at rest, expire after a configurable window, allow
  * limited verification attempts, and are rate-limited per email via the
@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Hash;
  * Two subjects carry a code:
  *  - a {@see PendingRegistration}, the normal path — the account does not
  *    exist yet and is created only once the code is confirmed;
- *  - a {@see User}, for accounts registered before deferred sign-up
- *    existed (and for re-verifying an address on an existing account).
+ *  - a {@see User}, for a forgotten password, for accounts registered
+ *    before deferred sign-up existed, and for re-verifying an address.
  */
 class ClientEmailOtpService
 {
@@ -31,14 +31,18 @@ class ClientEmailOtpService
 
     public const RESEND_COOLDOWN_SECONDS = 60;
 
-    /** Issue a fresh OTP to an existing account, replacing any previous one. */
-    public function issue(User $user): void
+    /**
+     * Issue a fresh OTP to an existing account, replacing any previous one.
+     *
+     * @param  string  $purpose  One of the ClientEmailOtpNotification::PURPOSE_* values; only changes the email's wording.
+     */
+    public function issue(User $user, string $purpose = ClientEmailOtpNotification::PURPOSE_VERIFY): void
     {
         $code = $this->generateCode($user->email);
 
         $user->forceFill($this->codeAttributes($code))->save();
 
-        $user->notify(new ClientEmailOtpNotification($code, self::CODE_TTL_MINUTES));
+        $user->notify(new ClientEmailOtpNotification($code, self::CODE_TTL_MINUTES, $purpose));
 
         $this->startCooldown($user->email);
     }

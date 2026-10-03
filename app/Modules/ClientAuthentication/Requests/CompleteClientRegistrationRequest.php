@@ -4,7 +4,11 @@ namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Shared\Requests\BaseFormRequest;
 
-class CancelClientRegistrationRequest extends BaseFormRequest
+/**
+ * The last step of a mobile sign-up: the password, chosen once the emailed
+ * code has been confirmed.
+ */
+class CompleteClientRegistrationRequest extends BaseFormRequest
 {
     protected function prepareForValidation(): void
     {
@@ -17,9 +21,8 @@ class CancelClientRegistrationRequest extends BaseFormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:255'],
-            // The token from the sign-up response; older app versions send the password instead.
-            'registration_token' => ['required_without:password', 'string', 'max:255'],
-            'password' => ['required_without:registration_token', 'string'],
+            'registration_token' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
         ];
     }
 }

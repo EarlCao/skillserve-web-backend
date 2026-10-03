@@ -3991,8 +3991,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Start a customer sign-up (no account until the email is verified)",
-                "description": "Parks the sign-up and emails a 6-digit code. The `users` row is created by POST /auth/verify-otp, so abandoning verification leaves the address free to register again.",
+                "summary": "Start a customer sign-up (no account until the email is verified and a password chosen)",
+                "description": "Parks the sign-up and emails a 6-digit code. Next: POST /auth/verify-otp with the code, then POST /auth/complete-registration with the password and the `registration_token` from this response, which creates the account. Abandoning any step leaves the address free to register again.",
                 "operationId": "b5faaf55a97e3dff551cccea48d0831e",
                 "requestBody": {
                     "required": true,
@@ -4002,9 +4002,7 @@
                                 "required": [
                                     "first_name",
                                     "last_name",
-                                    "email",
-                                    "password",
-                                    "password_confirmation"
+                                    "email"
                                 ],
                                 "properties": {
                                     "first_name": {
@@ -4023,15 +4021,16 @@
                                         "example": "alex@example.com"
                                     },
                                     "password": {
+                                        "description": "Older app versions only: the account is then created by /auth/verify-otp. Current apps choose it at /auth/complete-registration.",
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password123",
+                                        "deprecated": true,
                                         "minLength": 8
                                     },
                                     "password_confirmation": {
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password123"
+                                        "deprecated": true
                                     },
                                     "birthday": {
                                         "description": "Read from the National ID",
@@ -4104,7 +4103,7 @@
                     "Client Authentication"
                 ],
                 "summary": "Start a service provider sign-up from the mobile app",
-                "description": "Same deferred flow as customer registration: the provider account and its pending `provider_profiles` row are created by POST /auth/verify-otp.",
+                "description": "Same deferred flow as customer registration: code (POST /auth/verify-otp), then password (POST /auth/complete-registration), which creates the provider account and its pending `provider_profiles` row.",
                 "operationId": "891233611f6bfe5043c0e69d5e6dda61",
                 "requestBody": {
                     "required": true,
@@ -4115,8 +4114,6 @@
                                     "first_name",
                                     "last_name",
                                     "email",
-                                    "password",
-                                    "password_confirmation",
                                     "specialization"
                                 ],
                                 "properties": {
@@ -4136,15 +4133,16 @@
                                         "example": "provider@example.com"
                                     },
                                     "password": {
+                                        "description": "Older app versions only; see /auth/register.",
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password123",
+                                        "deprecated": true,
                                         "minLength": 8
                                     },
                                     "password_confirmation": {
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password123"
+                                        "deprecated": true
                                     },
                                     "business_name": {
                                         "type": "string",
@@ -4237,8 +4235,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Confirm the 6-digit code, creating the account and signing in",
-                "description": "For a sign-up started by /auth/register or /auth/register-provider this creates the account and returns a session. Accounts registered before sign-ups were deferred are simply marked verified and signed in.",
+                "summary": "Confirm the 6-digit sign-up code",
+                "description": "* A sign-up started without a password (current apps, email or Google): the address is marked verified and the response is the pending registration with `password_required: true`. No account yet: choose the password with POST /auth/complete-registration. Repeating the call after success returns the same.\n* A sign-up parked by an older app version with its password: the account is created and a session returned.\n* An account registered before sign-ups were deferred: marked verified and signed in.",
                 "operationId": "384e32ed09d02274d8908c5c13a5a922",
                 "requestBody": {
                     "required": true,
@@ -4269,11 +4267,18 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Email verified, account created and signed in",
+                        "description": "Email verified: either the pending registration (`password_required: true`) or, for older sign-ups, a session",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ClientPendingRegistrationEnvelope"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -4331,14 +4336,14 @@
                 }
             }
         },
-        "/api/client/v1/auth/cancel-registration": {
+        "/api/client/v1/auth/complete-registration": {
             "post": {
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Discard a sign-up after the user backs out of email verification",
-                "description": "Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away.",
-                "operationId": "d34b83d446c506bf043832f092198d55",
+                "summary": "Choose the password and create the account (last sign-up step)",
+                "description": "For a sign-up whose code was confirmed with POST /auth/verify-otp. `registration_token` is the one returned when the sign-up was started (POST /auth/register, /auth/register-provider or /auth/google/register), so knowing the email is not enough. Creates the customer or provider account and signs it in.",
+                "operationId": "c254c70df8f5c08b21eac26ad553e586",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -4346,7 +4351,9 @@
                             "schema": {
                                 "required": [
                                     "email",
-                                    "password"
+                                    "registration_token",
+                                    "password",
+                                    "password_confirmation"
                                 ],
                                 "properties": {
                                     "email": {
@@ -4354,10 +4361,90 @@
                                         "format": "email",
                                         "example": "alex@example.com"
                                     },
+                                    "registration_token": {
+                                        "type": "string"
+                                    },
                                     "password": {
                                         "type": "string",
                                         "format": "password",
+                                        "example": "password123",
+                                        "minLength": 8
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
                                         "example": "password123"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Account created and signed in",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The email was registered by someone else in the meantime, or this sign-up was already completed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error; the sign-up expired or the token does not match; or the code has not been confirmed yet",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/cancel-registration": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Discard a sign-up after the user backs out of email verification",
+                "description": "Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away. Send the `registration_token` from the sign-up response; older app versions send the password chosen at registration instead.",
+                "operationId": "d34b83d446c506bf043832f092198d55",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "registration_token": {
+                                        "description": "Required unless `password` is sent",
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "description": "Required unless `registration_token` is sent",
+                                        "type": "string",
+                                        "format": "password"
                                     }
                                 },
                                 "type": "object"
@@ -4465,8 +4552,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Sign in with a Google ID token, or start a Google sign-up (mobile)",
-                "description": "Resolves the Google identity against existing accounts:\n * linked Google account, or an account owning the Google-verified email -> signed in (`registration_required: false`); the account is linked and its email marked verified.\n * no account -> nothing is created. Responds with `registration_required: true` plus a name/email draft for the sign-up form, which is submitted to POST /auth/google/register.",
+                "summary": "Sign in with a Google ID token and the account password, or start a Google sign-up (mobile)",
+                "description": "Resolves the Google identity against existing accounts. Google alone never signs in: the account password is required too.\n * linked Google account, or an account owning the Google-verified email, without `password` -> `password_required: true` and the account `email`; nothing else happens. Call again with the same `id_token` and the `password`.\n * the same, with the right `password` -> signed in; the account is linked and its email marked verified. Accounts created by Google sign-up before passwords were required set one with Forgot password.\n * no account -> nothing is created. Responds with `registration_required: true` plus a name/email draft for the sign-up form, which is submitted to POST /auth/google/register.",
                 "operationId": "1f31b7d474269df661b63731398bc008",
                 "requestBody": {
                     "required": true,
@@ -4479,6 +4566,11 @@
                                 "properties": {
                                     "id_token": {
                                         "type": "string"
+                                    },
+                                    "password": {
+                                        "description": "The account password, once the first call answered `password_required`",
+                                        "type": "string",
+                                        "format": "password"
                                     }
                                 },
                                 "type": "object"
@@ -4488,7 +4580,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Signed in, or a sign-up is required",
+                        "description": "Signed in, the password is required, or a sign-up is required",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4498,7 +4590,7 @@
                         }
                     },
                     "401": {
-                        "description": "Invalid Google token",
+                        "description": "Invalid Google token, or incorrect password",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4535,8 +4627,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Finish a Google sign-up with the details from the profile form",
-                "description": "Creates the customer or provider account for a Google identity that has none, and signs it in. The ID token is re-verified, so the email always comes from Google. Until this call succeeds nothing is written, so abandoning the form leaves no account behind.",
+                "summary": "Start a Google sign-up with the details from the profile form",
+                "description": "For a Google identity with no account. The ID token is re-verified, so the email always comes from Google. Like an email sign-up nothing is created yet: a 6-digit code is emailed to the Google address, then POST /auth/verify-otp and POST /auth/complete-registration (with the `registration_token` from this response) create the account, linked to the Google identity.",
                 "operationId": "b1721d242ce410967f5b1fd127e0d32c",
                 "requestBody": {
                     "required": true,
@@ -4617,12 +4709,12 @@
                     }
                 },
                 "responses": {
-                    "201": {
-                        "description": "Account created and signed in",
+                    "202": {
+                        "description": "Verification code sent to the Google address",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ClientAuthEnvelope"
+                                    "$ref": "#/components/schemas/ClientPendingRegistrationEnvelope"
                                 }
                             }
                         }
@@ -4638,7 +4730,17 @@
                         }
                     },
                     "403": {
-                        "description": "Account not active, or the email belongs to an administrator",
+                        "description": "The email belongs to an administrator, or provider sign-ups are closed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "This Google identity already has an account; log in instead",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -4649,6 +4751,26 @@
                     },
                     "422": {
                         "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "A code was sent moments ago; wait before retrying",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "The verification email could not be sent",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5419,7 +5541,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Request a customer password reset email",
+                "summary": "Email a 6-digit password reset code (mobile accounts)",
+                "description": "Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. The response is the same for unknown or inactive addresses, and for an address sent a code in the last 60 seconds.",
                 "operationId": "d0996f0efe7d31eeb7416f52cb4ca691",
                 "requestBody": {
                     "required": true,
@@ -5461,6 +5584,102 @@
                                 }
                             }
                         }
+                    },
+                    "503": {
+                        "description": "The code could not be sent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/client/v1/auth/verify-reset-code": {
+            "post": {
+                "tags": [
+                    "Client Authentication"
+                ],
+                "summary": "Confirm the password reset code",
+                "description": "Step 2 of 3. Returns a single-use `reset_token` (valid 60 minutes) for POST /auth/reset-password. Five wrong codes void the code; request a new one.",
+                "operationId": "7011b18f03a6f30773645e12e817fe58",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alex@example.com"
+                                    },
+                                    "code": {
+                                        "type": "string",
+                                        "example": "123456",
+                                        "maxLength": 6,
+                                        "minLength": 6
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Code confirmed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiEnvelope"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "properties": {
+                                                        "reset_token": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Incorrect or expired code (also for unknown addresses)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Too many incorrect attempts",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -5470,7 +5689,8 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Complete a customer password reset",
+                "summary": "Set the new password (mobile accounts)",
+                "description": "Step 3 of 3. `token` is the `reset_token` from POST /auth/verify-reset-code. Signs the account out everywhere.",
                 "operationId": "ae288d4045cedf3063a94c42685b5344",
                 "requestBody": {
                     "required": true,
@@ -5485,6 +5705,7 @@
                                 ],
                                 "properties": {
                                     "token": {
+                                        "description": "The `reset_token` from /auth/verify-reset-code",
                                         "type": "string"
                                     },
                                     "email": {
@@ -21382,9 +21603,15 @@
                 ]
             },
             "ClientPendingRegistration": {
-                "description": "A mobile sign-up parked until its emailed code is confirmed. No account and no session exist yet.",
+                "description": "A mobile sign-up that is not an account yet: it waits for its emailed code, then for the password. No account and no session exist yet.",
                 "properties": {
                     "verification_required": {
+                        "description": "The emailed code has not been confirmed yet",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "password_required": {
+                        "description": "The password is chosen at POST /auth/complete-registration (false only for sign-ups parked by older app versions)",
                         "type": "boolean",
                         "example": true
                     },
@@ -21414,6 +21641,10 @@
                         "type": "string",
                         "format": "date-time",
                         "nullable": true
+                    },
+                    "registration_token": {
+                        "description": "Only in the response that started the sign-up. Keep it for POST /auth/complete-registration (and /auth/cancel-registration).",
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -21462,8 +21693,26 @@
                 },
                 "type": "object"
             },
+            "ClientGooglePasswordRequired": {
+                "description": "The Google identity has an account; call POST /auth/google again with the same id_token and the account password.",
+                "properties": {
+                    "registration_required": {
+                        "type": "boolean",
+                        "example": false
+                    },
+                    "password_required": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+                "type": "object"
+            },
             "ClientGoogleAuthPayload": {
-                "description": "Either an issued session (registration_required=false) or a sign-up draft (registration_required=true).",
+                "description": "An issued session, a request for the account password (password_required=true), or a sign-up draft (registration_required=true).",
                 "oneOf": [
                     {
                         "allOf": [
@@ -21475,11 +21724,18 @@
                                     "registration_required": {
                                         "type": "boolean",
                                         "example": false
+                                    },
+                                    "password_required": {
+                                        "type": "boolean",
+                                        "example": false
                                     }
                                 },
                                 "type": "object"
                             }
                         ]
+                    },
+                    {
+                        "$ref": "#/components/schemas/ClientGooglePasswordRequired"
                     },
                     {
                         "$ref": "#/components/schemas/ClientGoogleRegistrationDraft"

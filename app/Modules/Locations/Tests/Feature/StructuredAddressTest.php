@@ -79,13 +79,27 @@ class StructuredAddressTest extends TestCase
             'exp' => (string) (time() + 3600), 'given_name' => 'Maria', 'family_name' => 'Santos',
         ])]);
 
-        $this->postJson('/api/client/v1/auth/google/register', [
+        Notification::fake();
+
+        // Parked with the code like an email sign-up; the account follows the password.
+        $token = $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'Maria',
             'last_name' => 'Santos',
             'role' => 'customer',
             'birthday' => '1990-12-25',
             'address_details' => ['barangay_code' => '045805015', 'street' => 'Blk 5 Lot 2'],
+        ])->assertStatus(202)->json('data.registration_token');
+
+        PendingRegistration::query()->where('email', 'maria@gmail.com')->firstOrFail()
+            ->forceFill(['email_otp_hash' => Hash::make('123456')])->save();
+        $this->postJson('/api/client/v1/auth/verify-otp', ['email' => 'maria@gmail.com', 'code' => '123456'])->assertOk();
+
+        $this->postJson('/api/client/v1/auth/complete-registration', [
+            'email' => 'maria@gmail.com',
+            'registration_token' => $token,
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
         ])
             ->assertCreated()
             ->assertJsonPath('data.user.address', 'Blk 5 Lot 2, San Isidro, Cainta, Rizal')

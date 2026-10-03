@@ -4,12 +4,13 @@ namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Shared\Requests\BaseFormRequest;
 
-class CancelClientRegistrationRequest extends BaseFormRequest
+class VerifyClientPasswordResetCodeRequest extends BaseFormRequest
 {
     protected function prepareForValidation(): void
     {
         $this->merge([
             'email' => strtolower(trim((string) $this->input('email'))),
+            'code' => preg_replace('/\D/', '', (string) $this->input('code')),
         ]);
     }
 
@@ -17,9 +18,7 @@ class CancelClientRegistrationRequest extends BaseFormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:255'],
-            // The token from the sign-up response; older app versions send the password instead.
-            'registration_token' => ['required_without:password', 'string', 'max:255'],
-            'password' => ['required_without:registration_token', 'string'],
+            'code' => ['required', 'string', 'digits:6'],
         ];
     }
 }

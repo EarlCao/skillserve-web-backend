@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailOtpNotification;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailVerificationNotification;
-use App\Modules\ClientAuthentication\Notifications\ClientPasswordResetNotification;
 use App\Modules\ClientAuthentication\Services\ClientSessionService;
 use App\Modules\Providers\Models\ProviderProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -370,23 +369,38 @@ class ClientAuthenticationTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_password_reset_request_and_completion_use_the_client_broker_and_revoke_sessions(): void
+    /**
+     * Forgot password, steps 1 and 2: request the emailed code, then trade it
+     * for the reset token.
+     */
+    private function resetTokenFor(User $user): string
+    {
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])
+            ->assertStatus(202);
+
+        Notification::assertSentTo(
+            $user,
+            ClientEmailOtpNotification::class,
+            fn (ClientEmailOtpNotification $notification): bool => $notification->purpose === ClientEmailOtpNotification::PURPOSE_PASSWORD_RESET,
+        );
+        // The code is only in the email; pin a known one.
+        $user->forceFill(['email_otp_hash' => Hash::make('654321')])->save();
+
+        return (string) $this->postJson('/api/client/v1/auth/verify-reset-code', [
+            'email' => $user->email,
+            'code' => '654321',
+        ])->assertOk()->json('data.reset_token');
+    }
+
+    public function test_password_reset_by_emailed_code_uses_the_client_broker_and_revokes_sessions(): void
     {
         Notification::fake();
         $user = $this->customer(['email' => 'reset@example.com']);
         $session = $this->login($user);
 
-        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])
-            ->assertStatus(202);
+        $token = $this->resetTokenFor($user);
 
-        $token = null;
-        Notification::assertSentTo($user, ClientPasswordResetNotification::class, function (ClientPasswordResetNotification $notification) use (&$token): bool {
-            $token = $notification->token;
-
-            return true;
-        });
-
-        $this->assertNotNull($token);
+        $this->assertNotSame('', $token);
         $this->postJson('/api/client/v1/auth/reset-password', [
             'token' => $token,
             'email' => $user->email,
@@ -400,6 +414,28 @@ class ClientAuthenticationTest extends TestCase
             'email' => $user->email,
             'password' => 'resetpassword789',
         ])->assertOk();
+    }
+
+    public function test_a_wrong_reset_code_is_refused_and_unknown_addresses_look_the_same(): void
+    {
+        Notification::fake();
+        $user = $this->customer(['email' => 'wrongcode@example.com']);
+
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])->assertStatus(202);
+        $user->forceFill(['email_otp_hash' => Hash::make('654321')])->save();
+
+        $this->postJson('/api/client/v1/auth/verify-reset-code', ['email' => $user->email, 'code' => '000000'])
+            ->assertStatus(422);
+
+        // An address with no account gets the same answer and no email.
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertStatus(202);
+        $this->postJson('/api/client/v1/auth/verify-reset-code', ['email' => 'nobody@example.com', 'code' => '654321'])
+            ->assertStatus(422);
+        Notification::assertSentTimes(ClientEmailOtpNotification::class, 1);
+
+        // A repeat request inside the resend window answers the same and sends nothing.
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])->assertStatus(202);
+        Notification::assertSentTimes(ClientEmailOtpNotification::class, 1);
     }
 
     public function test_providers_can_reset_their_password_too(): void
@@ -418,17 +454,7 @@ class ClientAuthenticationTest extends TestCase
             'verification_status' => 'pending',
         ]);
 
-        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $provider->email])
-            ->assertStatus(202);
-
-        $token = null;
-        Notification::assertSentTo($provider, ClientPasswordResetNotification::class, function (ClientPasswordResetNotification $notification) use (&$token): bool {
-            $token = $notification->token;
-
-            return true;
-        });
-
-        $this->assertNotNull($token, 'Provider accounts must receive a reset link.');
+        $token = $this->resetTokenFor($provider);
 
         $this->postJson('/api/client/v1/auth/reset-password', [
             'token' => $token,

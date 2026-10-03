@@ -663,15 +663,17 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Schema(
     schema: 'ClientPendingRegistration',
-    description: 'A mobile sign-up parked until its emailed code is confirmed. No account and no session exist yet.',
+    description: 'A mobile sign-up that is not an account yet: it waits for its emailed code, then for the password. No account and no session exist yet.',
     properties: [
-        new OA\Property(property: 'verification_required', type: 'boolean', example: true),
+        new OA\Property(property: 'verification_required', type: 'boolean', example: true, description: 'The emailed code has not been confirmed yet'),
+        new OA\Property(property: 'password_required', type: 'boolean', example: true, description: 'The password is chosen at POST /auth/complete-registration (false only for sign-ups parked by older app versions)'),
         new OA\Property(property: 'email', type: 'string', format: 'email'),
         new OA\Property(property: 'first_name', type: 'string'),
         new OA\Property(property: 'last_name', type: 'string'),
         new OA\Property(property: 'user_type', type: 'string', enum: ['customer', 'provider']),
         new OA\Property(property: 'code_expires_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'registration_expires_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'registration_token', type: 'string', description: 'Only in the response that started the sign-up. Keep it for POST /auth/complete-registration (and /auth/cancel-registration).'),
     ],
 )]
 #[OA\Schema(
@@ -692,10 +694,20 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ClientGooglePasswordRequired',
+    description: 'The Google identity has an account; call POST /auth/google again with the same id_token and the account password.',
+    properties: [
+        new OA\Property(property: 'registration_required', type: 'boolean', example: false),
+        new OA\Property(property: 'password_required', type: 'boolean', example: true),
+        new OA\Property(property: 'email', type: 'string', format: 'email'),
+    ],
+)]
+#[OA\Schema(
     schema: 'ClientGoogleAuthPayload',
-    description: 'Either an issued session (registration_required=false) or a sign-up draft (registration_required=true).',
+    description: 'An issued session, a request for the account password (password_required=true), or a sign-up draft (registration_required=true).',
     oneOf: [
-        new OA\Schema(allOf: [new OA\Schema(ref: '#/components/schemas/ClientAuthPayload'), new OA\Schema(properties: [new OA\Property(property: 'registration_required', type: 'boolean', example: false)], type: 'object')]),
+        new OA\Schema(allOf: [new OA\Schema(ref: '#/components/schemas/ClientAuthPayload'), new OA\Schema(properties: [new OA\Property(property: 'registration_required', type: 'boolean', example: false), new OA\Property(property: 'password_required', type: 'boolean', example: false)], type: 'object')]),
+        new OA\Schema(ref: '#/components/schemas/ClientGooglePasswordRequired'),
         new OA\Schema(ref: '#/components/schemas/ClientGoogleRegistrationDraft'),
     ],
 )]

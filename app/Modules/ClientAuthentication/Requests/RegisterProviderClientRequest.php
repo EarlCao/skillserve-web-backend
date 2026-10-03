@@ -25,7 +25,9 @@ class RegisterProviderClientRequest extends BaseFormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
+            // Chosen after the emailed code is confirmed (POST /auth/complete-registration).
+            // Still accepted here so older app versions keep working.
+            'password' => ['sometimes', 'string', 'min:8', 'max:255', 'confirmed'],
 
             // Provider profile fields (Step 1 of mobile onboarding).
             'business_name' => ['sometimes', 'nullable', 'string', 'max:255'],

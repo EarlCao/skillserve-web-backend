@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Modules\ClientAuthentication\Requests\CancelClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
+use App\Modules\ClientAuthentication\Requests\CompleteClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\CompleteGoogleRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\DeleteClientAccountRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
@@ -19,6 +20,7 @@ use App\Modules\ClientAuthentication\Requests\ResetClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\UpdateClientProfilePhotoRequest;
 use App\Modules\ClientAuthentication\Requests\UpdateClientProfileRequest;
 use App\Modules\ClientAuthentication\Requests\VerifyClientOtpRequest;
+use App\Modules\ClientAuthentication\Requests\VerifyClientPasswordResetCodeRequest;
 use App\Modules\ClientAuthentication\Resources\ClientAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientGoogleAuthResource;
 use App\Modules\ClientAuthentication\Resources\ClientUserResource;
@@ -55,17 +57,17 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/register',
-        summary: 'Start a customer sign-up (no account until the email is verified)',
-        description: 'Parks the sign-up and emails a 6-digit code. The `users` row is created by POST /auth/verify-otp, so abandoning verification leaves the address free to register again.',
+        summary: 'Start a customer sign-up (no account until the email is verified and a password chosen)',
+        description: 'Parks the sign-up and emails a 6-digit code. Next: POST /auth/verify-otp with the code, then POST /auth/complete-registration with the password and the `registration_token` from this response, which creates the account. Abandoning any step leaves the address free to register again.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'email', 'password', 'password_confirmation'],
+            required: ['first_name', 'last_name', 'email'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Customer'),
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
-                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'password123'),
-                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, deprecated: true, description: 'Older app versions only: the account is then created by /auth/verify-otp. Current apps choose it at /auth/complete-registration.'),
+                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', deprecated: true),
                 new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
                 new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
@@ -89,16 +91,16 @@ class ClientAuthController extends Controller
     #[OA\Post(
         path: '/api/client/v1/auth/register-provider',
         summary: 'Start a service provider sign-up from the mobile app',
-        description: 'Same deferred flow as customer registration: the provider account and its pending `provider_profiles` row are created by POST /auth/verify-otp.',
+        description: 'Same deferred flow as customer registration: code (POST /auth/verify-otp), then password (POST /auth/complete-registration), which creates the provider account and its pending `provider_profiles` row.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'email', 'password', 'password_confirmation', 'specialization'],
+            required: ['first_name', 'last_name', 'email', 'specialization'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Provider'),
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'provider@example.com'),
-                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'password123'),
-                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, deprecated: true, description: 'Older app versions only; see /auth/register.'),
+                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', deprecated: true),
                 new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Alex Repairs'),
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, example: 'Home Repair'),
                 new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
@@ -125,8 +127,12 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/verify-otp',
-        summary: 'Confirm the 6-digit code, creating the account and signing in',
-        description: 'For a sign-up started by /auth/register or /auth/register-provider this creates the account and returns a session. Accounts registered before sign-ups were deferred are simply marked verified and signed in.',
+        summary: 'Confirm the 6-digit sign-up code',
+        description: <<<'TXT'
+            * A sign-up started without a password (current apps, email or Google): the address is marked verified and the response is the pending registration with `password_required: true`. No account yet: choose the password with POST /auth/complete-registration. Repeating the call after success returns the same.
+            * A sign-up parked by an older app version with its password: the account is created and a session returned.
+            * An account registered before sign-ups were deferred: marked verified and signed in.
+            TXT,
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email', 'code'],
@@ -136,7 +142,7 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Email verified, account created and signed in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 200, description: 'Email verified: either the pending registration (`password_required: true`) or, for older sign-ups, a session', content: new OA\JsonContent(oneOf: [new OA\Schema(ref: '#/components/schemas/ClientPendingRegistrationEnvelope'), new OA\Schema(ref: '#/components/schemas/ClientAuthEnvelope')])),
             new OA\Response(response: 403, description: 'Account is not active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 404, description: 'No sign-up or account found for this email', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 409, description: 'The email was registered by someone else while this code was outstanding', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
@@ -149,9 +155,17 @@ class ClientAuthController extends Controller
         $email = (string) $request->validated('email');
         $code = (string) $request->validated('code');
 
-        // Normal path: the account does not exist yet and is created here.
+        // Normal path: the account does not exist yet.
         $registration = $this->pendingRegistrations->findUnexpired($email);
 
+        if ($registration?->needsPassword()) {
+            return $this->success(
+                new PendingRegistrationResource($this->pendingRegistrations->verify($registration, $code)),
+                'Email verified. Now create your password.',
+            );
+        }
+
+        // Parked by an older app version with its password: create it now.
         if ($registration) {
             return $this->success(
                 new ClientAuthResource($this->pendingRegistrations->complete($registration, $code)),
@@ -182,15 +196,51 @@ class ClientAuthController extends Controller
     }
 
     #[OA\Post(
-        path: '/api/client/v1/auth/cancel-registration',
-        summary: 'Discard a sign-up after the user backs out of email verification',
-        description: 'Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away.',
+        path: '/api/client/v1/auth/complete-registration',
+        summary: 'Choose the password and create the account (last sign-up step)',
+        description: 'For a sign-up whose code was confirmed with POST /auth/verify-otp. `registration_token` is the one returned when the sign-up was started (POST /auth/register, /auth/register-provider or /auth/google/register), so knowing the email is not enough. Creates the customer or provider account and signs it in.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['email', 'password'],
+            required: ['email', 'registration_token', 'password', 'password_confirmation'],
             properties: [
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
-                new OA\Property(property: 'password', type: 'string', format: 'password', example: 'password123'),
+                new OA\Property(property: 'registration_token', type: 'string'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, example: 'password123'),
+                new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', example: 'password123'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Account created and signed in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 409, description: 'The email was registered by someone else in the meantime, or this sign-up was already completed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 422, description: 'Validation error; the sign-up expired or the token does not match; or the code has not been confirmed yet', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function completeRegistration(CompleteClientRegistrationRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        return $this->success(
+            new ClientAuthResource($this->pendingRegistrations->completeWithPassword(
+                $validated['email'],
+                $validated['registration_token'],
+                $validated['password'],
+            )),
+            'Account created. Welcome to SkillServe!',
+            status: 201,
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/cancel-registration',
+        summary: 'Discard a sign-up after the user backs out of email verification',
+        description: 'Removes the parked registration (and, for accounts created before sign-ups were deferred, the unverified account itself) so the email can be used again straight away. Send the `registration_token` from the sign-up response; older app versions send the password chosen at registration instead.',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+                new OA\Property(property: 'registration_token', type: 'string', description: 'Required unless `password` is sent'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', description: 'Required unless `registration_token` is sent'),
             ],
         )),
         responses: [
@@ -238,7 +288,7 @@ class ClientAuthController extends Controller
             throw new ApiException('No account found for this email.', 404);
         }
 
-        if ($user?->hasVerifiedEmail()) {
+        if ($registration?->hasVerifiedEmail() || $user?->hasVerifiedEmail()) {
             return $this->success([], 'Email is already verified.', status: 200);
         }
 
@@ -265,10 +315,11 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/google',
-        summary: 'Sign in with a Google ID token, or start a Google sign-up (mobile)',
+        summary: 'Sign in with a Google ID token and the account password, or start a Google sign-up (mobile)',
         description: <<<'TXT'
-            Resolves the Google identity against existing accounts:
-             * linked Google account, or an account owning the Google-verified email -> signed in (`registration_required: false`); the account is linked and its email marked verified.
+            Resolves the Google identity against existing accounts. Google alone never signs in: the account password is required too.
+             * linked Google account, or an account owning the Google-verified email, without `password` -> `password_required: true` and the account `email`; nothing else happens. Call again with the same `id_token` and the `password`.
+             * the same, with the right `password` -> signed in; the account is linked and its email marked verified. Accounts created by Google sign-up before passwords were required set one with Forgot password.
              * no account -> nothing is created. Responds with `registration_required: true` plus a name/email draft for the sign-up form, which is submitted to POST /auth/google/register.
             TXT,
         tags: ['Client Authentication'],
@@ -276,31 +327,36 @@ class ClientAuthController extends Controller
             required: ['id_token'],
             properties: [
                 new OA\Property(property: 'id_token', type: 'string'),
+                new OA\Property(property: 'password', type: 'string', format: 'password', description: 'The account password, once the first call answered `password_required`'),
             ],
         )),
         responses: [
-            new OA\Response(response: 200, description: 'Signed in, or a sign-up is required', content: new OA\JsonContent(ref: '#/components/schemas/ClientGoogleAuthEnvelope')),
-            new OA\Response(response: 401, description: 'Invalid Google token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 200, description: 'Signed in, the password is required, or a sign-up is required', content: new OA\JsonContent(ref: '#/components/schemas/ClientGoogleAuthEnvelope')),
+            new OA\Response(response: 401, description: 'Invalid Google token, or incorrect password', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 403, description: 'Account not active, or the email belongs to an administrator', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function google(GoogleClientAuthRequest $request): JsonResponse
     {
-        $result = $this->googleAuthService->authenticate($request->validated('id_token'));
-
-        return $this->success(
-            new ClientGoogleAuthResource($result),
-            $result['registration_required']
-                ? 'Tell us a little about yourself to finish signing up.'
-                : 'Logged in with Google successfully.',
+        $result = $this->googleAuthService->authenticate(
+            $request->validated('id_token'),
+            $request->validated('password'),
         );
+
+        $message = match (true) {
+            $result['registration_required'] => 'Tell us a little about yourself to finish signing up.',
+            $result['password_required'] ?? false => 'Enter your password to continue.',
+            default => 'Logged in with Google successfully.',
+        };
+
+        return $this->success(new ClientGoogleAuthResource($result), $message);
     }
 
     #[OA\Post(
         path: '/api/client/v1/auth/google/register',
-        summary: 'Finish a Google sign-up with the details from the profile form',
-        description: 'Creates the customer or provider account for a Google identity that has none, and signs it in. The ID token is re-verified, so the email always comes from Google. Until this call succeeds nothing is written, so abandoning the form leaves no account behind.',
+        summary: 'Start a Google sign-up with the details from the profile form',
+        description: 'For a Google identity with no account. The ID token is re-verified, so the email always comes from Google. Like an email sign-up nothing is created yet: a 6-digit code is emailed to the Google address, then POST /auth/verify-otp and POST /auth/complete-registration (with the `registration_token` from this response) create the account, linked to the Google identity.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['id_token', 'first_name', 'last_name', 'role'],
@@ -318,18 +374,21 @@ class ClientAuthController extends Controller
             ],
         )),
         responses: [
-            new OA\Response(response: 201, description: 'Account created and signed in', content: new OA\JsonContent(ref: '#/components/schemas/ClientAuthEnvelope')),
+            new OA\Response(response: 202, description: 'Verification code sent to the Google address', content: new OA\JsonContent(ref: '#/components/schemas/ClientPendingRegistrationEnvelope')),
             new OA\Response(response: 401, description: 'Invalid or expired Google token', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
-            new OA\Response(response: 403, description: 'Account not active, or the email belongs to an administrator', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'The email belongs to an administrator, or provider sign-ups are closed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 409, description: 'This Google identity already has an account; log in instead', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'A code was sent moments ago; wait before retrying', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 503, description: 'The verification email could not be sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function googleRegister(CompleteGoogleRegistrationRequest $request): JsonResponse
     {
         return $this->success(
-            new ClientAuthResource($this->googleAuthService->completeRegistration($request->validated())),
-            'Account created successfully.',
-            status: 201,
+            new PendingRegistrationResource($this->googleAuthService->startRegistration($request->validated())),
+            'Verification code sent. Enter it to continue.',
+            status: 202,
         );
     }
 
@@ -624,7 +683,8 @@ class ClientAuthController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/auth/forgot-password',
-        summary: 'Request a customer password reset email',
+        summary: 'Email a 6-digit password reset code (mobile accounts)',
+        description: 'Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. The response is the same for unknown or inactive addresses, and for an address sent a code in the last 60 seconds.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email'],
@@ -633,23 +693,56 @@ class ClientAuthController extends Controller
         responses: [
             new OA\Response(response: 202, description: 'Reset request accepted without account enumeration', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 503, description: 'The code could not be sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function forgotPassword(ForgotClientPasswordRequest $request): JsonResponse
     {
         $this->authenticationService->requestPasswordReset($request->validated()['email']);
 
-        return $this->success(null, 'If the account exists, a password reset link has been sent.', status: 202);
+        return $this->success(null, 'If the account exists, a password reset code has been sent.', status: 202);
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/auth/verify-reset-code',
+        summary: 'Confirm the password reset code',
+        description: 'Step 2 of 3. Returns a single-use `reset_token` (valid 60 minutes) for POST /auth/reset-password. Five wrong codes void the code; request a new one.',
+        tags: ['Client Authentication'],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            required: ['email', 'code'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
+                new OA\Property(property: 'code', type: 'string', minLength: 6, maxLength: 6, example: '123456'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Code confirmed', content: new OA\JsonContent(allOf: [
+                new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
+                new OA\Schema(properties: [new OA\Property(property: 'data', properties: [new OA\Property(property: 'reset_token', type: 'string')], type: 'object')]),
+            ])),
+            new OA\Response(response: 422, description: 'Incorrect or expired code (also for unknown addresses)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 429, description: 'Too many incorrect attempts', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+        ],
+    )]
+    public function verifyResetCode(VerifyClientPasswordResetCodeRequest $request): JsonResponse
+    {
+        $token = $this->authenticationService->verifyPasswordResetCode(
+            (string) $request->validated('email'),
+            (string) $request->validated('code'),
+        );
+
+        return $this->success(['reset_token' => $token], 'Code confirmed. Now choose a new password.');
     }
 
     #[OA\Post(
         path: '/api/client/v1/auth/reset-password',
-        summary: 'Complete a customer password reset',
+        summary: 'Set the new password (mobile accounts)',
+        description: 'Step 3 of 3. `token` is the `reset_token` from POST /auth/verify-reset-code. Signs the account out everywhere.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['token', 'email', 'password', 'password_confirmation'],
             properties: [
-                new OA\Property(property: 'token', type: 'string'),
+                new OA\Property(property: 'token', type: 'string', description: 'The `reset_token` from /auth/verify-reset-code'),
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
                 new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),

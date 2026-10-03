@@ -3,6 +3,8 @@
 namespace App\Modules\ClientAuthentication\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Models\PendingRegistration;
+use App\Modules\ClientAuthentication\Notifications\ClientEmailOtpNotification;
 use App\Modules\Providers\Models\ProviderProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -57,9 +59,53 @@ class ClientGoogleAuthTest extends TestCase
         ], $overrides);
     }
 
-    private function signInWithGoogle(string $token = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'): TestResponse
+    private function signInWithGoogle(?string $password = null, string $token = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'): TestResponse
     {
-        return $this->postJson('/api/client/v1/auth/google', ['id_token' => $token]);
+        return $this->postJson('/api/client/v1/auth/google', array_filter([
+            'id_token' => $token,
+            'password' => $password,
+        ], fn ($value) => $value !== null));
+    }
+
+    /**
+     * Run a Google sign-up through all three steps — the form, the emailed
+     * code, the password — and return the final response.
+     *
+     * @param  array<string, mixed>  $form
+     */
+    private function completeGoogleSignUp(array $form, string $password = 'googlepass123'): TestResponse
+    {
+        Notification::fake();
+
+        $started = $this->postJson('/api/client/v1/auth/google/register', [
+            'id_token' => str_repeat('a', 30),
+            ...$form,
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('data.password_required', true)
+            ->assertJsonPath('data.verification_required', true);
+
+        $email = $started->json('data.email');
+        $registration = PendingRegistration::query()->where('email', $email)->firstOrFail();
+        Notification::assertSentTo($registration, ClientEmailOtpNotification::class);
+        $registration->forceFill(['email_otp_hash' => Hash::make('123456')])->save();
+
+        // No account until the code and the password are both in.
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+
+        $this->postJson('/api/client/v1/auth/verify-otp', ['email' => $email, 'code' => '123456'])
+            ->assertOk()
+            ->assertJsonPath('data.password_required', true)
+            ->assertJsonPath('data.verification_required', false);
+
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+
+        return $this->postJson('/api/client/v1/auth/complete-registration', [
+            'email' => $email,
+            'registration_token' => $started->json('data.registration_token'),
+            'password' => $password,
+            'password_confirmation' => $password,
+        ]);
     }
 
     public function test_an_unknown_google_account_is_not_created_until_the_form_is_submitted(): void
@@ -82,12 +128,11 @@ class ClientGoogleAuthTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'new.google.user@gmail.com']);
     }
 
-    public function test_completing_the_form_creates_a_verified_customer_and_signs_in(): void
+    public function test_a_google_signup_confirms_a_code_and_a_password_before_the_account_exists(): void
     {
         $this->fakeGoogleTokeninfo($this->claims());
 
-        $this->postJson('/api/client/v1/auth/google/register', [
-            'id_token' => str_repeat('a', 30),
+        $this->completeGoogleSignUp([
             'first_name' => 'Juan',
             'last_name' => 'Dela Cruz',
             'role' => 'customer',
@@ -104,22 +149,30 @@ class ClientGoogleAuthTest extends TestCase
             'role_id' => 4,
             'google_sub' => 'google-sub-123',
         ]);
+        $this->assertDatabaseCount('pending_registrations', 0);
 
-        // The same Google account now signs straight in.
+        // Afterwards Google asks for that password, and the email login takes it too.
         $this->signInWithGoogle()
             ->assertOk()
-            ->assertJsonPath('data.registration_required', false)
+            ->assertJsonPath('data.password_required', true)
+            ->assertJsonMissingPath('data.token');
+        $this->signInWithGoogle('googlepass123')
+            ->assertOk()
+            ->assertJsonPath('data.password_required', false)
             ->assertJsonPath('data.user.email', 'new.google.user@gmail.com');
+        $this->postJson('/api/client/v1/auth/login', [
+            'email' => 'new.google.user@gmail.com',
+            'password' => 'googlepass123',
+        ])->assertOk();
 
         $this->assertSame(1, User::query()->where('google_sub', 'google-sub-123')->count());
     }
 
-    public function test_completing_the_form_as_a_provider_creates_the_pending_profile(): void
+    public function test_a_google_signup_as_a_provider_creates_the_pending_profile(): void
     {
         $this->fakeGoogleTokeninfo($this->claims());
 
-        $this->postJson('/api/client/v1/auth/google/register', [
-            'id_token' => str_repeat('a', 30),
+        $this->completeGoogleSignUp([
             'first_name' => 'Pro',
             'last_name' => 'Vider',
             'role' => 'provider',
@@ -140,6 +193,21 @@ class ClientGoogleAuthTest extends TestCase
         $this->assertSame('pending', $profile->verification_status);
     }
 
+    public function test_a_google_signup_for_an_existing_account_is_sent_to_log_in(): void
+    {
+        User::factory()->create(['email' => 'new.google.user@gmail.com', 'user_type' => 'customer', 'email_verified_at' => now()]);
+        $this->fakeGoogleTokeninfo($this->claims());
+
+        $this->postJson('/api/client/v1/auth/google/register', [
+            'id_token' => str_repeat('a', 30),
+            'first_name' => 'New',
+            'last_name' => 'User',
+            'role' => 'customer',
+        ])->assertStatus(409);
+
+        $this->assertDatabaseCount('pending_registrations', 0);
+    }
+
     public function test_provider_signup_requires_a_specialization(): void
     {
         $this->fakeGoogleTokeninfo($this->claims());
@@ -154,10 +222,8 @@ class ClientGoogleAuthTest extends TestCase
         $this->assertDatabaseMissing('users', ['email' => 'new.google.user@gmail.com']);
     }
 
-    public function test_google_signs_in_to_an_existing_email_password_account_and_links_it(): void
+    public function test_google_asks_for_the_password_and_signs_in_to_the_account_with_it(): void
     {
-        // The exact report: signing up with email + password, then tapping
-        // "Continue with Google" used to answer "already registered".
         $user = User::factory()->create([
             'email' => 'taken@gmail.com',
             'password' => Hash::make('password123'),
@@ -170,14 +236,27 @@ class ClientGoogleAuthTest extends TestCase
             'email' => 'taken@gmail.com',
         ]));
 
+        // Google alone is not enough: nothing is issued or linked yet.
         $this->signInWithGoogle()
             ->assertOk()
             ->assertJsonPath('data.registration_required', false)
-            ->assertJsonPath('data.user.id', $user->id);
+            ->assertJsonPath('data.password_required', true)
+            ->assertJsonPath('data.email', 'taken@gmail.com')
+            ->assertJsonMissingPath('data.token');
+        $this->assertNull($user->fresh()->google_sub);
+
+        $this->signInWithGoogle('wrong-password')->assertStatus(401);
+        $this->assertNull($user->fresh()->google_sub);
+
+        $this->signInWithGoogle('password123')
+            ->assertOk()
+            ->assertJsonPath('data.password_required', false)
+            ->assertJsonPath('data.user.id', $user->id)
+            ->assertJsonStructure(['data' => ['token', 'refresh_token']]);
 
         $this->assertSame('google-sub-other', $user->fresh()->google_sub);
 
-        // The password still works — linking Google does not replace it.
+        // The password still works on its own — linking Google does not replace it.
         $this->postJson('/api/client/v1/auth/login', [
             'email' => 'taken@gmail.com',
             'password' => 'password123',
@@ -202,7 +281,8 @@ class ClientGoogleAuthTest extends TestCase
             'email' => 'provider@gmail.com',
         ]));
 
-        $this->signInWithGoogle()
+        // The factory password is "password".
+        $this->signInWithGoogle('password')
             ->assertOk()
             ->assertJsonPath('data.registration_required', false)
             ->assertJsonPath('data.user.user_type', 'provider');
@@ -218,7 +298,7 @@ class ClientGoogleAuthTest extends TestCase
 
         $this->fakeGoogleTokeninfo($this->claims(['email' => 'unverified@gmail.com']));
 
-        $this->signInWithGoogle()->assertOk()->assertJsonPath('data.user.email_verified', true);
+        $this->signInWithGoogle('password')->assertOk()->assertJsonPath('data.user.email_verified', true);
 
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
     }
@@ -247,7 +327,7 @@ class ClientGoogleAuthTest extends TestCase
 
         $this->fakeGoogleTokeninfo($this->claims(['email' => 'suspended@gmail.com']));
 
-        $this->signInWithGoogle()->assertStatus(403);
+        $this->signInWithGoogle('password')->assertStatus(403);
     }
 
     public function test_linked_google_account_still_signs_in_even_after_role_change_or_email_edit(): void
@@ -265,12 +345,15 @@ class ClientGoogleAuthTest extends TestCase
             'email' => 'newaddress@gmail.com', // Google address was changed.
         ]));
 
-        $this->signInWithGoogle()->assertOk()->assertJsonPath('data.registration_required', false);
+        $this->signInWithGoogle('password')
+            ->assertOk()
+            ->assertJsonPath('data.registration_required', false)
+            ->assertJsonPath('data.user.id', $user->id);
 
         $this->assertSame($user->id, User::query()->where('google_sub', 'google-sub-linked')->firstOrFail()->id);
     }
 
-    public function test_google_signup_supersedes_an_unverified_email_signup_for_the_same_address(): void
+    public function test_google_signup_replaces_an_unfinished_email_signup_for_the_same_address(): void
     {
         Notification::fake();
 
@@ -283,16 +366,20 @@ class ClientGoogleAuthTest extends TestCase
         ])->assertStatus(202);
 
         $this->fakeGoogleTokeninfo($this->claims());
+        // Past the resend window of the code the email sign-up sent.
+        $this->travel(61)->seconds();
 
         $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'New',
             'last_name' => 'User',
             'role' => 'customer',
-        ])->assertCreated();
+        ])->assertStatus(202);
 
-        $this->assertDatabaseMissing('pending_registrations', ['email' => 'new.google.user@gmail.com']);
-        $this->assertSame(1, User::query()->where('email', 'new.google.user@gmail.com')->count());
+        // The newest sign-up wins: one row, now tied to the Google identity.
+        $this->assertSame(1, PendingRegistration::query()->where('email', 'new.google.user@gmail.com')->count());
+        $this->assertDatabaseHas('pending_registrations', ['email' => 'new.google.user@gmail.com', 'google_sub' => 'google-sub-123']);
+        $this->assertDatabaseMissing('users', ['email' => 'new.google.user@gmail.com']);
     }
 
     public function test_token_with_wrong_audience_is_rejected(): void
