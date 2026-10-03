@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Shared\Enums\AccountRole;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -85,9 +86,10 @@ class SeedIfEmptyTest extends TestCase
             unset($_ENV['ADMIN_PASSWORD'], $_SERVER['ADMIN_PASSWORD']);
         }
 
-        // Only the super-admin: no demo customers, providers or categories.
+        // Only the super-admin and the default setup: no demo customers or providers.
         $this->assertSame(1, User::query()->count());
         $this->assertSame(AccountRole::SuperAdmin->value, User::query()->sole()->role_id);
-        $this->assertSame(0, ServiceCategory::query()->count());
+        $this->assertGreaterThan(0, ServiceCategory::query()->count());
+        $this->assertSame(4, CommissionTier::query()->active()->count());
     }
 }
