@@ -166,4 +166,39 @@ class ClientEmailOtpTest extends TestCase
         Cache::flush();
         parent::tearDown();
     }
+
+    public function test_production_refuses_a_mailer_that_sends_nothing(): void
+    {
+        Notification::fake();
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['mail.default' => 'log']);
+
+        $this->postJson('/api/client/v1/auth/register', [
+            'first_name' => 'Alex',
+            'last_name' => 'Customer',
+            'email' => 'nomail@example.com',
+        ])->assertStatus(503)
+            ->assertJsonPath('message', 'We could not send your verification code. Please try again in a moment.');
+
+        $this->assertDatabaseMissing('pending_registrations', ['email' => 'nomail@example.com']);
+        Notification::assertNothingSent();
+    }
+
+    public function test_production_sends_codes_through_a_real_mailer(): void
+    {
+        Notification::fake();
+        $this->app->detectEnvironment(fn () => 'production');
+        config(['mail.default' => 'smtp']);
+
+        $this->postJson('/api/client/v1/auth/register', [
+            'first_name' => 'Alex',
+            'last_name' => 'Customer',
+            'email' => 'mailed@example.com',
+        ])->assertStatus(202);
+
+        Notification::assertSentTo(
+            PendingRegistration::query()->where('email', 'mailed@example.com')->firstOrFail(),
+            ClientEmailOtpNotification::class,
+        );
+    }
 }

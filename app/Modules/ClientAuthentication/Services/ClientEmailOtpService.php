@@ -9,6 +9,7 @@ use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 /**
  * Six-digit email OTP verification for mobile sign-ups and password resets.
@@ -38,6 +39,8 @@ class ClientEmailOtpService
      */
     public function issue(User $user, string $purpose = ClientEmailOtpNotification::PURPOSE_VERIFY): void
     {
+        $this->assertMailIsDelivered();
+
         $code = $this->generateCode($user->email);
 
         $user->forceFill($this->codeAttributes($code))->save();
@@ -50,6 +53,8 @@ class ClientEmailOtpService
     /** Issue a fresh OTP for an in-flight registration. */
     public function issueForRegistration(PendingRegistration $registration): void
     {
+        $this->assertMailIsDelivered();
+
         $code = $this->generateCode($registration->email);
 
         $registration->forceFill($this->codeAttributes($code))->save();
@@ -57,6 +62,29 @@ class ClientEmailOtpService
         $registration->notify(new ClientEmailOtpNotification($code, self::CODE_TTL_MINUTES));
 
         $this->startCooldown($registration->email);
+    }
+
+    /**
+     * The `log` and `array` mailers report success without sending anything.
+     * In production that would leave the user waiting for a code that never
+     * comes (e.g. `MAIL_MAILER` missing on Render), so fail instead: callers
+     * log the reason to stderr and tell the user the code could not be sent.
+     */
+    private function assertMailIsDelivered(): void
+    {
+        if (! app()->isProduction()) {
+            return;
+        }
+
+        $mailer = (string) config('mail.default');
+        $transport = config("mail.mailers.{$mailer}.transport");
+
+        if (in_array($transport, ['log', 'array'], true)) {
+            throw new RuntimeException(sprintf(
+                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=brevo-api and BREVO_API_KEY.',
+                $mailer,
+            ));
+        }
     }
 
     /** Verify a submitted code for an existing account; marks it verified. */
