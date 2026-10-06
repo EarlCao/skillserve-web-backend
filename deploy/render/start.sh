@@ -36,8 +36,11 @@ php artisan db:seed-if-empty
 php artisan locations:import
 
 # Keep a background process alive: restart it shortly after it exits.
+# Its normal output is discarded, but its errors go to the container's stderr,
+# so they appear in Render's log — e.g. "Failed to send registration OTP" with
+# the mail provider's reason. (Discarding stderr too hid every such failure.)
 supervise() {
-    (while true; do "$@" || true; sleep 1; done) > /dev/null 2>&1 &
+    (while true; do "$@" || true; sleep 1; done) > /dev/null &
 }
 
 # Wait until something accepts connections on 127.0.0.1:$1 (max $2 seconds).
@@ -57,7 +60,11 @@ wait_for_port() {
 # ignores PHP_CLI_SERVER_WORKERS unless --no-reload is passed, and it hops to
 # another port when 8000 is still held by a dying process.
 # The router script treats the working directory as public/.
-supervise sh -c 'cd public && exec php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
+# PHP's server also writes a line per request to stderr; those are filtered
+# out so only the app's own messages and PHP errors reach the log.
+# (BusyBox awk with fflush, not grep: Alpine's grep has no --line-buffered.)
+supervise sh -c 'cd public && php -S 127.0.0.1:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php 2>&1 \
+    | awk "!/(Accepted|Closing)\$/ && !/\\]: (GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) / && !/\] URI: \// && !/Development Server .* started/ { print; fflush() }" >&2'
 supervise php artisan reverb:start --host=127.0.0.1 --port=8080
 supervise php artisan queue:work --queue=default --sleep=1 --tries=3 --timeout=90 --max-time=3600
 supervise php artisan schedule:work
