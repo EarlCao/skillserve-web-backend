@@ -111,7 +111,7 @@ class ClientEmailOtpService
 
         if (in_array($transport, ['log', 'array'], true)) {
             throw new RuntimeException(sprintf(
-                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=mailjet-api with MAILJET_API_KEY and MAILJET_SECRET_KEY.',
+                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=gmail-api with GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN.',
                 $mailer,
             ));
         }

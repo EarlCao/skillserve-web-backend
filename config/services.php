@@ -43,8 +43,18 @@ return [
         'timeout' => (int) env('TWILIO_TIMEOUT', 15),
     ],
 
-    // Mailjet's Send API (MAIL_MAILER=mailjet-api): the production mailer for
-    // the 6-digit codes and every other email.
+    // Gmail API (MAIL_MAILER=gmail-api): the production mailer for the
+    // 6-digit codes and every other email, sent as the authorised Gmail
+    // account. The refresh token carries the gmail.send scope.
+    'gmail' => [
+        'client_id' => env('GMAIL_CLIENT_ID'),
+        'client_secret' => env('GMAIL_CLIENT_SECRET'),
+        'refresh_token' => env('GMAIL_REFRESH_TOKEN'),
+        'timeout' => (int) env('GMAIL_API_TIMEOUT', 15),
+    ],
+
+    // Mailjet's Send API (MAIL_MAILER=mailjet-api). Built and tested, but the
+    // new account was blocked on 2026-10-06, so Gmail is used instead.
     'mailjet' => [
         'key' => env('MAILJET_API_KEY'),
         'secret' => env('MAILJET_SECRET_KEY'),

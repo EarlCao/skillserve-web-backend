@@ -66,6 +66,10 @@ return [
             'transport' => 'mailjet-api',
         ],
 
+        'gmail-api' => [
+            'transport' => 'gmail-api',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

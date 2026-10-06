@@ -52,6 +52,7 @@ Route::get('/health', function () {
     // The settings each API mailer cannot send without; log/array send nothing.
     $mailerKeys = match (config("mail.mailers.{$mailer}.transport")) {
         'log', 'array' => null,
+        'gmail-api' => ['services.gmail.client_id', 'services.gmail.client_secret', 'services.gmail.refresh_token'],
         'mailjet-api' => ['services.mailjet.key', 'services.mailjet.secret'],
         'sendgrid-api' => ['services.sendgrid.api_key'],
         'brevo-api' => ['services.brevo.api_key'],

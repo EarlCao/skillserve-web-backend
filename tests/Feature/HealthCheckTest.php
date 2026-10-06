@@ -71,4 +71,13 @@ class HealthCheckTest extends TestCase
         config(['mail.default' => 'log']);
         $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'down');
     }
+
+    public function test_health_checks_the_gmail_settings(): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'gmail-api', 'services.gmail.client_id' => 'id', 'services.gmail.client_secret' => 'secret', 'services.gmail.refresh_token' => null]);
+        $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'mail', 'mailer' => 'gmail-api']);
+
+        config(['services.gmail.refresh_token' => 'token']);
+        $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+    }
 }
