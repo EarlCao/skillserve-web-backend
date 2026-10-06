@@ -152,12 +152,17 @@ class DisputeService extends BaseService
         return $this->transaction(function () use ($booking, $actor, $note): Booking {
             $booking = $this->lock($booking);
             $this->assertOpen($booking);
+            $restored = $booking->statusBeforeDispute();
+            // A rejected complaint changes nothing about the job: it goes back
+            // to where it was, instead of staying "disputed" for good.
             $booking->update([
                 'dispute_status' => 'rejected',
                 'dispute_resolution' => $note ? trim($note) : $booking->dispute_resolution,
+                'status' => $restored,
             ]);
             $booking->load($this->relations());
             event(new BookingDisputeManaged(booking: $booking, actor: $actor, action: 'reject', resolution: $note ? trim($note) : null));
+            event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: 'disputed', newStatus: $restored, fromDispute: true));
 
             return $booking;
         });
@@ -168,8 +173,8 @@ class DisputeService extends BaseService
         return $this->transaction(function () use ($booking, $actor, $note): Booking {
             $booking = $this->lock($booking);
             $this->assertDispute($booking);
-            if ($booking->dispute_status !== 'resolved') {
-                throw new ApiException('Only resolved disputes can be closed.', 422, errors: ['dispute_status' => ['Resolve the dispute before closing it.']]);
+            if (! in_array($booking->dispute_status, ['resolved', 'rejected'], true)) {
+                throw new ApiException('Only resolved or rejected disputes can be closed.', 422, errors: ['dispute_status' => ['Resolve or reject the dispute before closing it.']]);
             }
             $updates = [
                 'dispute_status' => 'closed',

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Resources\ReportResource;
 use App\Modules\Reviews\Models\Review;
+use App\Modules\Services\Models\Service;
 use App\Shared\Resources\BaseResource;
 
 /**
@@ -22,10 +23,11 @@ class ClientReportResource extends BaseResource
     {
         return [
             'id' => $this->id,
-            // What was reported: a person, a review, or a message.
+            // What was reported: a person, a review, a message or a service.
             'subject_type' => match ($this->reportable_type) {
                 Review::class => 'review',
                 Message::class => 'message',
+                Service::class => 'service',
                 default => 'user',
             },
             'reason' => $this->reason,
@@ -74,6 +76,11 @@ class ClientReportResource extends BaseResource
             $target instanceof Message => [
                 'name' => $target->sender?->name,
                 'excerpt' => $target->content,
+            ],
+            // A public listing: its title and who offers it.
+            $target instanceof Service => [
+                'name' => $target->provider?->business_name,
+                'excerpt' => $target->title,
             ],
             default => null,
         };

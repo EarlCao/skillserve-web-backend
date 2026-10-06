@@ -124,7 +124,7 @@ class DisputeController extends Controller
         return $this->success(new BookingResource($this->disputeService->resolve($booking, $request->user(), $request->validated('resolution'))), 'Dispute resolved.');
     }
 
-    #[OA\Patch(path: '/api/disputes/{booking}/reject', summary: 'Reject a dispute', tags: ['Disputes'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'note', type: 'string', maxLength: 2000, nullable: true)])), responses: [new OA\Response(response: 200, description: 'Dispute rejected', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 422, description: 'Validation or state error')])]
+    #[OA\Patch(path: '/api/disputes/{booking}/reject', summary: 'Reject a dispute', description: 'The booking returns to where it was before the dispute: completed if the job had been completed, otherwise active.', tags: ['Disputes'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'note', type: 'string', maxLength: 2000, nullable: true)])), responses: [new OA\Response(response: 200, description: 'Dispute rejected', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 422, description: 'Validation or state error')])]
     public function reject(CloseDisputeRequest $request, Booking $booking): JsonResponse
     {
         $this->authorize('manageDispute', $booking);
@@ -132,7 +132,7 @@ class DisputeController extends Controller
         return $this->success(new BookingResource($this->disputeService->reject($booking, $request->user(), $request->validated('note'))), 'Dispute rejected.');
     }
 
-    #[OA\Patch(path: '/api/disputes/{booking}/close', summary: 'Close a resolved dispute', tags: ['Disputes'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'note', type: 'string', maxLength: 2000, nullable: true)])), responses: [new OA\Response(response: 200, description: 'Dispute closed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 422, description: 'Validation or state error')])]
+    #[OA\Patch(path: '/api/disputes/{booking}/close', summary: 'Close a resolved or rejected dispute', tags: ['Disputes'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'note', type: 'string', maxLength: 2000, nullable: true)])), responses: [new OA\Response(response: 200, description: 'Dispute closed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 422, description: 'Validation or state error')])]
     public function close(CloseDisputeRequest $request, Booking $booking): JsonResponse
     {
         $this->authorize('manageDispute', $booking);

@@ -4,10 +4,12 @@ namespace App\Modules\ClientCommunication\Services;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Reviews\Models\Review;
+use App\Modules\Services\Models\Service;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
@@ -18,18 +20,19 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * Complaints filed from the mobile app.
  *
- * Three things can be reported, each a reportable type administrators can act
+ * Four things can be reported, each a reportable type administrators can act
  * on from the admin console:
  *
  * - the other party on one of the reporter's bookings (a User — warn, suspend
  *   or ban);
  * - a published review (a Review — hide or remove), because reviews are public;
- * - a message the reporter received (a Message — remove).
+ * - a message the reporter received (a Message — remove);
+ * - a service listing anyone can see in the marketplace (a Service — hide).
  */
 class ClientReportService extends BaseService
 {
     /** @var array<int, class-string<Model>> */
-    private const SUBJECT_TYPES = [User::class, Review::class, Message::class];
+    private const SUBJECT_TYPES = [User::class, Review::class, Message::class, Service::class];
 
     public function index(User $reporter, array $filters): LengthAwarePaginator
     {
@@ -56,6 +59,7 @@ class ClientReportService extends BaseService
         [$subject, $context] = match (true) {
             ! empty($data['review_id']) => [$this->review($reporter, (int) $data['review_id']), 'Review'],
             ! empty($data['message_id']) => [$this->message($reporter, (int) $data['message_id']), 'Message'],
+            ! empty($data['service_id']) => $this->service($reporter, (int) $data['service_id']),
             default => $this->bookingCounterpart($reporter, (int) $data['booking_id']),
         };
 
@@ -152,6 +156,31 @@ class ClientReportService extends BaseService
     }
 
     /**
+     * Any service listed in the marketplace, except the reporter's own. A
+     * listing the public cannot see is reported as missing.
+     *
+     * @return array{0: Service, 1: string}
+     */
+    private function service(User $reporter, int $serviceId): array
+    {
+        $service = app(ClientCatalogService::class)
+            ->applyPublicServiceFilters(Service::query()->whereKey($serviceId))
+            ->with('provider:id,user_id')
+            ->first()
+            ?? throw new ApiException('Service not found.', 404);
+
+        if ((int) $service->provider?->user_id === (int) $reporter->id) {
+            throw new ApiException(
+                'You cannot report your own service.',
+                422,
+                errors: ['service_id' => ['You cannot report your own service.']],
+            );
+        }
+
+        return [$service, 'Service "'.$service->title.'"'];
+    }
+
+    /**
      * Only a message the reporter received. Their own messages, and other
      * people's conversations, are reported as missing.
      */
@@ -215,6 +244,7 @@ class ClientReportService extends BaseService
         $morph->morphWith([
             Review::class => ['reviewer:id,name'],
             Message::class => ['sender:id,name'],
+            Service::class => ['provider:id,business_name'],
         ]);
     }
 }

@@ -102,6 +102,39 @@ class DisputeManagementTest extends TestCase
             ->assertJsonPath('meta.pagination.per_page', 2);
     }
 
+    public function test_rejecting_returns_the_job_to_where_it_was_and_the_dispute_can_be_closed(): void
+    {
+        [, $token] = $this->actingManager();
+        $completed = $this->createBooking();
+        $completed->forceFill(['completed_at' => now()->subDay()])->save();
+        $inProgress = $this->createBooking();
+
+        $this->withToken($token)->patchJson("/api/disputes/{$completed->id}/reject", ['note' => 'The work matches the booking.'])
+            ->assertOk()
+            ->assertJsonPath('data.dispute_status', 'rejected');
+        $this->withToken($token)->patchJson("/api/disputes/{$inProgress->id}/reject")->assertOk();
+
+        $this->assertSame('completed', $completed->fresh()->status);
+        $this->assertSame('active', $inProgress->fresh()->status);
+
+        $this->withToken($token)->patchJson("/api/disputes/{$completed->id}/close")
+            ->assertOk()
+            ->assertJsonPath('data.dispute_status', 'closed');
+    }
+
+    public function test_rejecting_through_the_booking_endpoint_also_restores_the_job(): void
+    {
+        [, $token] = $this->actingManager();
+        $booking = $this->createBooking();
+
+        $this->withToken($token)
+            ->patchJson("/api/bookings/{$booking->id}/dispute", ['action' => 'reject'])
+            ->assertOk();
+
+        $this->assertSame('active', $booking->fresh()->status);
+        $this->assertSame('rejected', $booking->fresh()->dispute_status);
+    }
+
     public function test_close_requires_a_resolved_dispute(): void
     {
         [, $token] = $this->actingManager();

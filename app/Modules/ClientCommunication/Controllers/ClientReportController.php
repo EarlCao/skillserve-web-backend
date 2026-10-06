@@ -55,7 +55,7 @@ class ClientReportController extends Controller
     #[OA\Post(
         path: '/api/client/v1/reports',
         summary: 'Report a person, a review or a message',
-        description: 'Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller\'s own); `message_id` reports a message the caller received. Moderators review every report from the admin console. One open report per subject per reporter.',
+        description: 'Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller\'s own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller\'s own). Moderators review every report from the admin console. One open report per subject per reporter.',
         tags: ['Client Reports'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
@@ -64,6 +64,7 @@ class ClientReportController extends Controller
                 new OA\Property(property: 'booking_id', type: 'integer', nullable: true, description: 'Report the other party on this booking'),
                 new OA\Property(property: 'review_id', type: 'integer', nullable: true, description: 'Report this published review'),
                 new OA\Property(property: 'message_id', type: 'integer', nullable: true, description: 'Report this message the caller received'),
+                new OA\Property(property: 'service_id', type: 'integer', nullable: true, description: 'Report this service listing'),
                 new OA\Property(property: 'reason', type: 'string', enum: Report::REASONS),
                 new OA\Property(property: 'description', type: 'string', minLength: 10, maxLength: 2000),
             ],

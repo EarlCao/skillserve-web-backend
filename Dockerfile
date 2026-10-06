@@ -17,6 +17,9 @@ RUN --network=host apk add --no-cache \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
     && docker-php-ext-install pdo_pgsql gd zip exif pcntl
 
+# Upload limits (PHP's defaults refuse photos over 2 MB).
+COPY deploy/php/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # Composer (PHP package manager)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

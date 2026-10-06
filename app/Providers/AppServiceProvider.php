@@ -36,6 +36,7 @@ use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
+use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
 use App\Modules\Commissions\Events\CommissionSettled;
 use App\Modules\Commissions\Events\CommissionTierCreated;
 use App\Modules\Commissions\Events\CommissionTierDeleted;
@@ -184,7 +185,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Sanctum::authenticateAccessTokensUsing(function ($accessToken, bool $isValid): bool {
-            if (! $isValid || $accessToken->name === 'client-access') {
+            // The admin session timeout is for staff sessions. Mobile tokens
+            // carry their own expiry: the short-lived access token, and the
+            // background token the app's closed-app check polls with.
+            if (! $isValid || in_array($accessToken->name, ['client-access', BackgroundNotificationService::TOKEN_NAME], true)) {
                 return $isValid;
             }
 

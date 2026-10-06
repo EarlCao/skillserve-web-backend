@@ -252,6 +252,50 @@ class ClientReportTest extends TestCase
         $this->assertSame('inappropriate_content', $review->fresh()->report_reason);
     }
 
+    public function test_a_listed_service_can_be_reported_for_moderators(): void
+    {
+        $customer = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->booking($this->customer(), $provider)->service;
+
+        $data = $this->withToken($this->clientToken($customer))
+            ->postJson('/api/client/v1/reports', [
+                'service_id' => $service->id,
+                'reason' => 'misleading_information',
+                'description' => 'The listing asks for payment outside the app first.',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.subject_type', 'service')
+            ->assertJsonPath('data.reported.name', 'Reported Provider')
+            ->assertJsonPath('data.reported.excerpt', 'Reported service')
+            ->json('data');
+
+        $report = Report::query()->findOrFail($data['id']);
+        $this->assertSame(Service::class, $report->reportable_type);
+        $this->assertStringStartsWith('Service "Reported service": ', $report->description);
+
+        // It reaches the admin's service reports.
+        $this->assertSame(1, Report::query()->where('reportable_type', Service::class)->count());
+    }
+
+    public function test_your_own_service_or_a_hidden_one_cannot_be_reported(): void
+    {
+        [$provider, $providerUser] = $this->provider();
+        $service = $this->booking($this->customer(), $provider)->service;
+        $payload = fn () => ['service_id' => $service->id, 'reason' => 'misleading_information', 'description' => 'Reporting my own listing.'];
+
+        $this->withToken($providerUser->createToken('provider', ['client:auth'])->plainTextToken)
+            ->postJson('/api/client/v1/reports', $payload())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['service_id']);
+
+        Auth::forgetGuards();
+        $service->update(['is_hidden' => true]);
+        $this->withToken($this->clientToken($this->customer()))
+            ->postJson('/api/client/v1/reports', $payload())
+            ->assertNotFound();
+    }
+
     public function test_you_cannot_report_your_own_review_or_a_hidden_one(): void
     {
         $author = $this->customer();

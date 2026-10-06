@@ -196,11 +196,21 @@ class BookingService extends BaseService
             if (in_array($booking->dispute_status, ['resolved', 'rejected', 'closed'], true)) {
                 throw new ApiException('This dispute is no longer open.', 422, errors: ['dispute_status' => ['A resolved, rejected, or closed dispute cannot be changed.']]);
             }
-            $updates = ['dispute_status' => $action === 'investigate' ? 'investigated' : $action];
+            // The stored status is the outcome, not the action's name.
+            $updates = ['dispute_status' => match ($action) {
+                'investigate' => 'investigated',
+                'resolve' => 'resolved',
+                'reject' => 'rejected',
+            }];
 
             if ($action === 'resolve' && $resolution) {
                 $updates['dispute_resolution'] = $resolution;
                 $updates['status'] = 'completed';
+            }
+
+            // A rejected complaint returns the job to where it was.
+            if ($action === 'reject') {
+                $updates['status'] = $booking->statusBeforeDispute();
             }
 
             if ($notes) {
@@ -227,6 +237,10 @@ class BookingService extends BaseService
 
             if ($action === 'resolve' && $booking->status === 'completed') {
                 event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: 'disputed', newStatus: 'completed'));
+            }
+
+            if ($action === 'reject') {
+                event(new BookingStatusChanged(booking: $booking, actor: $actor, oldStatus: 'disputed', newStatus: $booking->status, fromDispute: true));
             }
 
             return $booking;

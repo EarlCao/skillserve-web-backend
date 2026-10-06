@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -25,7 +26,10 @@ Route::get('/health', function () {
         DB::connection()->getPdo();
         $checks['services']['database'] = ['status' => 'up'];
     } catch (Throwable $e) {
-        $checks['services']['database'] = ['status' => 'down', 'error' => $e->getMessage()];
+        // The driver's message can name hosts and users; it goes to the log,
+        // never to this public endpoint.
+        Log::error('Health check: database unreachable.', ['exception' => $e]);
+        $checks['services']['database'] = ['status' => 'down'];
         $checks['status'] = 'degraded';
     }
 

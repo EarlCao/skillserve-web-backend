@@ -496,7 +496,7 @@ use OpenApi\Attributes as OA;
     description: 'A complaint as the person who filed it sees it. Moderation internals — investigation notes, the moderators involved and what was done to the other account — are deliberately absent.',
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
-        new OA\Property(property: 'subject_type', type: 'string', enum: ['user', 'review', 'message']),
+        new OA\Property(property: 'subject_type', type: 'string', enum: ['user', 'review', 'message', 'service']),
         new OA\Property(property: 'reason', type: 'string', enum: ['service_quality', 'no_show', 'safety_concern', 'payment_dispute', 'misleading_information', 'harassment', 'inappropriate_content', 'spam', 'other']),
         new OA\Property(property: 'description', type: 'string'),
         new OA\Property(property: 'status', type: 'string', enum: ['pending', 'investigating', 'resolved', 'rejected']),

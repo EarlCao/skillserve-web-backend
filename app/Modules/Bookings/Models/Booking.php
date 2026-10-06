@@ -186,4 +186,14 @@ class Booking extends Model
             'deleted_at' => 'datetime',
         ];
     }
+
+    /**
+     * Where the booking returns when its dispute is rejected. A dispute is
+     * raised on a job in progress or completed, so a booking that had been
+     * completed goes back to completed and any other back to active.
+     */
+    public function statusBeforeDispute(): string
+    {
+        return $this->completed_at !== null ? 'completed' : 'active';
+    }
 }

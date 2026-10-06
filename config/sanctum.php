@@ -50,7 +50,13 @@ return [
     |
     */
 
-    'expiration' => env('SANCTUM_EXPIRATION', 60 * 24),
+    // No global cap: every token SkillServe issues carries its own expires_at
+    // (admin sessions follow System Settings → session timeout, mobile access
+    // tokens CLIENT_ACCESS_TOKEN_EXPIRATION, the closed-app background token
+    // CLIENT_BACKGROUND_TOKEN_EXPIRATION). A global value here would cut the
+    // year-long background token off after a day, so SANCTUM_EXPIRATION is
+    // deliberately not read.
+    'expiration' => null,
 
     /*
     |--------------------------------------------------------------------------

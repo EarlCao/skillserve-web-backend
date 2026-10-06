@@ -3832,6 +3832,7 @@
                     "Disputes"
                 ],
                 "summary": "Reject a dispute",
+                "description": "The booking returns to where it was before the dispute: completed if the job had been completed, otherwise active.",
                 "operationId": "5fd55416f4604a9045936dc94e30ac96",
                 "parameters": [
                     {
@@ -3887,7 +3888,7 @@
                 "tags": [
                     "Disputes"
                 ],
-                "summary": "Close a resolved dispute",
+                "summary": "Close a resolved or rejected dispute",
                 "operationId": "82962bbd66eddfc0edfa8e1babd647c4",
                 "parameters": [
                     {
@@ -6257,7 +6258,7 @@
                     "Client Reports"
                 ],
                 "summary": "Report a person, a review or a message",
-                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received. Moderators review every report from the admin console. One open report per subject per reporter.",
+                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller's own). Moderators review every report from the admin console. One open report per subject per reporter.",
                 "operationId": "c7856bfbe60e0f4d287c6af7118453dd",
                 "requestBody": {
                     "required": true,
@@ -6281,6 +6282,11 @@
                                     },
                                     "message_id": {
                                         "description": "Report this message the caller received",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "service_id": {
+                                        "description": "Report this service listing",
                                         "type": "integer",
                                         "nullable": true
                                     },
@@ -21063,7 +21069,8 @@
                         "enum": [
                             "user",
                             "review",
-                            "message"
+                            "message",
+                            "service"
                         ]
                     },
                     "reason": {

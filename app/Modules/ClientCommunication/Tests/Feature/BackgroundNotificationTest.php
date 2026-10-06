@@ -9,6 +9,7 @@ use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
+use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Str;
@@ -149,6 +150,16 @@ class BackgroundNotificationTest extends TestCase
     private function asSessionUser(User $user): User
     {
         return $user->withAccessToken($user->createToken('s', [config('client-auth.access_ability')])->accessToken);
+    }
+
+    public function test_the_background_token_outlives_the_admin_session_timeout(): void
+    {
+        Setting::updateOrCreate(['group' => 'system', 'name' => 'session_timeout_minutes'], ['payload' => 60]);
+        $token = $this->backgroundToken($this->customer());
+
+        $this->travel(2)->days();
+
+        $this->withToken($token)->getJson('/api/client/v1/notifications/background')->assertOk();
     }
 
     private function sessionToken(User $user): string
