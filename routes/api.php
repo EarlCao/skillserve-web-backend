@@ -48,10 +48,23 @@ Route::get('/health', function () {
     // Whether the 6-digit codes can go out: Twilio Verify with its settings,
     // or a mailer that really sends. Names the driver, never a key.
     $driver = (string) config('client-auth.otp_driver');
+    $mailer = (string) config('mail.default');
+    // The settings each API mailer cannot send without; log/array send nothing.
+    $mailerKeys = match (config("mail.mailers.{$mailer}.transport")) {
+        'log', 'array' => null,
+        'mailjet-api' => ['services.mailjet.key', 'services.mailjet.secret'],
+        'sendgrid-api' => ['services.sendgrid.api_key'],
+        'brevo-api' => ['services.brevo.api_key'],
+        default => [],
+    };
     $otpReady = $driver === 'twilio'
         ? app(TwilioVerifyClient::class)->isConfigured()
-        : ! in_array(config('mail.mailers.'.config('mail.default').'.transport'), ['log', 'array'], true);
-    $checks['services']['otp'] = ['status' => $otpReady ? 'up' : 'down', 'driver' => $driver];
+        : $mailerKeys !== null && collect($mailerKeys)->every(fn (string $key): bool => filled(config($key)));
+    $checks['services']['otp'] = array_filter([
+        'status' => $otpReady ? 'up' : 'down',
+        'driver' => $driver,
+        'mailer' => $driver === 'twilio' ? null : $mailer,
+    ]);
 
     $status = $checks['status'] === 'ok' ? 200 : 503;
 

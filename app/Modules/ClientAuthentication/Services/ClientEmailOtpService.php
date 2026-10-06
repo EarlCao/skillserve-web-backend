@@ -111,7 +111,7 @@ class ClientEmailOtpService
 
         if (in_array($transport, ['log', 'array'], true)) {
             throw new RuntimeException(sprintf(
-                'MAIL_MAILER is "%s", which does not send email. Set OTP_DRIVER=twilio (Twilio Verify), or MAIL_MAILER=sendgrid-api with SENDGRID_API_KEY.',
+                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=mailjet-api with MAILJET_API_KEY and MAILJET_SECRET_KEY.',
                 $mailer,
             ));
         }

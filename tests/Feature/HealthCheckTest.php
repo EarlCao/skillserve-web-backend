@@ -59,4 +59,16 @@ class HealthCheckTest extends TestCase
         $response = $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
         $this->assertStringNotContainsString('secret', $response->getContent());
     }
+
+    public function test_health_checks_the_mailjet_keys_when_the_codes_go_by_email(): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'mailjet-api', 'services.mailjet.key' => null, 'services.mailjet.secret' => null]);
+        $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'mail', 'mailer' => 'mailjet-api']);
+
+        config(['services.mailjet.key' => 'key', 'services.mailjet.secret' => 'secret']);
+        $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+
+        config(['mail.default' => 'log']);
+        $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'down');
+    }
 }

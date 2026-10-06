@@ -43,6 +43,14 @@ return [
         'timeout' => (int) env('TWILIO_TIMEOUT', 15),
     ],
 
+    // Mailjet's Send API (MAIL_MAILER=mailjet-api): the production mailer for
+    // the 6-digit codes and every other email.
+    'mailjet' => [
+        'key' => env('MAILJET_API_KEY'),
+        'secret' => env('MAILJET_SECRET_KEY'),
+        'timeout' => (int) env('MAILJET_API_TIMEOUT', 15),
+    ],
+
     // SendGrid's HTTP mail API (MAIL_MAILER=sendgrid-api) for every other email.
     'sendgrid' => [
         'api_key' => env('SENDGRID_API_KEY'),

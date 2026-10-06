@@ -133,6 +133,7 @@ use App\Modules\Users\Policies\UserManagementPolicy;
 use App\Shared\Listeners\SyncUserRoleId;
 use App\Shared\Realtime\RealtimeChangeTracker;
 use App\Shared\Services\BrevoApiTransport;
+use App\Shared\Services\MailjetApiTransport;
 use App\Shared\Services\SendGridApiTransport;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -176,6 +177,14 @@ class AppServiceProvider extends ServiceProvider
         // Brevo transactional email over their HTTPS API (port 443). Some
         // hosts (Render free tier included) block outbound SMTP ports, so
         // MAIL_MAILER=brevo-api + BREVO_API_KEY provides a working path.
+        Mail::extend('mailjet-api', function (array $config) {
+            return new MailjetApiTransport(
+                apiKey: (string) config('services.mailjet.key'),
+                secretKey: (string) config('services.mailjet.secret'),
+                timeoutSeconds: (int) config('services.mailjet.timeout', 15),
+            );
+        });
+
         Mail::extend('sendgrid-api', function (array $config) {
             return new SendGridApiTransport(
                 apiKey: (string) config('services.sendgrid.api_key'),
