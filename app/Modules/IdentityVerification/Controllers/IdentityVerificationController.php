@@ -93,7 +93,7 @@ class IdentityVerificationController extends Controller
     #[OA\Patch(
         path: '/api/identity-verifications/{identityVerification}/approve',
         summary: 'Confirm the National ID belongs to the account holder',
-        description: 'Only a pending submission can be decided; a second decision returns 409. Approving starts the retention clock on the stored images (System Settings → Identity).',
+        description: 'Only a pending submission can be decided; a second decision returns 409. Approving starts the retention clock on the stored images (System Settings → Identity). For a provider who is not yet verified, approving also verifies them in Provider Management and closes any open business-verification request as approved.',
         tags: ['Identity Verifications'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'identityVerification', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],

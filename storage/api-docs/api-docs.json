@@ -11246,7 +11246,7 @@
                     "Identity Verifications"
                 ],
                 "summary": "Confirm the National ID belongs to the account holder",
-                "description": "Only a pending submission can be decided; a second decision returns 409. Approving starts the retention clock on the stored images (System Settings → Identity).",
+                "description": "Only a pending submission can be decided; a second decision returns 409. Approving starts the retention clock on the stored images (System Settings → Identity). For a provider who is not yet verified, approving also verifies them in Provider Management and closes any open business-verification request as approved.",
                 "operationId": "f68a7813db9011b36d573ab69dc3b4e9",
                 "parameters": [
                     {

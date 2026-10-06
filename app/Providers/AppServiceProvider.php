@@ -71,6 +71,7 @@ use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Events\ProviderVerificationSubmitted;
 use App\Modules\Providers\Listeners\LogProviderActivity;
 use App\Modules\Providers\Listeners\NotifyProviderOfAccountDecision;
+use App\Modules\Providers\Listeners\VerifyProviderOnIdentityApproval;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Policies\ProviderPolicy;
 use App\Modules\ReportsAndModeration\Events\ReportActionTaken;
@@ -307,6 +308,7 @@ class AppServiceProvider extends ServiceProvider
             ProviderVerificationRemoved::class, ProviderSuspended::class, ProviderActivated::class,
         ], NotifyProviderOfAccountDecision::class);
         Event::listen(ProviderRecognitionChanged::class, LogProviderRecognitionActivity::class);
+        Event::listen(IdentityVerificationApproved::class, VerifyProviderOnIdentityApproval::class);
 
         // Service Management module events.
         Event::listen(ServiceCreated::class, LogServiceActivity::class);

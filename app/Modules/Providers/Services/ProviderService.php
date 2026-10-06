@@ -140,6 +140,46 @@ class ProviderService extends BaseService
     }
 
     /**
+     * An approved National ID verifies the provider as well, so Provider
+     * Management does not keep listing them as pending after Identity
+     * Verification has approved them. Any open business-verification
+     * request is closed as approved. Providers already verified are left
+     * as they are; returns the profile only when it changed.
+     */
+    public function verifyFromIdentity(User $user, User $actor): ?ProviderProfile
+    {
+        $profile = $user->providerProfile;
+
+        if ($profile === null || $profile->isVerified()) {
+            return null;
+        }
+
+        $notes = 'Verified with the approved National ID.';
+
+        return $this->transaction(function () use ($profile, $actor, $notes): ProviderProfile {
+            $profile->verificationRequests()
+                ->whereIn('status', ['pending', 'additional_info_required'])
+                ->update([
+                    'status' => 'approved',
+                    'admin_notes' => $notes,
+                    'reviewed_at' => now(),
+                    'reviewed_by' => $actor->id,
+                ]);
+
+            $profile->update([
+                'verification_status' => 'verified',
+                'verified_at' => now(),
+                'verified_by' => $actor->id,
+                'rejection_reason' => null,
+            ]);
+
+            event(new ProviderVerificationApproved(providerProfile: $profile, actor: $actor, notes: $notes));
+
+            return $profile;
+        });
+    }
+
+    /**
      * Reject a provider's verification request.
      */
     public function rejectVerification(VerificationRequest $request, User $actor, string $reason): VerificationRequest

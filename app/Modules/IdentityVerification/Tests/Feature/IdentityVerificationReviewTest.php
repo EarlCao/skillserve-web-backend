@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Models\IdentityVerificationEvent;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Providers\Models\VerificationRequest;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -58,7 +59,7 @@ class IdentityVerificationReviewTest extends TestCase
     }
 
     /** An account with a pending National ID submission. */
-    private function submission(string $type = 'customer'): IdentityVerification
+    private function submission(string $type = 'customer', string $providerStatus = 'verified'): IdentityVerification
     {
         $user = User::factory()->create([
             'email' => $type.'.'.Str::random(8).'@skillserve.test',
@@ -70,7 +71,7 @@ class IdentityVerificationReviewTest extends TestCase
             ProviderProfile::create([
                 'user_id' => $user->id,
                 'business_name' => 'Juan Aircon Services',
-                'verification_status' => 'verified',
+                'verification_status' => $providerStatus,
             ]);
         }
 
@@ -313,5 +314,53 @@ class IdentityVerificationReviewTest extends TestCase
             ->getJson("/api/identity-verifications/{$record->id}/documents/{$document->id}/download")
             ->assertStatus(404)
             ->assertJsonPath('message', 'This ID image is no longer stored on the server. Ask the user to submit their National ID again.');
+    }
+
+    public function test_approving_a_providers_id_verifies_them_in_provider_management_too(): void
+    {
+        $record = $this->submission('provider', 'pending');
+        $profile = ProviderProfile::query()->where('user_id', $record->user_id)->firstOrFail();
+        $request = VerificationRequest::create([
+            'provider_profile_id' => $profile->id,
+            'status' => 'pending',
+            'submitted_at' => now(),
+        ]);
+        [$actor, $token] = $this->reviewer(['view identity verifications', 'verify identities']);
+
+        $this->withToken($token)
+            ->patchJson("/api/identity-verifications/{$record->id}/approve")
+            ->assertOk();
+
+        $profile->refresh();
+        $this->assertSame('verified', $profile->verification_status);
+        $this->assertSame($actor->id, $profile->verified_by);
+        $this->assertNotNull($profile->verified_at);
+        $this->assertSame('approved', $request->fresh()->status);
+    }
+
+    public function test_an_already_verified_provider_and_a_customer_are_left_alone(): void
+    {
+        $provider = $this->submission('provider', 'verified');
+        $customer = $this->submission('customer');
+        $verifiedAt = ProviderProfile::query()->where('user_id', $provider->user_id)->value('verified_at');
+        [, $token] = $this->reviewer(['view identity verifications', 'verify identities']);
+
+        $this->withToken($token)->patchJson("/api/identity-verifications/{$provider->id}/approve")->assertOk();
+        $this->withToken($token)->patchJson("/api/identity-verifications/{$customer->id}/approve")->assertOk();
+
+        $this->assertSame($verifiedAt, ProviderProfile::query()->where('user_id', $provider->user_id)->value('verified_at'));
+        $this->assertDatabaseMissing('provider_profiles', ['user_id' => $customer->user_id]);
+    }
+
+    public function test_rejecting_a_providers_id_leaves_them_pending(): void
+    {
+        $record = $this->submission('provider', 'pending');
+        [, $token] = $this->reviewer(['view identity verifications', 'reject identities']);
+
+        $this->withToken($token)
+            ->patchJson("/api/identity-verifications/{$record->id}/reject", ['reason' => 'The photo is blurred.'])
+            ->assertOk();
+
+        $this->assertSame('pending', ProviderProfile::query()->where('user_id', $record->user_id)->value('verification_status'));
     }
 }
