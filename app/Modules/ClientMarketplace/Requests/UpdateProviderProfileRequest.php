@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Requests;
 
+use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
 
 /**
@@ -47,7 +48,8 @@ class UpdateProviderProfileRequest extends BaseFormRequest
             'business_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'bio' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'specialization' => ['sometimes', 'required', 'string', 'max:255'],
-            'experience_years' => ['sometimes', 'integer', 'min:0', 'max:80'],
+            // Counted from age 16 at the earliest, from the birthday on the account.
+            'experience_years' => ['sometimes', ...AgeRequirement::experienceRules($this->user()?->birthday)],
             'hourly_rate' => ['sometimes', 'nullable', 'numeric', 'min:0', 'max:9999999.99'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
             'website' => ['sometimes', 'nullable', 'url', 'max:255'],
@@ -69,6 +71,7 @@ class UpdateProviderProfileRequest extends BaseFormRequest
     {
         return [
             'gcash_number.regex' => 'Enter an 11-digit GCash number starting with 09.',
+            ...AgeRequirement::messages(),
         ];
     }
 }

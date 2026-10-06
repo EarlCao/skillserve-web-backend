@@ -24,6 +24,7 @@ class CancelRegistrationTest extends TestCase
         Notification::fake();
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Cancel',
+            'birthday' => '1995-04-02',
             'last_name' => 'Me',
             'email' => 'cancel-me@example.com',
             'password' => 'password123',
@@ -44,6 +45,7 @@ class CancelRegistrationTest extends TestCase
         // the abandoned code does not block the fresh attempt.
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Cancel',
+            'birthday' => '1995-04-02',
             'last_name' => 'Me',
             'email' => 'cancel-me@example.com',
             'password' => 'password123',
@@ -56,6 +58,7 @@ class CancelRegistrationTest extends TestCase
         Notification::fake();
         $this->postJson('/api/client/v1/auth/register-provider', [
             'first_name' => 'Prov',
+            'birthday' => '1995-04-02',
             'last_name' => 'Cancel',
             'email' => 'prov-cancel@example.com',
             'password' => 'password123',
@@ -118,6 +121,7 @@ class CancelRegistrationTest extends TestCase
         Notification::fake();
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Keep',
+            'birthday' => '1995-04-02',
             'last_name' => 'Me',
             'email' => 'keep-me@example.com',
             'password' => 'password123',

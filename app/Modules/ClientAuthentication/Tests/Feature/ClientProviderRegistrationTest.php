@@ -33,6 +33,7 @@ class ClientProviderRegistrationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register-provider', array_merge([
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Provider',
             'email' => $email,
             'password' => 'password123',
@@ -58,6 +59,7 @@ class ClientProviderRegistrationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register-provider', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Provider',
             'email' => 'provider@example.com',
             'password' => 'password123',
@@ -125,6 +127,7 @@ class ClientProviderRegistrationTest extends TestCase
     {
         $this->postJson('/api/client/v1/auth/register-provider', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Provider',
             'email' => 'provider2@example.com',
             'password' => 'password123',

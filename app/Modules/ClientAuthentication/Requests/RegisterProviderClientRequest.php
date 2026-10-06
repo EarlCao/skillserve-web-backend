@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Modules\Locations\Services\PhAddressService;
+use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,12 +33,18 @@ class RegisterProviderClientRequest extends BaseFormRequest
             // Provider profile fields (Step 1 of mobile onboarding).
             'business_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'specialization' => ['required', 'string', 'max:255'],
-            'experience_years' => ['sometimes', 'integer', 'min:0', 'max:80'],
+            // Counted from age 16 at the earliest: 2 years at 18, 3 at 19...
+            'experience_years' => ['sometimes', ...AgeRequirement::experienceRules($this->input('birthday'))],
             'bio' => ['sometimes', 'nullable', 'string', 'max:5000'],
-            // Read from the National ID at sign-up; optional so older app
-            // versions, which do not send them, keep working.
-            'birthday' => ['sometimes', 'nullable', 'date', 'before:today', 'after:1900-01-01'],
+            // Read from the National ID at sign-up. SkillServe is for adults
+            // only, so it is required and must be 18 or more years ago.
+            'birthday' => AgeRequirement::birthdayRules(),
             ...PhAddressService::rules('address_details', PhAddressService::STREET),
         ];
+    }
+
+    public function messages(): array
+    {
+        return AgeRequirement::messages();
     }
 }

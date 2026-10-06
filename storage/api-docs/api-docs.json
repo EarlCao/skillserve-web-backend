@@ -4002,7 +4002,8 @@
                                 "required": [
                                     "first_name",
                                     "last_name",
-                                    "email"
+                                    "email",
+                                    "birthday"
                                 ],
                                 "properties": {
                                     "first_name": {
@@ -4033,10 +4034,10 @@
                                         "deprecated": true
                                     },
                                     "birthday": {
-                                        "description": "Read from the National ID",
+                                        "description": "Read from the National ID. The account holder must be at least 18 years old.",
                                         "type": "string",
                                         "format": "date",
-                                        "nullable": true
+                                        "example": "1995-04-02"
                                     },
                                     "address_details": {
                                         "oneOf": [
@@ -4114,7 +4115,8 @@
                                     "first_name",
                                     "last_name",
                                     "email",
-                                    "specialization"
+                                    "specialization",
+                                    "birthday"
                                 ],
                                 "properties": {
                                     "first_name": {
@@ -4156,6 +4158,7 @@
                                         "maxLength": 255
                                     },
                                     "experience_years": {
+                                        "description": "At most the age minus 16: 2 at 18, 3 at 19, 4 at 20, and so on.",
                                         "type": "integer",
                                         "example": 3,
                                         "minimum": 0
@@ -4166,10 +4169,10 @@
                                         "maxLength": 5000
                                     },
                                     "birthday": {
-                                        "description": "Read from the National ID",
+                                        "description": "Read from the National ID. The account holder must be at least 18 years old.",
                                         "type": "string",
                                         "format": "date",
-                                        "nullable": true
+                                        "example": "1995-04-02"
                                     },
                                     "address_details": {
                                         "oneOf": [
@@ -4639,7 +4642,8 @@
                                     "id_token",
                                     "first_name",
                                     "last_name",
-                                    "role"
+                                    "role",
+                                    "birthday"
                                 ],
                                 "properties": {
                                     "id_token": {
@@ -4678,6 +4682,7 @@
                                         "maxLength": 255
                                     },
                                     "experience_years": {
+                                        "description": "At most the age minus 16: 2 at 18, 3 at 19, 4 at 20, and so on.",
                                         "type": "integer",
                                         "example": 3,
                                         "minimum": 0
@@ -4688,10 +4693,10 @@
                                         "maxLength": 5000
                                     },
                                     "birthday": {
-                                        "description": "Read from the National ID",
+                                        "description": "Read from the National ID. The account holder must be at least 18 years old.",
                                         "type": "string",
                                         "format": "date",
-                                        "nullable": true
+                                        "example": "1995-04-02"
                                     },
                                     "address_details": {
                                         "oneOf": [
@@ -8666,6 +8671,7 @@
                                         "maxLength": 255
                                     },
                                     "experience_years": {
+                                        "description": "At most the age on the account minus 16 (2 at 18, 3 at 19...); 80 when no birthday is on file.",
                                         "type": "integer",
                                         "example": 5,
                                         "maximum": 80,
@@ -11027,6 +11033,7 @@
                                         "maxLength": 255
                                     },
                                     "birthdate": {
+                                        "description": "The card holder must be at least 18 years old.",
                                         "type": "string",
                                         "format": "date"
                                     },

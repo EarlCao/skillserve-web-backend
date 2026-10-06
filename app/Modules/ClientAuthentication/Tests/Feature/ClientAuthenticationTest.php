@@ -60,6 +60,7 @@ class ClientAuthenticationTest extends TestCase
 
         $response = $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'alex@example.com',
             'password' => 'password123',
@@ -88,6 +89,7 @@ class ClientAuthenticationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'alex@example.com',
             'password' => 'password123',
@@ -126,6 +128,7 @@ class ClientAuthenticationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'retry@example.com',
             'password' => 'password123',
@@ -136,6 +139,7 @@ class ClientAuthenticationTest extends TestCase
         // code alive rather than silently replacing it.
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'retry@example.com',
             'password' => 'password123',
@@ -150,6 +154,7 @@ class ClientAuthenticationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alexandra',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'retry@example.com',
             'password' => 'password456',
@@ -171,6 +176,7 @@ class ClientAuthenticationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Half',
+            'birthday' => '1995-04-02',
             'last_name' => 'Done',
             'email' => 'half-done@example.com',
             'password' => 'password123',
@@ -196,6 +202,7 @@ class ClientAuthenticationTest extends TestCase
     {
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => '',
+            'birthday' => '1995-04-02',
             'last_name' => '',
             'email' => 'not-an-email',
             'password' => 'short',
@@ -208,6 +215,7 @@ class ClientAuthenticationTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'duplicate@example.com',
             'password' => 'password123',

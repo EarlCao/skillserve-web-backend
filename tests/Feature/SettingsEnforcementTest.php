@@ -129,7 +129,7 @@ class SettingsEnforcementTest extends TestCase
         $this->set('marketplace', 'provider_registration_enabled', false);
 
         $this->postJson('/api/client/v1/auth/register-provider', [
-            'first_name' => 'Juan', 'last_name' => 'Cruz', 'email' => 'juan.new@skillserve.test',
+            'first_name' => 'Juan', 'last_name' => 'Cruz', 'email' => 'juan.new@skillserve.test', 'birthday' => '1995-04-02',
             'password' => 'Secret#2026', 'password_confirmation' => 'Secret#2026',
             'specialization' => 'Plumbing', 'business_name' => 'Juan Plumbing',
         ])->assertForbidden()->assertJsonPath('message', 'Provider sign-ups are closed right now. You can still join as a customer.');

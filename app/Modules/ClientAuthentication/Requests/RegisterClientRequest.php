@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Modules\Locations\Services\PhAddressService;
+use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -26,10 +27,15 @@ class RegisterClientRequest extends BaseFormRequest
             // Chosen after the emailed code is confirmed (POST /auth/complete-registration).
             // Still accepted here so older app versions keep working.
             'password' => ['sometimes', 'string', 'min:8', 'max:255', 'confirmed'],
-            // Read from the National ID at sign-up; optional so older app
-            // versions, which do not send them, keep working.
-            'birthday' => ['sometimes', 'nullable', 'date', 'before:today', 'after:1900-01-01'],
+            // Read from the National ID at sign-up. SkillServe is for adults
+            // only, so it is required and must be 18 or more years ago.
+            'birthday' => AgeRequirement::birthdayRules(),
             ...PhAddressService::rules('address_details', PhAddressService::STREET),
         ];
+    }
+
+    public function messages(): array
+    {
+        return AgeRequirement::messages();
     }
 }

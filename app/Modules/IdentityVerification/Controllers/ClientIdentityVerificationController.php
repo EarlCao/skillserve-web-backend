@@ -80,7 +80,7 @@ class ClientIdentityVerificationController extends Controller
                 properties: [
                     new OA\Property(property: 'id_number', type: 'string', example: '1234-5678-9012-3456', description: 'PhilSys Card Number; 16 digits, grouping optional'),
                     new OA\Property(property: 'full_name', type: 'string', maxLength: 255, description: 'Exactly as printed on the card'),
-                    new OA\Property(property: 'birthdate', type: 'string', format: 'date'),
+                    new OA\Property(property: 'birthdate', type: 'string', format: 'date', description: 'The card holder must be at least 18 years old.'),
                     new OA\Property(property: 'documents[0][type]', type: 'string', enum: ['id_front', 'id_back', 'selfie']),
                     new OA\Property(property: 'documents[0][file]', type: 'string', format: 'binary'),
                 ],

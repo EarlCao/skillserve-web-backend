@@ -134,6 +134,7 @@ class ClientGoogleAuthTest extends TestCase
 
         $this->completeGoogleSignUp([
             'first_name' => 'Juan',
+            'birthday' => '1995-04-02',
             'last_name' => 'Dela Cruz',
             'role' => 'customer',
         ])
@@ -174,6 +175,7 @@ class ClientGoogleAuthTest extends TestCase
 
         $this->completeGoogleSignUp([
             'first_name' => 'Pro',
+            'birthday' => '1995-04-02',
             'last_name' => 'Vider',
             'role' => 'provider',
             'business_name' => 'Pro Repairs',
@@ -201,6 +203,7 @@ class ClientGoogleAuthTest extends TestCase
         $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'New',
+            'birthday' => '1995-04-02',
             'last_name' => 'User',
             'role' => 'customer',
         ])->assertStatus(409);
@@ -215,6 +218,7 @@ class ClientGoogleAuthTest extends TestCase
         $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'Pro',
+            'birthday' => '1995-04-02',
             'last_name' => 'Vider',
             'role' => 'provider',
         ])->assertJsonValidationErrors(['specialization']);
@@ -359,6 +363,7 @@ class ClientGoogleAuthTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'new.google.user@gmail.com',
             'password' => 'password123',
@@ -372,6 +377,7 @@ class ClientGoogleAuthTest extends TestCase
         $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'New',
+            'birthday' => '1995-04-02',
             'last_name' => 'User',
             'role' => 'customer',
         ])->assertStatus(202);
@@ -393,6 +399,7 @@ class ClientGoogleAuthTest extends TestCase
         $this->postJson('/api/client/v1/auth/google/register', [
             'id_token' => str_repeat('a', 30),
             'first_name' => 'New',
+            'birthday' => '1995-04-02',
             'last_name' => 'User',
             'role' => 'customer',
         ])->assertStatus(401);

@@ -64,7 +64,7 @@ class ProviderProfileController extends Controller
                 new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Dela Cruz Home Services'),
                 new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, example: 'Plumbing'),
-                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, maximum: 80, example: 5),
+                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, maximum: 80, example: 5, description: 'At most the age on the account minus 16 (2 at 18, 3 at 19...); 80 when no birthday is on file.'),
                 new OA\Property(property: 'hourly_rate', type: 'number', format: 'float', nullable: true, example: 450),
                 new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true, example: 'Quezon City'),
                 new OA\Property(property: 'website', type: 'string', format: 'uri', nullable: true),

@@ -22,6 +22,7 @@ class ClientEmailOtpTest extends TestCase
 
         return $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => $email,
             'password' => 'password123',
@@ -175,6 +176,7 @@ class ClientEmailOtpTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'nomail@example.com',
         ])->assertStatus(503)
@@ -192,6 +194,7 @@ class ClientEmailOtpTest extends TestCase
 
         $this->postJson('/api/client/v1/auth/register', [
             'first_name' => 'Alex',
+            'birthday' => '1995-04-02',
             'last_name' => 'Customer',
             'email' => 'mailed@example.com',
         ])->assertStatus(202);

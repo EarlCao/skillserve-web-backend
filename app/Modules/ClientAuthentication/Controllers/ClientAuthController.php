@@ -61,14 +61,14 @@ class ClientAuthController extends Controller
         description: 'Parks the sign-up and emails a 6-digit code. Next: POST /auth/verify-otp with the code, then POST /auth/complete-registration with the password and the `registration_token` from this response, which creates the account. Abandoning any step leaves the address free to register again.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'email'],
+            required: ['first_name', 'last_name', 'email', 'birthday'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Customer'),
                 new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
                 new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8, deprecated: true, description: 'Older app versions only: the account is then created by /auth/verify-otp. Current apps choose it at /auth/complete-registration.'),
                 new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', deprecated: true),
-                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', example: '1995-04-02', description: 'Read from the National ID. The account holder must be at least 18 years old.'),
                 new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),
@@ -94,7 +94,7 @@ class ClientAuthController extends Controller
         description: 'Same deferred flow as customer registration: code (POST /auth/verify-otp), then password (POST /auth/complete-registration), which creates the provider account and its pending `provider_profiles` row.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['first_name', 'last_name', 'email', 'specialization'],
+            required: ['first_name', 'last_name', 'email', 'specialization', 'birthday'],
             properties: [
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Provider'),
@@ -103,9 +103,9 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'password_confirmation', type: 'string', format: 'password', deprecated: true),
                 new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Alex Repairs'),
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, example: 'Home Repair'),
-                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
+                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3, description: 'At most the age minus 16: 2 at 18, 3 at 19, 4 at 20, and so on.'),
                 new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
-                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', example: '1995-04-02', description: 'Read from the National ID. The account holder must be at least 18 years old.'),
                 new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),
@@ -359,7 +359,7 @@ class ClientAuthController extends Controller
         description: 'For a Google identity with no account. The ID token is re-verified, so the email always comes from Google. Like an email sign-up nothing is created yet: a 6-digit code is emailed to the Google address, then POST /auth/verify-otp and POST /auth/complete-registration (with the `registration_token` from this response) create the account, linked to the Google identity.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['id_token', 'first_name', 'last_name', 'role'],
+            required: ['id_token', 'first_name', 'last_name', 'role', 'birthday'],
             properties: [
                 new OA\Property(property: 'id_token', type: 'string', description: 'The same Google ID token POST /auth/google was called with'),
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Alex'),
@@ -367,9 +367,9 @@ class ClientAuthController extends Controller
                 new OA\Property(property: 'role', type: 'string', enum: ['customer', 'provider'], example: 'customer'),
                 new OA\Property(property: 'business_name', type: 'string', maxLength: 255, nullable: true, example: 'Alex Repairs'),
                 new OA\Property(property: 'specialization', type: 'string', maxLength: 255, nullable: true, description: 'Required when role is provider', example: 'Home Repair'),
-                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3),
+                new OA\Property(property: 'experience_years', type: 'integer', minimum: 0, example: 3, description: 'At most the age minus 16: 2 at 18, 3 at 19, 4 at 20, and so on.'),
                 new OA\Property(property: 'bio', type: 'string', maxLength: 5000, nullable: true),
-                new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true, description: 'Read from the National ID'),
+                new OA\Property(property: 'birthday', type: 'string', format: 'date', example: '1995-04-02', description: 'Read from the National ID. The account holder must be at least 18 years old.'),
                 new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Read from the National ID; becomes the account address'),
             ],
         )),

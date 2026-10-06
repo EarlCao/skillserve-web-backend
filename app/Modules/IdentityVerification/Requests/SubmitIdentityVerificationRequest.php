@@ -3,6 +3,7 @@
 namespace App\Modules\IdentityVerification\Requests;
 
 use App\Modules\IdentityVerification\Models\IdentityDocument;
+use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +29,7 @@ class SubmitIdentityVerificationRequest extends BaseFormRequest
         return [
             'id_number' => ['required', 'string', 'digits:'.$digits],
             'full_name' => ['required', 'string', 'max:255'],
-            'birthdate' => ['required', 'date', 'before:today'],
+            'birthdate' => AgeRequirement::birthdayRules(),
 
             // Front and back of the card, plus a selfie for the reviewer to
             // match against it.
@@ -45,6 +46,7 @@ class SubmitIdentityVerificationRequest extends BaseFormRequest
             'documents.required' => 'Attach a photo of your National ID.',
             'documents.*.file.mimes' => 'Each file must be a JPG, PNG or PDF.',
             'documents.*.file.max' => 'Each file must be 10 MB or smaller.',
+            ...AgeRequirement::messages('birthdate'),
         ];
     }
 

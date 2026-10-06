@@ -36,6 +36,7 @@ class SignUpPasswordStepTest extends TestCase
     {
         $response = $this->postJson($endpoint, [
             'first_name' => 'Step',
+            'birthday' => '1995-04-02',
             'last_name' => 'User',
             'email' => $email,
             ...$extra,
