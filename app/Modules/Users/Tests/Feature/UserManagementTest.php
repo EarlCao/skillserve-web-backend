@@ -100,7 +100,7 @@ class UserManagementTest extends TestCase
             'last_name' => 'Search',
             'name' => 'Zoe Search',
             'status' => 'suspended',
-            'phone' => '+1 555 0100',
+            'phone' => '09171230100',
         ]);
         $this->createUser([
             'email' => 'unverified@skillserve.test',
@@ -303,14 +303,15 @@ class UserManagementTest extends TestCase
                 'first_name' => 'Zoe',
                 'last_name' => 'Roe',
                 'email' => 'after@skillserve.test',
-                'phone' => '+1 555 0199',
+                'phone' => '+63 917 123 0199',
                 'address' => '456 Oak Ave',
                 'birthday' => '1995-04-12',
             ])
             ->assertOk()
             ->assertJsonPath('data.name', 'Zoe Roe')
             ->assertJsonPath('data.email', 'after@skillserve.test')
-            ->assertJsonPath('data.phone', '+1 555 0199')
+            // Typed with +63 and spaces; stored as 11 digits.
+            ->assertJsonPath('data.phone', '09171230199')
             ->assertJsonPath('data.birthday', '1995-04-12');
     }
 
@@ -701,13 +702,13 @@ class UserManagementTest extends TestCase
         $user = $this->createUser();
 
         $this->withToken($token)
-            ->putJson("/api/users/{$user->id}", ['phone' => '+1 555 0000'])
+            ->putJson("/api/users/{$user->id}", ['phone' => '09171230000'])
             ->assertOk();
 
         $entry = Activity::where('description', 'user_updated')->latest('id')->firstOrFail();
         $this->assertNotNull($entry->causer);
         $this->assertSame($user->id, $entry->subject_id);
         $this->assertSame('users', $entry->log_name);
-        $this->assertSame('+1 555 0000', $entry->properties->all()['after']['phone'] ?? null);
+        $this->assertSame('09171230000', $entry->properties->all()['after']['phone'] ?? null);
     }
 }

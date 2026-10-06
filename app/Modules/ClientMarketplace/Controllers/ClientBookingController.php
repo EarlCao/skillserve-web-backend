@@ -67,7 +67,7 @@ class ClientBookingController extends Controller
                 new OA\Property(property: 'client_notes', type: 'string', nullable: true, maxLength: 2000),
                 new OA\Property(property: 'service_address', type: 'string', nullable: true, maxLength: 255, description: 'Free text from older app versions; service_address_details replaces it'),
                 new OA\Property(property: 'service_address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Where the provider should go; its formatted text becomes service_address'),
-                new OA\Property(property: 'contact_phone', type: 'string', nullable: true, maxLength: 32),
+                new OA\Property(property: 'contact_phone', type: 'string', nullable: true, example: '09171234567', description: 'Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.'),
                 new OA\Property(property: 'payment_method', type: 'string', nullable: true, enum: StoreClientBookingRequest::PAYMENT_METHODS, description: 'SkillServe supports two payment methods: `on_hand` and `gcash`. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`; new clients should send `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422. Selection only — the booking stays unpaid, because no payment provider is called yet.'),
             ],
         )),

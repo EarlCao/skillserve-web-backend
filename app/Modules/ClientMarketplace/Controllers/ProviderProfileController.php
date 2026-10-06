@@ -68,6 +68,8 @@ class ProviderProfileController extends Controller
                 new OA\Property(property: 'hourly_rate', type: 'number', format: 'float', nullable: true, example: 450),
                 new OA\Property(property: 'location', type: 'string', maxLength: 255, nullable: true, example: 'Quezon City'),
                 new OA\Property(property: 'website', type: 'string', format: 'uri', nullable: true),
+                new OA\Property(property: 'gcash_number', type: 'string', nullable: true, example: '09171234567', description: 'Where customers send GCash payments. Philippine mobile number; +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.'),
+                new OA\Property(property: 'gcash_name', type: 'string', maxLength: 120, nullable: true, example: 'Juan Dela Cruz', description: 'The name registered on that GCash account; customers check it against what GCash shows before sending.'),
                 new OA\Property(property: 'skills', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
                 new OA\Property(property: 'certifications', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
                 new OA\Property(property: 'languages', type: 'array', items: new OA\Items(type: 'string'), nullable: true),

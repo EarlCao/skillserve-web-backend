@@ -138,7 +138,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'last_name', type: 'string', example: 'Customer'),
         new OA\Property(property: 'name', type: 'string', example: 'Alex Customer'),
         new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com'),
-        new OA\Property(property: 'phone', type: 'string', nullable: true, example: '+639171234567'),
+        new OA\Property(property: 'phone', type: 'string', nullable: true, example: '09171234567', description: 'Philippine mobile number, 11 digits starting with 09'),
         new OA\Property(property: 'address', type: 'string', nullable: true),
         new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddress', nullable: true),
         new OA\Property(property: 'birthday', type: 'string', format: 'date', nullable: true),
@@ -396,7 +396,7 @@ use OpenApi\Attributes as OA;
     description: "Where a customer sends a GCash payment. SkillServe is never in the payment path (ADR-021): the customer pays the provider's own GCash number and the provider then remits the commission. These are the provider's personal payment details, so they are returned only to the customer on that booking, only while it is unpaid, and never through the public catalog. `gcash_number` is null when the provider has not saved theirs, and `note` then says what to do instead.",
     properties: [
         new OA\Property(property: 'method', type: 'string', example: 'gcash'),
-        new OA\Property(property: 'gcash_number', type: 'string', nullable: true, example: '09171234567'),
+        new OA\Property(property: 'gcash_number', type: 'string', nullable: true, example: '09171234567', description: 'Philippine mobile number, 11 digits starting with 09'),
         new OA\Property(property: 'gcash_name', type: 'string', nullable: true, example: 'Juan Dela Cruz', description: 'The name GCash shows for that number, for the customer to check before sending'),
         new OA\Property(property: 'amount', type: 'string', example: '200.00'),
         new OA\Property(property: 'reference', type: 'string', example: 'BK-AB12CD34EF56', description: 'The booking number, for the GCash message'),

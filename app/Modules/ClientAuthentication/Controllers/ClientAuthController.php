@@ -467,7 +467,7 @@ class ClientAuthController extends Controller
             properties: [
                 new OA\Property(property: 'first_name', type: 'string', maxLength: 255, example: 'Juan'),
                 new OA\Property(property: 'last_name', type: 'string', maxLength: 255, example: 'Dela Cruz'),
-                new OA\Property(property: 'phone', type: 'string', maxLength: 30, nullable: true, example: '09171234567'),
+                new OA\Property(property: 'phone', type: 'string', nullable: true, example: '09171234567', description: 'Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.'),
                 new OA\Property(property: 'address', type: 'string', maxLength: 500, nullable: true, example: '123 Mabini St, Manila', description: 'Free text from older app versions; clears address_details'),
                 new OA\Property(property: 'address_details', ref: '#/components/schemas/PhAddressInput', nullable: true, description: 'Sets the structured address and writes its formatted text to address'),
             ],

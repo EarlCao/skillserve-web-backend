@@ -3,6 +3,7 @@
 namespace App\Modules\ClientAuthentication\Requests;
 
 use App\Modules\Locations\Services\PhAddressService;
+use App\Shared\Helpers\PhilippineMobileNumber;
 use App\Shared\Requests\BaseFormRequest;
 
 /**
@@ -18,7 +19,8 @@ class UpdateClientProfileRequest extends BaseFormRequest
         $this->merge(array_filter([
             'first_name' => $this->has('first_name') ? trim((string) $this->input('first_name')) : null,
             'last_name' => $this->has('last_name') ? trim((string) $this->input('last_name')) : null,
-            'phone' => $this->has('phone') ? trim((string) $this->input('phone')) : null,
+            // +63 912 345 6789 and friends become 09123456789.
+            'phone' => $this->has('phone') ? PhilippineMobileNumber::normalise($this->input('phone')) : null,
             'address' => $this->has('address') ? trim((string) $this->input('address')) : null,
         ], static fn ($value) => $value !== null));
     }
@@ -28,11 +30,16 @@ class UpdateClientProfileRequest extends BaseFormRequest
         return [
             'first_name' => ['sometimes', 'required', 'string', 'max:255'],
             'last_name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'phone' => ['sometimes', 'nullable', ...PhilippineMobileNumber::rules()],
             // Free text from older app versions; the structured address below
             // replaces it when sent.
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
             ...PhAddressService::rules('address_details', PhAddressService::STREET),
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['phone.regex' => PhilippineMobileNumber::MESSAGE];
     }
 }

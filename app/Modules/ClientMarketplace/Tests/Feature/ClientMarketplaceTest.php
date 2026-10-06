@@ -183,6 +183,28 @@ class ClientMarketplaceTest extends TestCase
         ]);
     }
 
+    public function test_the_booking_contact_number_must_be_a_philippine_mobile_number(): void
+    {
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $service = $this->service($provider, $this->category('Phone '.Str::random(5)), ['currency' => 'PHP']);
+        $token = $this->clientToken($client);
+        $payload = fn (string $phone): array => [
+            'service_id' => $service->id,
+            'scheduled_date' => now()->addDay()->toISOString(),
+            'contact_phone' => $phone,
+        ];
+
+        $this->withToken($token)->postJson('/api/client/v1/bookings', $payload('0917123456'))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['contact_phone' => 'Enter an 11-digit Philippine mobile number starting with 09, e.g. 09123456789.']);
+
+        // Typed with +63: stored as the 11 digits.
+        $this->withToken($token)->postJson('/api/client/v1/bookings', $payload('+63 917 123 4567'))
+            ->assertCreated()
+            ->assertJsonPath('data.contact_phone', '09171234567');
+    }
+
     public function test_a_booking_keeps_the_job_address_and_contact_number(): void
     {
         $client = $this->customer();

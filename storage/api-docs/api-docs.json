@@ -5376,10 +5376,10 @@
                                         "maxLength": 255
                                     },
                                     "phone": {
+                                        "description": "Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.",
                                         "type": "string",
                                         "example": "09171234567",
-                                        "nullable": true,
-                                        "maxLength": 30
+                                        "nullable": true
                                     },
                                     "address": {
                                         "description": "Free text from older app versions; clears address_details",
@@ -7381,9 +7381,10 @@
                                         "description": "Where the provider should go; its formatted text becomes service_address"
                                     },
                                     "contact_phone": {
+                                        "description": "Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.",
                                         "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 32
+                                        "example": "09171234567",
+                                        "nullable": true
                                     },
                                     "payment_method": {
                                         "description": "SkillServe supports two payment methods: `on_hand` and `gcash`. `cash` is a DEPRECATED alias for `on_hand` and is stored as `on_hand`; new clients should send `on_hand`. `credit_card`, `debit_card`, `bank_transfer` and `paypal` were removed and are now rejected with 422. Selection only — the booking stays unpaid, because no payment provider is called yet.",
@@ -9088,6 +9089,19 @@
                                         "type": "string",
                                         "format": "uri",
                                         "nullable": true
+                                    },
+                                    "gcash_number": {
+                                        "description": "Where customers send GCash payments. Philippine mobile number; +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.",
+                                        "type": "string",
+                                        "example": "09171234567",
+                                        "nullable": true
+                                    },
+                                    "gcash_name": {
+                                        "description": "The name registered on that GCash account; customers check it against what GCash shows before sending.",
+                                        "type": "string",
+                                        "example": "Juan Dela Cruz",
+                                        "nullable": true,
+                                        "maxLength": 120
                                     },
                                     "skills": {
                                         "type": "array",
@@ -19568,8 +19582,9 @@
                                         "example": "alice@skillserve.test"
                                     },
                                     "phone": {
+                                        "description": "Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.",
                                         "type": "string",
-                                        "example": "+1 555 0100",
+                                        "example": "09171234567",
                                         "nullable": true
                                     },
                                     "address": {
@@ -19863,8 +19878,9 @@
                                         "example": "alice@skillserve.test"
                                     },
                                     "phone": {
+                                        "description": "Philippine mobile number. +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.",
                                         "type": "string",
-                                        "example": "+1 555 0100",
+                                        "example": "09171234567",
                                         "nullable": true
                                     },
                                     "address": {
@@ -21129,8 +21145,9 @@
                         "example": "alex@example.com"
                     },
                     "phone": {
+                        "description": "Philippine mobile number, 11 digits starting with 09",
                         "type": "string",
-                        "example": "+639171234567",
+                        "example": "09171234567",
                         "nullable": true
                     },
                     "address": {
@@ -22041,6 +22058,7 @@
                         "example": "gcash"
                     },
                     "gcash_number": {
+                        "description": "Philippine mobile number, 11 digits starting with 09",
                         "type": "string",
                         "example": "09171234567",
                         "nullable": true

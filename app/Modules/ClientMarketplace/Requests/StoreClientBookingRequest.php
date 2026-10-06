@@ -5,6 +5,7 @@ namespace App\Modules\ClientMarketplace\Requests;
 use App\Modules\Bookings\Enums\PaymentMethod;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Helpers\BusinessTime;
+use App\Shared\Helpers\PhilippineMobileNumber;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,10 @@ class StoreClientBookingRequest extends BaseFormRequest
     protected function prepareForValidation(): void
     {
         $merge = ['idempotency_key' => $this->header('Idempotency-Key')];
+
+        if ($this->has('contact_phone')) {
+            $merge['contact_phone'] = PhilippineMobileNumber::normalise($this->input('contact_phone'));
+        }
 
         // Canonicalise before validation so the deprecated "cash" alias the
         // current mobile build sends is stored as "on_hand".
@@ -44,10 +49,15 @@ class StoreClientBookingRequest extends BaseFormRequest
             // replaces it when sent.
             'service_address' => ['sometimes', 'nullable', 'string', 'max:255'],
             ...PhAddressService::rules('service_address_details', PhAddressService::STREET),
-            'contact_phone' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'contact_phone' => ['sometimes', 'nullable', ...PhilippineMobileNumber::rules()],
             'payment_method' => ['sometimes', 'nullable', 'string', Rule::in(PaymentMethod::canonical())],
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ['contact_phone.regex' => PhilippineMobileNumber::MESSAGE];
     }
 
     public function idempotencyKey(): ?string

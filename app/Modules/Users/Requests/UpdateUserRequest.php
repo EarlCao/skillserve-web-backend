@@ -2,6 +2,7 @@
 
 namespace App\Modules\Users\Requests;
 
+use App\Shared\Helpers\PhilippineMobileNumber;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,6 +14,13 @@ use Illuminate\Validation\Rule;
  */
 class UpdateUserRequest extends BaseFormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone')) {
+            $this->merge(['phone' => PhilippineMobileNumber::normalise($this->input('phone'))]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -28,7 +36,7 @@ class UpdateUserRequest extends BaseFormRequest
                 'max:255',
                 Rule::unique('users', 'email')->ignore($this->route('user')?->id),
             ],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'phone' => ['sometimes', 'nullable', ...PhilippineMobileNumber::rules()],
             'address' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'birthday' => ['sometimes', 'nullable', 'date', 'before:today'],
             'user_type' => ['sometimes', 'string', Rule::in(['customer'])],
@@ -42,6 +50,7 @@ class UpdateUserRequest extends BaseFormRequest
     {
         return [
             'email.unique' => 'A user with this email already exists.',
+            'phone.regex' => PhilippineMobileNumber::MESSAGE,
             'birthday.before' => 'The birthday must be a date in the past.',
             'user_type.in' => 'The selected user type is not supported.',
         ];
