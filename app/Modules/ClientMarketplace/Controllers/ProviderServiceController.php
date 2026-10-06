@@ -113,6 +113,22 @@ class ProviderServiceController extends Controller
             new OA\Response(response: 422, description: 'Validation failed'),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/client/v1/provider/services/{service}',
+        summary: 'Update an owned service (returns it to pending approval) (PATCH alias of PUT)',
+        description: 'Any actual change sets approval_status to pending and hides the service from customers until an administrator approves it again. Saving identical values changes nothing.',
+        tags: ['Provider Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(ref: '#/components/schemas/ProviderServiceInput')),
+        responses: [
+            new OA\Response(response: 200, description: 'Service updated', content: new OA\JsonContent(ref: '#/components/schemas/ProviderServiceEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Not a provider account, or provider not yet verified'),
+            new OA\Response(response: 404, description: 'Service not found or owned by another provider'),
+            new OA\Response(response: 422, description: 'Validation failed'),
+        ],
+    )]
     public function update(UpdateProviderServiceRequest $request, Service $service): JsonResponse
     {
         return $this->success(

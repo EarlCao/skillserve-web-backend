@@ -365,6 +365,122 @@ class ServiceController extends Controller
             ),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/services/{service}',
+        summary: 'Update a service (PATCH alias of PUT)',
+        tags: ['Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            description: 'Administrators may correct listing details only. Provider, pricing, duration and location belong to the provider and are rejected with 422.',
+            content: new OA\JsonContent(
+                example: [
+                    'title' => 'Updated Service Title',
+                    'description' => 'Updated description.',
+                    'category_id' => 1,
+                ],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', maxLength: 255),
+                    new OA\Property(property: 'description', type: 'string', maxLength: 5000, nullable: true),
+                    new OA\Property(property: 'category_id', type: 'integer'),
+                    new OA\Property(property: 'subcategory_id', type: 'integer', nullable: true),
+                    new OA\Property(property: 'status', type: 'string', enum: ['draft', 'published', 'archived']),
+                    new OA\Property(property: 'is_featured', type: 'boolean'),
+                    new OA\Property(property: 'is_hidden', type: 'boolean'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Service updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service updated.',
+                        'data' => [
+                            'id' => 1,
+                            'title' => 'Updated Service Title',
+                            'description' => 'Updated description.',
+                            'price' => 1500.00,
+                            'price_type' => 'fixed',
+                            'currency' => 'PHP',
+                            'status' => 'published',
+                            'approval_status' => 'approved',
+                            'is_featured' => true,
+                            'is_hidden' => false,
+                            'created_at' => '2026-08-10T08:00:00+00:00',
+                            'updated_at' => '2026-08-20T12:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the edit services permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Service not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Validation failed.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'price' => ['The price field is prohibited.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
     public function update(UpdateServiceRequest $request, Service $service): JsonResponse
     {
         $this->authorize('update', $service);

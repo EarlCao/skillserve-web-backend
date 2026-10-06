@@ -10,7 +10,9 @@ use Illuminate\Foundation\Events\Dispatchable;
  * Tells connected admin dashboards which kinds of data changed so they can
  * refetch the affected lists. Carries resource names only, never record data.
  *
- * Broadcast immediately (not queued): production runs no queue worker.
+ * Broadcast immediately (not queued): a dashboard refresh should not wait
+ * behind queued mail and notifications on the single queue worker that
+ * deploy/render/start.sh runs.
  */
 class AdminDataChanged implements ShouldBroadcastNow
 {

@@ -161,6 +161,30 @@ class CommissionTierController extends Controller
             new OA\Response(response: 422, description: 'Validation failed, or the range overlaps an enabled tier'),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/commission-tiers/{commissionTier}',
+        summary: 'Update a commission tier (PATCH alias of PUT)',
+        description: 'Partial update. Disabling a tier (is_active=false) lifts the overlap rule for it, because a disabled band charges nobody. Bookings already charged under this tier keep their own rate snapshot and are unaffected.',
+        tags: ['Commission Tiers'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'commissionTier', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
+            properties: [
+                new OA\Property(property: 'name', type: 'string', maxLength: 120),
+                new OA\Property(property: 'min_amount', type: 'number', format: 'float', minimum: 0),
+                new OA\Property(property: 'max_amount', type: 'number', format: 'float', nullable: true),
+                new OA\Property(property: 'percentage', type: 'number', format: 'float', minimum: 0, maximum: 100),
+                new OA\Property(property: 'is_active', type: 'boolean'),
+            ],
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Tier updated', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Missing the manage commissions permission'),
+            new OA\Response(response: 404, description: 'Tier not found'),
+            new OA\Response(response: 422, description: 'Validation failed, or the range overlaps an enabled tier'),
+        ],
+    )]
     public function update(UpdateCommissionTierRequest $request, CommissionTier $commissionTier): JsonResponse
     {
         $this->authorize('update', $commissionTier);

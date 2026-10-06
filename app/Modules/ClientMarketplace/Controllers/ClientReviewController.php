@@ -79,6 +79,15 @@ class ClientReviewController extends Controller
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [new OA\Property(property: 'rating', type: 'integer', minimum: 1, maximum: 5), new OA\Property(property: 'comment', type: 'string', nullable: true, maxLength: 2000)])),
         responses: [new OA\Response(response: 200, description: 'Review updated', content: new OA\JsonContent(ref: '#/components/schemas/ClientReviewEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Not owned by the customer'), new OA\Response(response: 404, description: 'Review not found'), new OA\Response(response: 422, description: 'Booking is not completed')],
     )]
+    #[OA\Patch(
+        path: '/api/client/v1/reviews/{review}',
+        summary: 'Update an owned review (PATCH alias of PUT)',
+        tags: ['Client Reviews'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'review', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [new OA\Property(property: 'rating', type: 'integer', minimum: 1, maximum: 5), new OA\Property(property: 'comment', type: 'string', nullable: true, maxLength: 2000)])),
+        responses: [new OA\Response(response: 200, description: 'Review updated', content: new OA\JsonContent(ref: '#/components/schemas/ClientReviewEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Not owned by the customer'), new OA\Response(response: 404, description: 'Review not found'), new OA\Response(response: 422, description: 'Booking is not completed')],
+    )]
     public function update(UpdateClientReviewRequest $request, Review $review): JsonResponse
     {
         $this->ensure($this->reviewPolicy->update($request->user(), $review));

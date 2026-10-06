@@ -1,13 +1,11 @@
 name: Tests
 
+# Render deploys main, so every push to it and every pull request is checked.
 on:
   push:
     branches:
-      - master
-      - '*.x'
+      - main
   pull_request:
-  schedule:
-    - cron: '0 0 * * *'
 
 permissions:
   contents: read
@@ -16,12 +14,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
 
-    strategy:
-      fail-fast: true
-      matrix:
-        php: [8.3, 8.4, 8.5]
-
-    name: PHP ${{ matrix.php }}
+    name: PHP 8.3
 
     steps:
       - name: Checkout code
@@ -30,8 +23,9 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
-          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite
+          # The version the Docker images run (Dockerfile, Dockerfile.render).
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, gd, exif
           coverage: none
 
       - name: Install Composer dependencies
@@ -43,5 +37,9 @@ jobs:
       - name: Generate app key
         run: php artisan key:generate
 
+      # Tests always run on in-memory SQLite (Tests\TestCase forces it).
       - name: Execute tests
         run: php artisan test
+
+      - name: Check formatting
+        run: ./vendor/bin/pint --test

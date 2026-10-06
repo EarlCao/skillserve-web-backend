@@ -641,6 +641,181 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "Administrators"
+                ],
+                "summary": "Update an administrator (PATCH alias of PUT)",
+                "operationId": "af35b8071dc1907334bc5aa574a1a481",
+                "parameters": [
+                    {
+                        "name": "administrator",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Jane"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "jane.doe@skillserve.test"
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "example": "admin"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "active",
+                                            "inactive"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "first_name": "Jane",
+                                "last_name": "Doe",
+                                "email": "jane.doe@skillserve.test",
+                                "role": "admin",
+                                "status": "active"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Administrator updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Administrator updated.",
+                                    "data": {
+                                        "id": 2,
+                                        "first_name": "Jane",
+                                        "last_name": "Doe",
+                                        "name": "Jane Doe",
+                                        "email": "jane.doe@skillserve.test",
+                                        "status": "active",
+                                        "roles": [
+                                            "admin"
+                                        ],
+                                        "permissions": [
+                                            "view reports"
+                                        ],
+                                        "last_login_at": "2026-08-07T09:30:00+00:00",
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-07T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage administrators permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Administrator not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "email": [
+                                            "An administrator with this email already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/administrators/{administrator}/status": {
@@ -1677,6 +1852,152 @@
                                     "errors": {
                                         "role": [
                                             "The system default role cannot be deleted."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Roles"
+                ],
+                "summary": "Update a role (PATCH alias of PUT)",
+                "operationId": "26137326e23dee9436c0468d8f9177e6",
+                "parameters": [
+                    {
+                        "name": "role",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "reports-manager"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Manages operational and executive reports."
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "reports-manager",
+                                "description": "Manages operational and executive reports."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Role updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Role updated.",
+                                    "data": {
+                                        "id": 3,
+                                        "name": "reports-manager",
+                                        "description": "Manages operational and executive reports.",
+                                        "guard_name": "web",
+                                        "permissions": [
+                                            "view reports"
+                                        ],
+                                        "created_at": "2026-08-07T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage administrators permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Role not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A role with this name already exists."
                                         ]
                                     },
                                     "meta": []
@@ -7908,6 +8229,74 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "Client Reviews"
+                ],
+                "summary": "Update an owned review (PATCH alias of PUT)",
+                "operationId": "f490f2c19c56b499f9b33d4ad1153cbf",
+                "parameters": [
+                    {
+                        "name": "review",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "rating": {
+                                        "type": "integer",
+                                        "maximum": 5,
+                                        "minimum": 1
+                                    },
+                                    "comment": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Review updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReviewEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not owned by the customer"
+                    },
+                    "404": {
+                        "description": "Review not found"
+                    },
+                    "422": {
+                        "description": "Booking is not completed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/client/v1/favorites": {
@@ -9338,6 +9727,63 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Update an owned service (returns it to pending approval) (PATCH alias of PUT)",
+                "description": "Any actual change sets approval_status to pending and hides the service from customers until an administrator approves it again. Saving identical values changes nothing.",
+                "operationId": "6cafb6f393cb6ca66d8b52a215c79cee",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProviderServiceInput"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderServiceEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not a provider account, or provider not yet verified"
+                    },
+                    "404": {
+                        "description": "Service not found or owned by another provider"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/client/v1/provider/commission-preview": {
@@ -10303,6 +10749,88 @@
                     },
                     "404": {
                         "description": "Tier not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Commission Tiers"
+                ],
+                "summary": "Update a commission tier (PATCH alias of PUT)",
+                "description": "Partial update. Disabling a tier (is_active=false) lifts the overlap rule for it, because a disabled band charges nobody. Bookings already charged under this tier keep their own rate snapshot and are unaffected.",
+                "operationId": "7b390a7b14887f4e8557bf1ba35bd88a",
+                "parameters": [
+                    {
+                        "name": "commissionTier",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "maxLength": 120
+                                    },
+                                    "min_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "minimum": 0
+                                    },
+                                    "max_amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "nullable": true
+                                    },
+                                    "percentage": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    },
+                                    "is_active": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Tier updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the manage commissions permission"
+                    },
+                    "404": {
+                        "description": "Tier not found"
+                    },
+                    "422": {
+                        "description": "Validation failed, or the range overlaps an enabled tier"
                     }
                 },
                 "security": [
@@ -15812,6 +16340,165 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Update a service category (PATCH alias of PUT)",
+                "operationId": "c2275b0c2a993681f5718913d2701f65",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Home Maintenance & Repair",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Plumbing, electrical, painting and repair services.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Home Maintenance & Repair",
+                                "description": "Plumbing, electrical, painting and repair services."
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service category updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service category updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "name": "Home Maintenance & Repair",
+                                        "description": "Plumbing, electrical, painting and repair services.",
+                                        "status": "enabled",
+                                        "subcategories_count": 3,
+                                        "created_by": {
+                                            "id": 1,
+                                            "name": "System Administrator"
+                                        },
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service category not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A service category with this name already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/service-categories/{serviceCategory}/status": {
@@ -16404,6 +17091,171 @@
                                     "errors": {
                                         "id": [
                                             "The subcategory is already deleted."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Service Categories"
+                ],
+                "summary": "Update a subcategory (PATCH alias of PUT)",
+                "description": "The subcategory must belong to the parent category in the URL.",
+                "operationId": "1b750fa74c7be43bd566fa09cffec89e",
+                "parameters": [
+                    {
+                        "name": "serviceCategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "serviceSubcategory",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "Emergency Plumbing",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "24/7 emergency pipe repair.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "enabled",
+                                            "disabled"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "name": "Emergency Plumbing",
+                                "description": "24/7 emergency pipe repair.",
+                                "status": "enabled"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Subcategory updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Subcategory updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "category_id": 1,
+                                        "name": "Emergency Plumbing",
+                                        "description": "24/7 emergency pipe repair.",
+                                        "status": "enabled",
+                                        "created_at": "2026-08-12T08:00:00+00:00",
+                                        "updated_at": "2026-08-12T09:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage service categories permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Category or subcategory not found (or subcategory does not belong to the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (e.g. duplicate name within the category)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "name": [
+                                            "A subcategory with this name already exists in this category."
                                         ]
                                     },
                                     "meta": []
@@ -17055,6 +17907,180 @@
                                     "message": "Service not found.",
                                     "data": {},
                                     "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Services"
+                ],
+                "summary": "Update a service (PATCH alias of PUT)",
+                "operationId": "f4c98f912141e630fccc85764afbc553",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Administrators may correct listing details only. Provider, pricing, duration and location belong to the provider and are rejected with 422.",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    },
+                                    "category_id": {
+                                        "type": "integer"
+                                    },
+                                    "subcategory_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "draft",
+                                            "published",
+                                            "archived"
+                                        ]
+                                    },
+                                    "is_featured": {
+                                        "type": "boolean"
+                                    },
+                                    "is_hidden": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "title": "Updated Service Title",
+                                "description": "Updated description.",
+                                "category_id": 1
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Service updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Service updated.",
+                                    "data": {
+                                        "id": 1,
+                                        "title": "Updated Service Title",
+                                        "description": "Updated description.",
+                                        "price": 1500,
+                                        "price_type": "fixed",
+                                        "currency": "PHP",
+                                        "status": "published",
+                                        "approval_status": "approved",
+                                        "is_featured": true,
+                                        "is_hidden": false,
+                                        "created_at": "2026-08-10T08:00:00+00:00",
+                                        "updated_at": "2026-08-20T12:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the edit services permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Service not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Validation failed.",
+                                    "data": {},
+                                    "errors": {
+                                        "price": [
+                                            "The price field is prohibited."
+                                        ]
+                                    },
                                     "meta": []
                                 }
                             }
@@ -18800,6 +19826,191 @@
                         "bearerAuth": []
                     }
                 ]
+            },
+            "patch": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update a user profile (PATCH alias of PUT)",
+                "operationId": "65c34d951f3e1e421cc85526b9e30152",
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "first_name": {
+                                        "type": "string",
+                                        "example": "Alice"
+                                    },
+                                    "last_name": {
+                                        "type": "string",
+                                        "example": "Customer"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "alice@skillserve.test"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+1 555 0100",
+                                        "nullable": true
+                                    },
+                                    "address": {
+                                        "type": "string",
+                                        "example": "123 Main St",
+                                        "nullable": true
+                                    },
+                                    "birthday": {
+                                        "type": "string",
+                                        "format": "date",
+                                        "example": "1995-04-12",
+                                        "nullable": true
+                                    },
+                                    "user_type": {
+                                        "type": "string",
+                                        "example": "customer",
+                                        "enum": [
+                                            "customer"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            },
+                            "example": {
+                                "first_name": "Alice",
+                                "last_name": "Customer",
+                                "email": "alice@skillserve.test",
+                                "phone": "+1 555 0100",
+                                "address": "123 Main St",
+                                "birthday": "1995-04-12",
+                                "user_type": "customer"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "User updated.",
+                                    "data": {
+                                        "id": 3,
+                                        "name": "Alice Customer",
+                                        "email": "alice@skillserve.test",
+                                        "roles": [],
+                                        "permissions": [],
+                                        "first_name": "Alice",
+                                        "last_name": "Customer",
+                                        "user_type": "customer",
+                                        "phone": "+1 555 0100",
+                                        "status": "active",
+                                        "verification": "verified",
+                                        "last_login_at": null,
+                                        "created_by": null,
+                                        "created_at": "2026-08-07T08:00:00+00:00"
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the manage users permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The given data was invalid.",
+                                    "data": {},
+                                    "errors": {
+                                        "email": [
+                                            "A user with this email already exists."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
             }
         },
         "/api/users/{user}/suspend": {
@@ -19508,6 +20719,116 @@
                                 }
                             }
                         }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/health": {
+            "get": {
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health check",
+                "description": "Public. Reports whether the database and the upload storage (storage/app, the Render persistent disk in production) are usable. Never includes error details; those go to the server log.",
+                "operationId": "f0935a65745dec5d762e0b09b469a211",
+                "responses": {
+                    "200": {
+                        "description": "Everything is up",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "status": "ok",
+                                    "timestamp": "2026-10-06T08:00:00+00:00",
+                                    "services": {
+                                        "database": {
+                                            "status": "up"
+                                        },
+                                        "storage": {
+                                            "status": "up"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Degraded: a service is down",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "status": "degraded",
+                                    "timestamp": "2026-10-06T08:00:00+00:00",
+                                    "services": {
+                                        "database": {
+                                            "status": "down"
+                                        },
+                                        "storage": {
+                                            "status": "up"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/broadcasting/auth": {
+            "post": {
+                "tags": [
+                    "System"
+                ],
+                "summary": "Authorise a private or presence channel",
+                "description": "Called by the Reverb (Pusher protocol) client before subscribing to a private-* or presence-* channel. Also answers GET. Admin web and mobile tokens are both accepted; the channel rules are in routes/channels.php.",
+                "operationId": "c24eea358f0ded89dfb8216338ad07f6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "socket_id",
+                                    "channel_name"
+                                ],
+                                "properties": {
+                                    "socket_id": {
+                                        "type": "string",
+                                        "example": "55124926.941300434"
+                                    },
+                                    "channel_name": {
+                                        "type": "string",
+                                        "example": "private-App.Models.User.12"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Signed authorisation for the channel",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "auth": "skillserve:3f2c…"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not allowed on this channel"
                     }
                 },
                 "security": [
@@ -22767,6 +24088,10 @@
         {
             "name": "Users",
             "description": "Manage platform user accounts (view, edit, suspend, activate, ban, delete)"
+        },
+        {
+            "name": "System",
+            "description": "System"
         }
     ]
 }

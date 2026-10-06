@@ -426,6 +426,112 @@ class ServiceCategoryController extends Controller
             ),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/service-categories/{serviceCategory}',
+        summary: 'Update a service category (PATCH alias of PUT)',
+        tags: ['Service Categories'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'serviceCategory', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                example: [
+                    'name' => 'Home Maintenance & Repair',
+                    'description' => 'Plumbing, electrical, painting and repair services.',
+                ],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', maxLength: 255, example: 'Home Maintenance & Repair'),
+                    new OA\Property(property: 'description', type: 'string', maxLength: 1000, example: 'Plumbing, electrical, painting and repair services.', nullable: true),
+                    new OA\Property(property: 'status', type: 'string', enum: ['enabled', 'disabled']),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Service category updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Service category updated.',
+                        'data' => [
+                            'id' => 1,
+                            'name' => 'Home Maintenance & Repair',
+                            'description' => 'Plumbing, electrical, painting and repair services.',
+                            'status' => 'enabled',
+                            'subcategories_count' => 3,
+                            'created_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'created_at' => '2026-08-12T08:00:00+00:00',
+                            'updated_at' => '2026-08-12T09:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage service categories permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Service category not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error (e.g. duplicate name)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'name' => ['A service category with this name already exists.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
     public function update(UpdateServiceCategoryRequest $request, ServiceCategory $serviceCategory): JsonResponse
     {
         $this->authorize('update', $serviceCategory);
@@ -782,6 +888,114 @@ class ServiceCategoryController extends Controller
     #[OA\Put(
         path: '/api/service-categories/{serviceCategory}/subcategories/{serviceSubcategory}',
         summary: 'Update a subcategory',
+        description: 'The subcategory must belong to the parent category in the URL.',
+        tags: ['Service Categories'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'serviceCategory', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'serviceSubcategory', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                example: [
+                    'name' => 'Emergency Plumbing',
+                    'description' => '24/7 emergency pipe repair.',
+                    'status' => 'enabled',
+                ],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', maxLength: 255, example: 'Emergency Plumbing'),
+                    new OA\Property(property: 'description', type: 'string', maxLength: 1000, example: '24/7 emergency pipe repair.', nullable: true),
+                    new OA\Property(property: 'status', type: 'string', enum: ['enabled', 'disabled']),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Subcategory updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Subcategory updated.',
+                        'data' => [
+                            'id' => 1,
+                            'category_id' => 1,
+                            'name' => 'Emergency Plumbing',
+                            'description' => '24/7 emergency pipe repair.',
+                            'status' => 'enabled',
+                            'created_at' => '2026-08-12T08:00:00+00:00',
+                            'updated_at' => '2026-08-12T09:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage service categories permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Category or subcategory not found (or subcategory does not belong to the category)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error (e.g. duplicate name within the category)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'name' => ['A subcategory with this name already exists in this category.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    #[OA\Patch(
+        path: '/api/service-categories/{serviceCategory}/subcategories/{serviceSubcategory}',
+        summary: 'Update a subcategory (PATCH alias of PUT)',
         description: 'The subcategory must belong to the parent category in the URL.',
         tags: ['Service Categories'],
         security: [['bearerAuth' => []]],

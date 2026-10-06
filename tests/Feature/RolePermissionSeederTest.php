@@ -7,6 +7,8 @@ use App\Shared\Enums\AccountRole;
 use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RolePermissionSeederTest extends TestCase
@@ -48,5 +50,19 @@ class RolePermissionSeederTest extends TestCase
         $this->seed([RolePermissionSeeder::class, RolePermissionSeeder::class]);
 
         $this->assertSame(1, User::query()->where('email', 'admin@skillserve.test')->count());
+    }
+
+    public function test_the_super_admin_holds_every_permission_the_migrations_create(): void
+    {
+        // Migrations add permissions as modules arrive; the seeder must list
+        // them all, or a freshly seeded super-admin silently lacks some.
+        $this->seed(RolePermissionSeeder::class);
+
+        $missing = Permission::query()->pluck('name')
+            ->diff(Role::findByName('super-admin')->permissions->pluck('name'))
+            ->values()
+            ->all();
+
+        $this->assertSame([], $missing);
     }
 }

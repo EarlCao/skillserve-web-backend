@@ -448,6 +448,120 @@ class AdministratorController extends Controller
             ),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/administrators/{administrator}',
+        summary: 'Update an administrator (PATCH alias of PUT)',
+        tags: ['Administrators'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'administrator', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                example: [
+                    'first_name' => 'Jane',
+                    'last_name' => 'Doe',
+                    'email' => 'jane.doe@skillserve.test',
+                    'role' => 'admin',
+                    'status' => 'active',
+                ],
+                properties: [
+                    new OA\Property(property: 'first_name', type: 'string', example: 'Jane'),
+                    new OA\Property(property: 'last_name', type: 'string', example: 'Doe'),
+                    new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane.doe@skillserve.test'),
+                    new OA\Property(property: 'role', type: 'string', example: 'admin'),
+                    new OA\Property(property: 'status', type: 'string', enum: ['active', 'inactive']),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Administrator updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Administrator updated.',
+                        'data' => [
+                            'id' => 2,
+                            'first_name' => 'Jane',
+                            'last_name' => 'Doe',
+                            'name' => 'Jane Doe',
+                            'email' => 'jane.doe@skillserve.test',
+                            'status' => 'active',
+                            'roles' => ['admin'],
+                            'permissions' => ['view reports'],
+                            'last_login_at' => '2026-08-07T09:30:00+00:00',
+                            'created_by' => ['id' => 1, 'name' => 'System Administrator'],
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Administrator not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'email' => ['An administrator with this email already exists.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
     public function update(UpdateAdministratorRequest $request, User $administrator): JsonResponse
     {
         $this->authorize('update', $administrator);

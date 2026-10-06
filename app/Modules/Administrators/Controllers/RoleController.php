@@ -397,6 +397,109 @@ class RoleController extends Controller
             ),
         ],
     )]
+    #[OA\Patch(
+        path: '/api/roles/{role}',
+        summary: 'Update a role (PATCH alias of PUT)',
+        tags: ['Roles'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'role', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                example: [
+                    'name' => 'reports-manager',
+                    'description' => 'Manages operational and executive reports.',
+                ],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'reports-manager'),
+                    new OA\Property(property: 'description', type: 'string', example: 'Manages operational and executive reports.'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Role updated',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Role updated.',
+                        'data' => [
+                            'id' => 3,
+                            'name' => 'reports-manager',
+                            'description' => 'Manages operational and executive reports.',
+                            'guard_name' => 'web',
+                            'permissions' => ['view reports'],
+                            'created_at' => '2026-08-07T08:00:00+00:00',
+                        ],
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the manage administrators permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Role not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The given data was invalid.',
+                        'data' => new \stdClass,
+                        'errors' => [
+                            'name' => ['A role with this name already exists.'],
+                        ],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
     public function update(UpdateRoleRequest $request, Role $role): JsonResponse
     {
         $this->authorize('update', $role);
