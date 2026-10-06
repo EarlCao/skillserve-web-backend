@@ -20750,7 +20750,7 @@
                     "System"
                 ],
                 "summary": "Health check",
-                "description": "Public. Reports whether the database and the upload storage (storage/app, the Render persistent disk in production) are usable. Never includes error details; those go to the server log.",
+                "description": "Public. Reports whether the database and the upload storage (storage/app, the Render persistent disk in production) are usable. Never includes error details; those go to the server log. `otp` says whether the 6-digit codes can be sent (Twilio Verify configured, or a real mailer) without failing the check.",
                 "operationId": "f0935a65745dec5d762e0b09b469a211",
                 "responses": {
                     "200": {
@@ -20767,6 +20767,10 @@
                                         },
                                         "storage": {
                                             "status": "up"
+                                        },
+                                        "otp": {
+                                            "status": "up",
+                                            "driver": "twilio"
                                         }
                                     }
                                 }
@@ -20787,6 +20791,10 @@
                                         },
                                         "storage": {
                                             "status": "up"
+                                        },
+                                        "otp": {
+                                            "status": "up",
+                                            "driver": "twilio"
                                         }
                                     }
                                 }

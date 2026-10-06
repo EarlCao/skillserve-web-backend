@@ -32,6 +32,23 @@ return [
     // Brevo transactional email (REST API transport). Read via config() at
     // runtime — never env() outside config files, which returns null once
     // `php artisan config:cache` has run (Render does this at boot).
+    // Twilio Verify for the mobile codes (OTP_DRIVER=twilio). Its email
+    // channel sends through the SendGrid account linked to the Verify service.
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'verify_service_sid' => env('TWILIO_VERIFY_SERVICE_SID'),
+        // Optional: a different SendGrid template for password-reset codes.
+        'verify_reset_template_id' => env('TWILIO_VERIFY_RESET_TEMPLATE_ID'),
+        'timeout' => (int) env('TWILIO_TIMEOUT', 15),
+    ],
+
+    // SendGrid's HTTP mail API (MAIL_MAILER=sendgrid-api) for every other email.
+    'sendgrid' => [
+        'api_key' => env('SENDGRID_API_KEY'),
+        'timeout' => (int) env('SENDGRID_API_TIMEOUT', 15),
+    ],
+
     'brevo' => [
         'api_key' => env('BREVO_API_KEY'),
         'timeout' => (int) env('BREVO_API_TIMEOUT', 15),

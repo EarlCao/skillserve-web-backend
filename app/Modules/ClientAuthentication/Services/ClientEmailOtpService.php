@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\ClientAuthentication\Models\PendingRegistration;
 use App\Modules\ClientAuthentication\Notifications\ClientEmailOtpNotification;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Services\TwilioVerifyClient;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,11 @@ use RuntimeException;
  * Codes are hashed at rest, expire after a configurable window, allow
  * limited verification attempts, and are rate-limited per email via the
  * application cache.
+ *
+ * Delivery (OTP_DRIVER): `mail` generates the code here and emails it through
+ * the configured mailer; `twilio` has Twilio Verify generate, email and check
+ * it. Either way the expiry, the attempt limit and the resend cooldown are
+ * enforced here, so the API behaves the same.
  *
  * Two subjects carry a code:
  *  - a {@see PendingRegistration}, the normal path — the account does not
@@ -33,12 +39,28 @@ class ClientEmailOtpService
     public const RESEND_COOLDOWN_SECONDS = 60;
 
     /**
+     * Stored in place of a hash when Twilio holds the code, so the code is
+     * checked with Twilio even if OTP_DRIVER changes while it is outstanding.
+     */
+    public const TWILIO_MARKER = 'twilio-verify';
+
+    public function __construct(private readonly TwilioVerifyClient $twilio) {}
+
+    /**
      * Issue a fresh OTP to an existing account, replacing any previous one.
      *
      * @param  string  $purpose  One of the ClientEmailOtpNotification::PURPOSE_* values; only changes the email's wording.
      */
     public function issue(User $user, string $purpose = ClientEmailOtpNotification::PURPOSE_VERIFY): void
     {
+        if ($this->usesTwilio()) {
+            $this->sendWithTwilio($user->email, (string) $user->first_name, $purpose);
+            $user->forceFill($this->twilioAttributes())->save();
+            $this->startCooldown($user->email);
+
+            return;
+        }
+
         $this->assertMailIsDelivered();
 
         $code = $this->generateCode($user->email);
@@ -53,6 +75,14 @@ class ClientEmailOtpService
     /** Issue a fresh OTP for an in-flight registration. */
     public function issueForRegistration(PendingRegistration $registration): void
     {
+        if ($this->usesTwilio()) {
+            $this->sendWithTwilio($registration->email, (string) $registration->first_name, ClientEmailOtpNotification::PURPOSE_VERIFY);
+            $registration->forceFill($this->twilioAttributes())->save();
+            $this->startCooldown($registration->email);
+
+            return;
+        }
+
         $this->assertMailIsDelivered();
 
         $code = $this->generateCode($registration->email);
@@ -81,7 +111,7 @@ class ClientEmailOtpService
 
         if (in_array($transport, ['log', 'array'], true)) {
             throw new RuntimeException(sprintf(
-                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=brevo-api and BREVO_API_KEY.',
+                'MAIL_MAILER is "%s", which does not send email. Set OTP_DRIVER=twilio (Twilio Verify), or MAIL_MAILER=sendgrid-api with SENDGRID_API_KEY.',
                 $mailer,
             ));
         }
@@ -92,7 +122,7 @@ class ClientEmailOtpService
     {
         $this->assertCodeUsable($user->email_otp_hash, $user->email_otp_expires_at, (int) $user->email_otp_attempts);
 
-        if (! Hash::check($code, (string) $user->email_otp_hash)) {
+        if (! $this->matches((string) $user->email_otp_hash, $user->email, $code)) {
             $user->forceFill(['email_otp_attempts' => $user->email_otp_attempts + 1])->save();
 
             throw $this->incorrectCodeException((int) $user->email_otp_attempts);
@@ -120,13 +150,60 @@ class ClientEmailOtpService
             $registration->email_otp_attempts,
         );
 
-        if (! Hash::check($code, (string) $registration->email_otp_hash)) {
+        if (! $this->matches((string) $registration->email_otp_hash, $registration->email, $code)) {
             $registration->forceFill(['email_otp_attempts' => $registration->email_otp_attempts + 1])->save();
 
             throw $this->incorrectCodeException($registration->email_otp_attempts);
         }
 
         return $registration;
+    }
+
+    public function usesTwilio(): bool
+    {
+        return config('client-auth.otp_driver') === 'twilio';
+    }
+
+    /** Whether $code is the code sent to $email: checked by Twilio when it holds it. */
+    private function matches(string $storedHash, string $email, string $code): bool
+    {
+        return $storedHash === self::TWILIO_MARKER
+            ? $this->twilio->checkEmailCode($email, $code)
+            : Hash::check($code, $storedHash);
+    }
+
+    /**
+     * Twilio sends the code. Its email template (SendGrid, set on the Verify
+     * service) can use {{first_name}}, {{purpose}} and {{minutes}}; a separate
+     * reset template can be set with TWILIO_VERIFY_RESET_TEMPLATE_ID.
+     */
+    private function sendWithTwilio(string $email, string $firstName, string $purpose): void
+    {
+        if ($this->isCoolingDown($email)) {
+            throw new ApiException('Please wait before requesting another code.', 429);
+        }
+
+        $isReset = $purpose === ClientEmailOtpNotification::PURPOSE_PASSWORD_RESET;
+
+        $this->twilio->sendEmailCode(
+            $email,
+            [
+                'first_name' => $firstName !== '' ? $firstName : 'there',
+                'purpose' => $isReset ? 'reset your SkillServe password' : 'verify your SkillServe account',
+                'minutes' => (string) self::CODE_TTL_MINUTES,
+            ],
+            $isReset ? (config('services.twilio.verify_reset_template_id') ?: null) : null,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function twilioAttributes(): array
+    {
+        return [
+            'email_otp_hash' => self::TWILIO_MARKER,
+            'email_otp_expires_at' => now()->addMinutes(self::CODE_TTL_MINUTES),
+            'email_otp_attempts' => 0,
+        ];
     }
 
     /** Whether a code was sent to this address inside the resend window. */

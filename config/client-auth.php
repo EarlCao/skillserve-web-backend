@@ -2,6 +2,10 @@
 
 return [
     'access_ability' => 'client:auth',
+    // How the 6-digit sign-up and password-reset codes are emailed: `mail`
+    // (generated here, sent through MAIL_MAILER) or `twilio` (Twilio Verify
+    // generates, emails and checks them; see services.twilio).
+    'otp_driver' => env('OTP_DRIVER', 'mail'),
     // A second, narrow token the app hands to its background task so it can
     // check for new notifications while the app is closed. It reads the
     // notification feed and nothing else, and it never refreshes, so it

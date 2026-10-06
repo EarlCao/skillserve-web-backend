@@ -1,5 +1,6 @@
 <?php
 
+use App\Shared\Services\TwilioVerifyClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
@@ -43,6 +44,14 @@ Route::get('/health', function () {
         $checks['services']['storage'] = ['status' => 'down', 'error' => 'storage/app is not writable.'];
         $checks['status'] = 'degraded';
     }
+
+    // Whether the 6-digit codes can go out: Twilio Verify with its settings,
+    // or a mailer that really sends. Names the driver, never a key.
+    $driver = (string) config('client-auth.otp_driver');
+    $otpReady = $driver === 'twilio'
+        ? app(TwilioVerifyClient::class)->isConfigured()
+        : ! in_array(config('mail.mailers.'.config('mail.default').'.transport'), ['log', 'array'], true);
+    $checks['services']['otp'] = ['status' => $otpReady ? 'up' : 'down', 'driver' => $driver];
 
     $status = $checks['status'] === 'ok' ? 200 : 503;
 

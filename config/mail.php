@@ -58,6 +58,10 @@ return [
             'transport' => 'brevo-api',
         ],
 
+        'sendgrid-api' => [
+            'transport' => 'sendgrid-api',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],

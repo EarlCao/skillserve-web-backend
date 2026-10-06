@@ -133,6 +133,7 @@ use App\Modules\Users\Policies\UserManagementPolicy;
 use App\Shared\Listeners\SyncUserRoleId;
 use App\Shared\Realtime\RealtimeChangeTracker;
 use App\Shared\Services\BrevoApiTransport;
+use App\Shared\Services\SendGridApiTransport;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\Events\NotificationSent;
@@ -175,6 +176,13 @@ class AppServiceProvider extends ServiceProvider
         // Brevo transactional email over their HTTPS API (port 443). Some
         // hosts (Render free tier included) block outbound SMTP ports, so
         // MAIL_MAILER=brevo-api + BREVO_API_KEY provides a working path.
+        Mail::extend('sendgrid-api', function (array $config) {
+            return new SendGridApiTransport(
+                apiKey: (string) config('services.sendgrid.api_key'),
+                timeoutSeconds: (int) config('services.sendgrid.timeout', 15),
+            );
+        });
+
         Mail::extend('brevo-api', function (array $config) {
             // config(), not env(): config is cached at boot on Render, and
             // env() calls outside config/ files return null after that.

@@ -43,4 +43,20 @@ class HealthCheckTest extends TestCase
         $this->assertStringNotContainsString('secret_user', $response->getContent());
         $this->assertStringNotContainsString('127.0.0.1', $response->getContent());
     }
+
+    public function test_health_says_whether_the_codes_can_be_sent_without_failing_the_check(): void
+    {
+        config(['client-auth.otp_driver' => 'twilio', 'services.twilio.account_sid' => null]);
+        $this->getJson('/api/health')
+            ->assertOk()
+            ->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'twilio']);
+
+        config([
+            'services.twilio.account_sid' => 'ACtest',
+            'services.twilio.auth_token' => 'secret',
+            'services.twilio.verify_service_sid' => 'VAtest',
+        ]);
+        $response = $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+        $this->assertStringNotContainsString('secret', $response->getContent());
+    }
 }
