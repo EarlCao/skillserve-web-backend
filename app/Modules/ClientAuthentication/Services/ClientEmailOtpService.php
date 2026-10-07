@@ -111,7 +111,7 @@ class ClientEmailOtpService
 
         if (in_array($transport, ['log', 'array'], true)) {
             throw new RuntimeException(sprintf(
-                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=gmail-api with GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN.',
+                'MAIL_MAILER is "%s", which does not send email. Set MAIL_MAILER=brevo-api with BREVO_API_KEY.',
                 $mailer,
             ));
         }

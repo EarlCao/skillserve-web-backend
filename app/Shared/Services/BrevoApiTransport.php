@@ -12,13 +12,19 @@ use Symfony\Component\Mime\RawMessage;
 
 /**
  * Brevo transactional email transport over their REST API
- * (https://api.brevo.com/v3/smtp/email) instead of SMTP.
+ * (https://api.brevo.com/v3/smtp/email) instead of SMTP — the production
+ * mailer for the 6-digit codes and every other email.
  *
  * Rationale: some hosting environments (e.g. Render free tier) silently
  * drop outbound connections on SMTP ports (25/465/587), making every mail
  * send hang for the socket timeout and then fail. The API path uses plain
  * HTTPS on 443 — the same egress the app already relies on for Google and
  * the database — and is unaffected.
+ *
+ * A refusal (wrong key, unknown IP, unverified sender) is raised with
+ * Brevo's own code and message so it reaches the server log. Brevo accepts
+ * a message before delivering it, so a suspended account still answers 201;
+ * that shows only in Brevo → Transactional → Logs.
  *
  * Enable with MAIL_MAILER=brevo-api and BREVO_API_KEY=<xkeysib-...>.
  */
@@ -95,14 +101,22 @@ class BrevoApiTransport implements TransportInterface
         }
 
         if (! $response->successful()) {
+            $reason = trim(($response->json('code') ?? '').' '.($response->json('message') ?? ''));
+
             throw new TransportException(sprintf(
                 'Brevo API returned HTTP %d: %s',
                 $response->status(),
-                substr((string) $response->body(), 0, 500),
+                $reason !== '' ? $reason : substr((string) $response->body(), 0, 500),
             ));
         }
 
-        return new SentMessage($message, $envelope);
+        $sent = new SentMessage($message, $envelope);
+        // Brevo's id, the one searched for in Transactional → Logs.
+        if (is_string($id = $response->json('messageId'))) {
+            $sent->setMessageId($id);
+        }
+
+        return $sent;
     }
 
     public function __toString(): string

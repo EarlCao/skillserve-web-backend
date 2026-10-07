@@ -6,6 +6,10 @@ return [
     // (generated here, sent through MAIL_MAILER) or `twilio` (Twilio Verify
     // generates, emails and checks them; see services.twilio).
     'otp_driver' => env('OTP_DRIVER', 'mail'),
+    // Sign-up only accepts an email whose domain can receive mail (MX or
+    // address record), so a typo such as "gmial.com" is refused instead of
+    // bouncing. Bounces are what get a sending account (Brevo) suspended.
+    'check_email_domain' => (bool) env('CLIENT_AUTH_CHECK_EMAIL_DOMAIN', true),
     // A second, narrow token the app hands to its background task so it can
     // check for new notifications while the app is closed. It reads the
     // notification feed and nothing else, and it never refreshes, so it

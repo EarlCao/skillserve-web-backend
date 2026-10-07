@@ -72,6 +72,16 @@ class HealthCheckTest extends TestCase
         $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'down');
     }
 
+    public function test_health_checks_the_brevo_key(): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'brevo-api', 'services.brevo.api_key' => null]);
+        $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'mail', 'mailer' => 'brevo-api']);
+
+        config(['services.brevo.api_key' => 'xkeysib-secret']);
+        $response = $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+        $this->assertStringNotContainsString('xkeysib-secret', $response->getContent());
+    }
+
     public function test_health_checks_the_resend_key(): void
     {
         config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'resend-api', 'services.resend.key' => null]);

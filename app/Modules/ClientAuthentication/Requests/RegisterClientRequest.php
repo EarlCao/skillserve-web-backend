@@ -23,7 +23,8 @@ class RegisterClientRequest extends BaseFormRequest
         return [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
+            // The code is emailed here, so the domain must accept mail (see client-auth.check_email_domain).
+            'email' => ['required', 'string', config('client-auth.check_email_domain') ? 'email:rfc,dns' : 'email', 'max:255', Rule::unique('users', 'email')],
             // Chosen after the emailed code is confirmed (POST /auth/complete-registration).
             // Still accepted here so older app versions keep working.
             'password' => ['sometimes', 'string', 'min:8', 'max:255', 'confirmed'],
@@ -36,6 +37,9 @@ class RegisterClientRequest extends BaseFormRequest
 
     public function messages(): array
     {
-        return AgeRequirement::messages();
+        return [
+            ...AgeRequirement::messages(),
+            'email.email' => 'Enter an email address that can receive mail, and check the spelling.',
+        ];
     }
 }

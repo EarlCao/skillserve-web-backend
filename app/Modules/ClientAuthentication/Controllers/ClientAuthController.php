@@ -272,6 +272,7 @@ class ClientAuthController extends Controller
             new OA\Response(response: 202, description: 'A new code has been sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 404, description: 'No sign-up or account found', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 429, description: 'Resend cooldown active', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 503, description: 'The verification email could not be sent; it can be retried at once', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
     )]
     public function resendOtp(ResendClientOtpRequest $request): JsonResponse
@@ -307,7 +308,8 @@ class ClientAuthController extends Controller
                 'reason' => $e->getMessage(),
             ]);
 
-            throw $e;
+            // No cooldown was started, so the user can ask again at once.
+            throw new ApiException('We could not send your verification code. Please try again in a moment.', 503);
         }
 
         return $this->success([], 'A new verification code has been sent to your email.', status: 202);

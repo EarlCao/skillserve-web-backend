@@ -177,7 +177,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Email over HTTPS APIs (port 443): the Render free tier blocks
-        // outbound SMTP. MAIL_MAILER picks one; production uses resend-api.
+        // outbound SMTP. MAIL_MAILER picks one; production uses brevo-api.
         Mail::extend('resend-api', function (array $config) {
             return new ResendApiTransport(
                 apiKey: (string) config('services.resend.key'),

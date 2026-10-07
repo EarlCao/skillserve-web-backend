@@ -18,9 +18,8 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    // Resend's email API (MAIL_MAILER=resend-api): the production mailer for
-    // the 6-digit codes and every other email. MAIL_FROM_ADDRESS must be on
-    // a domain verified in Resend.
+    // Resend's email API (MAIL_MAILER=resend-api), an alternative mailer.
+    // MAIL_FROM_ADDRESS must be on a domain verified in Resend.
     'resend' => [
         'key' => env('RESEND_API_KEY'),
         'timeout' => (int) env('RESEND_API_TIMEOUT', 15),
@@ -58,7 +57,7 @@ return [
     ],
 
     // Mailjet's Send API (MAIL_MAILER=mailjet-api). Built and tested, but the
-    // new account was blocked on 2026-10-06, so Resend is used instead.
+    // new account was blocked on 2026-10-06.
     'mailjet' => [
         'key' => env('MAILJET_API_KEY'),
         'secret' => env('MAILJET_SECRET_KEY'),
@@ -71,6 +70,8 @@ return [
         'timeout' => (int) env('SENDGRID_API_TIMEOUT', 15),
     ],
 
+    // Brevo's transactional API (MAIL_MAILER=brevo-api): the production
+    // mailer for the 6-digit codes and every other email.
     'brevo' => [
         'api_key' => env('BREVO_API_KEY'),
         'timeout' => (int) env('BREVO_API_TIMEOUT', 15),

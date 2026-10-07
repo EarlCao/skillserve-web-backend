@@ -4868,6 +4868,16 @@
                                 }
                             }
                         }
+                    },
+                    "503": {
+                        "description": "The verification email could not be sent; it can be retried at once",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
                     }
                 }
             }
