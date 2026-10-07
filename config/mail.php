@@ -62,6 +62,10 @@ return [
             'transport' => 'sendgrid-api',
         ],
 
+        'resend-api' => [
+            'transport' => 'resend-api',
+        ],
+
         'mailjet-api' => [
             'transport' => 'mailjet-api',
         ],

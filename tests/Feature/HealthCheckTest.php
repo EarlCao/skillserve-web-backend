@@ -72,6 +72,16 @@ class HealthCheckTest extends TestCase
         $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'down');
     }
 
+    public function test_health_checks_the_resend_key(): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'resend-api', 'services.resend.key' => null]);
+        $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'mail', 'mailer' => 'resend-api']);
+
+        config(['services.resend.key' => 're_secret']);
+        $response = $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+        $this->assertStringNotContainsString('re_secret', $response->getContent());
+    }
+
     public function test_health_checks_the_gmail_settings(): void
     {
         config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'gmail-api', 'services.gmail.client_id' => 'id', 'services.gmail.client_secret' => 'secret', 'services.gmail.refresh_token' => null]);
