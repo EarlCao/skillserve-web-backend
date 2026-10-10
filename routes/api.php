@@ -1,5 +1,6 @@
 <?php
 
+use App\Shared\Services\BrevoAccountCheck;
 use App\Shared\Services\TwilioVerifyClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -62,10 +63,16 @@ Route::get('/health', function () {
     $otpReady = $driver === 'twilio'
         ? app(TwilioVerifyClient::class)->isConfigured()
         : $mailerKeys !== null && collect($mailerKeys)->every(fn (string $key): bool => filled(config($key)));
+    // Brevo accepts sends even when it will not deliver them, so ask Brevo
+    // itself whether the key, the allowance and the account are still good.
+    $brevo = $otpReady && $driver !== 'twilio' && $mailerKeys === ['services.brevo.api_key']
+        ? app(BrevoAccountCheck::class)->check()
+        : null;
     $checks['services']['otp'] = array_filter([
-        'status' => $otpReady ? 'up' : 'down',
+        'status' => $otpReady && ($brevo['status'] ?? 'up') === 'up' ? 'up' : 'down',
         'driver' => $driver,
         'mailer' => $driver === 'twilio' ? null : $mailer,
+        'error' => $brevo['error'] ?? null,
     ]);
 
     $status = $checks['status'] === 'ok' ? 200 : 503;

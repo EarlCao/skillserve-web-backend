@@ -14,14 +14,14 @@ final class SystemEndpoints
     #[OA\Get(
         path: '/api/health',
         summary: 'Health check',
-        description: 'Public. Reports whether the database and the upload storage (storage/app, the Render persistent disk in production) are usable. Never includes error details; those go to the server log. `otp` says whether the 6-digit codes can be sent (Twilio Verify configured, or a real mailer) without failing the check.',
+        description: 'Public. Reports whether the database and the upload storage (storage/app, the Render persistent disk in production) are usable. Never includes error details; those go to the server log. `otp` says whether the 6-digit codes can be sent (Twilio Verify configured, or a real mailer) without failing the check. With the brevo-api mailer it also asks Brevo (answer cached 5 minutes) and is `down`, with a plain-language `error`, when Brevo refuses the key or the server\'s IP, the sending allowance is used up, or emails were accepted in the last two days but none delivered (a suspended account).',
         tags: ['System'],
         responses: [
             new OA\Response(response: 200, description: 'Everything is up', content: new OA\JsonContent(
-                example: ['status' => 'ok', 'timestamp' => '2026-10-06T08:00:00+00:00', 'services' => ['database' => ['status' => 'up'], 'storage' => ['status' => 'up'], 'otp' => ['status' => 'up', 'driver' => 'twilio']]],
+                example: ['status' => 'ok', 'timestamp' => '2026-10-10T08:00:00+00:00', 'services' => ['database' => ['status' => 'up'], 'storage' => ['status' => 'up'], 'otp' => ['status' => 'up', 'driver' => 'mail', 'mailer' => 'brevo-api']]],
             )),
             new OA\Response(response: 503, description: 'Degraded: a service is down', content: new OA\JsonContent(
-                example: ['status' => 'degraded', 'timestamp' => '2026-10-06T08:00:00+00:00', 'services' => ['database' => ['status' => 'down'], 'storage' => ['status' => 'up'], 'otp' => ['status' => 'up', 'driver' => 'twilio']]],
+                example: ['status' => 'degraded', 'timestamp' => '2026-10-10T08:00:00+00:00', 'services' => ['database' => ['status' => 'down'], 'storage' => ['status' => 'up'], 'otp' => ['status' => 'down', 'driver' => 'mail', 'mailer' => 'brevo-api', 'error' => 'Brevo accepted 12 emails in the last two days and delivered none. Check Brevo → Transactional → Logs; the account may be suspended.']]],
             )),
         ],
     )]

@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class HealthCheckTest extends TestCase
@@ -77,9 +80,58 @@ class HealthCheckTest extends TestCase
         config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'brevo-api', 'services.brevo.api_key' => null]);
         $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'down', 'driver' => 'mail', 'mailer' => 'brevo-api']);
 
+        Http::fake(self::brevo(['plan' => [['type' => 'free', 'creditsType' => 'sendLimit', 'credits' => 280]]], ['requests' => 20, 'delivered' => 19]));
         config(['services.brevo.api_key' => 'xkeysib-secret']);
-        $response = $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+        $response = $this->getJson('/api/health')->assertJsonPath('services.otp', ['status' => 'up', 'driver' => 'mail', 'mailer' => 'brevo-api']);
         $this->assertStringNotContainsString('xkeysib-secret', $response->getContent());
+        Http::assertSent(fn (Request $request) => $request->hasHeader('api-key', 'xkeysib-secret'));
+    }
+
+    /** @return array<string, mixed> fakes for Brevo's account and statistics endpoints */
+    private static function brevo(array|int $account, array $report = ['requests' => 0, 'delivered' => 0]): array
+    {
+        return [
+            'api.brevo.com/v3/account' => is_int($account)
+                ? Http::response(['code' => 'unauthorized', 'message' => 'unrecognised IP address 203.0.113.9'], $account)
+                : Http::response($account),
+            'api.brevo.com/v3/smtp/statistics/aggregatedReport*' => Http::response($report),
+        ];
+    }
+
+    /** @return array<string, array{string, array<int, mixed>}> the reason shown, and the arguments for brevo() */
+    public static function brevoFailures(): array
+    {
+        return [
+            'key or IP refused' => ['Brevo refused the API key or this server\'s IP address', [401]],
+            'allowance used up' => ['sending allowance is used up', [['plan' => [['type' => 'free', 'creditsType' => 'sendLimit', 'credits' => 0]]]]],
+            'accepted, none delivered' => ['accepted 12 emails in the last two days and delivered none', [['plan' => []], ['requests' => 12, 'delivered' => 0]]],
+        ];
+    }
+
+    /** Brevo says yes to every send, so the health check asks Brevo what it really did. */
+    #[DataProvider('brevoFailures')]
+    public function test_health_reports_what_brevo_would_not_deliver(string $reason, array $brevo): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'brevo-api', 'services.brevo.api_key' => 'xkeysib-secret']);
+        Http::fake(self::brevo(...$brevo));
+
+        $response = $this->getJson('/api/health')
+            ->assertOk()
+            ->assertJsonPath('services.otp.status', 'down');
+        $this->assertStringContainsString($reason, $response->json('services.otp.error'));
+        // Brevo's own wording can name the server's IP; it stays in the log.
+        $this->assertStringNotContainsString('203.0.113.9', $response->getContent());
+    }
+
+    public function test_the_brevo_answer_is_cached_so_the_health_page_does_not_hammer_brevo(): void
+    {
+        config(['client-auth.otp_driver' => 'mail', 'mail.default' => 'brevo-api', 'services.brevo.api_key' => 'xkeysib-secret']);
+        Http::fake(self::brevo(['plan' => []]));
+
+        $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+        $this->getJson('/api/health')->assertJsonPath('services.otp.status', 'up');
+
+        Http::assertSentCount(2);
     }
 
     public function test_health_checks_the_resend_key(): void
