@@ -3,6 +3,7 @@
 namespace App\Modules\IdentityVerification\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\ClientCommunication\Events\ClientNotificationCreated;
 use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Models\IdentityVerificationEvent;
 use App\Modules\Providers\Models\ProviderProfile;
@@ -10,6 +11,7 @@ use App\Modules\Providers\Models\VerificationRequest;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\Models\Activity;
@@ -362,5 +364,31 @@ class IdentityVerificationReviewTest extends TestCase
             ->assertOk();
 
         $this->assertSame('pending', ProviderProfile::query()->where('user_id', $record->user_id)->value('verification_status'));
+    }
+
+    public function test_each_decision_reaches_the_holder_in_realtime(): void
+    {
+        Event::fake([ClientNotificationCreated::class]);
+        $approved = $this->submission();
+        $rejected = $this->submission('provider', 'pending');
+        [, $token] = $this->reviewer(['view identity verifications', 'verify identities', 'reject identities']);
+
+        $this->withToken($token)->patchJson("/api/identity-verifications/{$approved->id}/approve")->assertOk();
+        $this->withToken($token)
+            ->patchJson("/api/identity-verifications/{$rejected->id}/reject", ['reason' => 'The photo is blurred.'])
+            ->assertOk();
+
+        foreach ([[$approved, 'approved'], [$rejected, 'rejected']] as [$record, $action]) {
+            $notification = $record->user->notifications()->firstOrFail();
+            $this->assertSame('identity_verification', $notification->data['type']);
+            $this->assertSame($action, $notification->data['action']);
+            // The push is what makes the app refresh the account at once.
+            Event::assertDispatched(
+                ClientNotificationCreated::class,
+                fn (ClientNotificationCreated $event) => $event->userId === $record->user_id
+                    && $event->data['data']['type'] === 'identity_verification',
+            );
+        }
+        $this->assertStringContainsString('The photo is blurred.', $rejected->user->notifications()->first()->data['message']);
     }
 }

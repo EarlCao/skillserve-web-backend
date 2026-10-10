@@ -55,6 +55,7 @@ use App\Modules\IdentityVerification\Events\IdentityVerificationApproved;
 use App\Modules\IdentityVerification\Events\IdentityVerificationRejected;
 use App\Modules\IdentityVerification\Events\IdentityVerificationSubmitted;
 use App\Modules\IdentityVerification\Listeners\LogIdentityVerificationActivity;
+use App\Modules\IdentityVerification\Listeners\NotifyHolderOfIdentityDecision;
 use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Policies\IdentityVerificationPolicy;
 use App\Modules\Locations\Services\PhAddressService;
@@ -404,6 +405,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(IdentityVerificationSubmitted::class, LogIdentityVerificationActivity::class);
         Event::listen(IdentityVerificationApproved::class, LogIdentityVerificationActivity::class);
         Event::listen(IdentityVerificationRejected::class, LogIdentityVerificationActivity::class);
+        Event::listen([IdentityVerificationApproved::class, IdentityVerificationRejected::class], NotifyHolderOfIdentityDecision::class);
 
         // Service Management module policies.
         Gate::policy(Service::class, ServicePolicy::class);
