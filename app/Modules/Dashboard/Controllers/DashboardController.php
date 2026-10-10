@@ -63,4 +63,27 @@ class DashboardController extends Controller
             'Dashboard retrieved.',
         );
     }
+
+    #[OA\Get(
+        path: '/api/dashboard/attention',
+        summary: 'Counts of work waiting for an administrator',
+        description: 'For the sidebar badges: support tickets still `open` (nobody has replied) and reports still `pending` (nobody has picked them up). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.',
+        tags: ['Dashboard'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'The counts', content: new OA\JsonContent(
+                ref: '#/components/schemas/ApiEnvelope',
+                example: [
+                    'success' => true,
+                    'message' => 'Attention counts retrieved.',
+                    'data' => ['open_support_tickets' => 3, 'pending_reports' => null],
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ],
+    )]
+    public function attention(Request $request): JsonResponse
+    {
+        return $this->success($this->dashboardService->attention($request->user()), 'Attention counts retrieved.');
+    }
 }

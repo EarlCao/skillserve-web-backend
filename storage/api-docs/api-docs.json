@@ -5879,7 +5879,7 @@
                     "Client Authentication"
                 ],
                 "summary": "Email a 6-digit password reset code (mobile accounts)",
-                "description": "Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. The response is the same for unknown or inactive addresses, and for an address sent a code in the last 60 seconds.",
+                "description": "Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. Works for every mobile account, including one created with Google sign-in. An address with no mobile account answers 404, so the app moves to the code screen only for a real account; a suspended or banned account answers 403 with `meta.account`, as at login. An address sent a code in the last 60 seconds answers 202 without a new email: the code already sent is the one to enter.",
                 "operationId": "d0996f0efe7d31eeb7416f52cb4ca691",
                 "requestBody": {
                     "required": true,
@@ -5903,7 +5903,27 @@
                 },
                 "responses": {
                     "202": {
-                        "description": "Reset request accepted without account enumeration",
+                        "description": "A code was emailed to the account (or one sent in the last 60 seconds is still valid)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "The account is suspended or banned (`meta.account`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No mobile account uses this email (`errors.email`)",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -11052,6 +11072,44 @@
                     },
                     "403": {
                         "description": "Dashboard permission required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/attention": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Counts of work waiting for an administrator",
+                "description": "For the sidebar badges: support tickets still `open` (nobody has replied) and reports still `pending` (nobody has picked them up). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.",
+                "operationId": "5bd32c11ca149d313f44cc884165b487",
+                "responses": {
+                    "200": {
+                        "description": "The counts",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Attention counts retrieved.",
+                                    "data": {
+                                        "open_support_tickets": 3,
+                                        "pending_reports": null
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [

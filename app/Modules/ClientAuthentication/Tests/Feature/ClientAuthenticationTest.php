@@ -424,7 +424,7 @@ class ClientAuthenticationTest extends TestCase
         ])->assertOk();
     }
 
-    public function test_a_wrong_reset_code_is_refused_and_unknown_addresses_look_the_same(): void
+    public function test_a_wrong_reset_code_is_refused_and_an_unknown_address_is_told_so(): void
     {
         Notification::fake();
         $user = $this->customer(['email' => 'wrongcode@example.com']);
@@ -435,8 +435,11 @@ class ClientAuthenticationTest extends TestCase
         $this->postJson('/api/client/v1/auth/verify-reset-code', ['email' => $user->email, 'code' => '000000'])
             ->assertStatus(422);
 
-        // An address with no account gets the same answer and no email.
-        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'nobody@example.com'])->assertStatus(202);
+        // An address with no account is told so, and gets no email; the app
+        // stays on the email step instead of opening the code screen.
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'nobody@example.com'])
+            ->assertStatus(404)
+            ->assertJsonPath('errors.email.0', 'There is no SkillServe account with this email. Check it, or sign up.');
         $this->postJson('/api/client/v1/auth/verify-reset-code', ['email' => 'nobody@example.com', 'code' => '654321'])
             ->assertStatus(422);
         Notification::assertSentTimes(ClientEmailOtpNotification::class, 1);
@@ -444,6 +447,30 @@ class ClientAuthenticationTest extends TestCase
         // A repeat request inside the resend window answers the same and sends nothing.
         $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])->assertStatus(202);
         Notification::assertSentTimes(ClientEmailOtpNotification::class, 1);
+    }
+
+    public function test_an_account_made_with_google_gets_a_reset_code(): void
+    {
+        Notification::fake();
+        $user = $this->customer(['email' => 'juan.google@gmail.com', 'google_sub' => 'google-123']);
+
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'Juan.Google@gmail.com'])
+            ->assertStatus(202)
+            ->assertJsonPath('message', 'A password reset code has been sent to your email.');
+
+        Notification::assertSentTo($user, ClientEmailOtpNotification::class);
+    }
+
+    public function test_a_suspended_account_is_refused_a_reset_code_with_the_reason(): void
+    {
+        Notification::fake();
+        $user = $this->customer(['email' => 'held@gmail.com', 'status' => 'suspended']);
+
+        $this->postJson('/api/client/v1/auth/forgot-password', ['email' => $user->email])
+            ->assertStatus(403)
+            ->assertJsonPath('meta.account.status', 'suspended');
+
+        Notification::assertNothingSent();
     }
 
     public function test_providers_can_reset_their_password_too(): void

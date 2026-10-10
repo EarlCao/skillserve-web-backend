@@ -12,6 +12,7 @@ use App\Modules\Providers\Models\VerificationRequest;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Services\Models\Service;
 use App\Modules\Settings\Services\SettingsService;
+use App\Modules\Support\Models\SupportTicket;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -27,6 +28,25 @@ class DashboardService
         private readonly CommissionTierService $tiers,
         private readonly SettingsService $settings,
     ) {}
+
+    /**
+     * What is waiting for an administrator, for the sidebar's count badges:
+     * support tickets nobody has answered yet and reports nobody has picked
+     * up. Each count is null for a viewer who may not open that list.
+     *
+     * @return array{open_support_tickets: ?int, pending_reports: ?int}
+     */
+    public function attention(User $viewer): array
+    {
+        return [
+            'open_support_tickets' => $viewer->can('viewAny', SupportTicket::class)
+                ? SupportTicket::query()->where('status', 'open')->count()
+                : null,
+            'pending_reports' => $viewer->can('viewAny', Report::class)
+                ? Report::query()->where('status', 'pending')->count()
+                : null,
+        ];
+    }
 
     /**
      * Build the dashboard read model from the existing module tables. The

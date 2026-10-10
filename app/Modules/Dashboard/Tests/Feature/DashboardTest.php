@@ -6,8 +6,10 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
+use App\Modules\Support\Models\SupportTicket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -112,6 +114,46 @@ class DashboardTest extends TestCase
     }
 
     /** @param  array<string, mixed>  $overrides */
+    public function test_attention_counts_new_tickets_and_pending_reports(): void
+    {
+        $customer = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+        foreach (['open', 'open', 'in_progress', 'resolved'] as $status) {
+            SupportTicket::create([
+                'ticket_number' => 'SUP-'.Str::upper(Str::random(12)), 'requester_id' => $customer->id,
+                'subject' => 'Help', 'description' => 'Help me.', 'category' => 'general',
+                'priority' => 'normal', 'status' => $status,
+            ]);
+        }
+        foreach (['pending', 'pending', 'pending', 'investigating', 'resolved'] as $status) {
+            // One report per reporter and target, as the table enforces.
+            $reporter = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+            Report::create([
+                'reportable_type' => $customer->getMorphClass(), 'reportable_id' => $customer->id,
+                'reporter_id' => $reporter->id, 'reason' => 'fraud', 'description' => 'Look.', 'status' => $status,
+            ]);
+        }
+        [$token] = $this->actingAdministrator(['view support', 'view reports']);
+
+        $this->withToken($token)->getJson('/api/dashboard/attention')
+            ->assertOk()
+            ->assertJsonPath('data', ['open_support_tickets' => 2, 'pending_reports' => 3]);
+    }
+
+    public function test_attention_hides_a_count_the_viewer_may_not_see(): void
+    {
+        // Every permission exists in production (seeded); here only the role's.
+        Permission::findOrCreate('view reports');
+        // Support staff without the dashboard permission still get their badge.
+        [$token] = $this->actingAdministrator(['view support']);
+
+        $this->withToken($token)->getJson('/api/dashboard/attention')
+            ->assertOk()
+            ->assertJsonPath('data', ['open_support_tickets' => 0, 'pending_reports' => null]);
+
+        $this->app['auth']->forgetGuards();
+        $this->flushHeaders()->getJson('/api/dashboard/attention')->assertUnauthorized();
+    }
+
     private function booking(array $overrides): Booking
     {
         $client = User::factory()->create(['user_type' => 'customer', 'status' => 'active']);

@@ -686,14 +686,16 @@ class ClientAuthController extends Controller
     #[OA\Post(
         path: '/api/client/v1/auth/forgot-password',
         summary: 'Email a 6-digit password reset code (mobile accounts)',
-        description: 'Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. The response is the same for unknown or inactive addresses, and for an address sent a code in the last 60 seconds.',
+        description: 'Step 1 of 3: this code, then POST /auth/verify-reset-code, then POST /auth/reset-password with the new password. Works for every mobile account, including one created with Google sign-in. An address with no mobile account answers 404, so the app moves to the code screen only for a real account; a suspended or banned account answers 403 with `meta.account`, as at login. An address sent a code in the last 60 seconds answers 202 without a new email: the code already sent is the one to enter.',
         tags: ['Client Authentication'],
         requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
             required: ['email'],
             properties: [new OA\Property(property: 'email', type: 'string', format: 'email', example: 'alex@example.com')],
         )),
         responses: [
-            new OA\Response(response: 202, description: 'Reset request accepted without account enumeration', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 202, description: 'A code was emailed to the account (or one sent in the last 60 seconds is still valid)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'The account is suspended or banned (`meta.account`)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 404, description: 'No mobile account uses this email (`errors.email`)', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 422, description: 'Validation error', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 503, description: 'The code could not be sent', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
         ],
@@ -702,7 +704,7 @@ class ClientAuthController extends Controller
     {
         $this->authenticationService->requestPasswordReset($request->validated()['email']);
 
-        return $this->success(null, 'If the account exists, a password reset code has been sent.', status: 202);
+        return $this->success(null, 'A password reset code has been sent to your email.', status: 202);
     }
 
     #[OA\Post(

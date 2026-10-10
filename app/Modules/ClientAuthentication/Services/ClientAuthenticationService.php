@@ -200,15 +200,28 @@ class ClientAuthenticationService
      * Email a 6-digit code that proves the address before the password is
      * replaced ({@see verifyPasswordResetCode()}).
      *
-     * Unknown, administrative and inactive addresses get no code but the same
-     * response, and so does an address that was sent one moments ago, so the
-     * endpoint cannot enumerate accounts.
+     * An address with no mobile account is told so (owner decision,
+     * 2026-10-10), so the app only moves on to the code screen for a real
+     * account; sign-up already reveals whether an address is taken, and the
+     * client-auth limiter caps how fast addresses can be tried. A suspended or
+     * banned account is refused as at login. An address sent a code moments
+     * ago gets no new one: the code already on its way is the one to enter.
      */
     public function requestPasswordReset(string $email): void
     {
         $user = $this->clientQuery()->where('email', $email)->first();
 
-        if (! $user?->isActive() || $this->otpService->isCoolingDown($user->email)) {
+        if ($user === null) {
+            $message = 'There is no SkillServe account with this email. Check it, or sign up.';
+
+            throw new ApiException($message, 404, ['email' => [$message]]);
+        }
+
+        if (! $user->isActive()) {
+            throw AccountRestrictedException::for($user);
+        }
+
+        if ($this->otpService->isCoolingDown($user->email)) {
             return;
         }
 

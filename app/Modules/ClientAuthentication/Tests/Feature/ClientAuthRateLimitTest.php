@@ -11,9 +11,10 @@ class ClientAuthRateLimitTest extends TestCase
 
     public function test_one_email_address_is_limited_on_the_public_account_endpoints(): void
     {
+        // No account uses these addresses (404); the limiter counts them all the same.
         foreach (range(1, 10) as $_) {
             $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'target@skillserve.test'])
-                ->assertStatus(202);
+                ->assertStatus(404);
         }
 
         $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'Target@SkillServe.test'])
@@ -21,7 +22,7 @@ class ClientAuthRateLimitTest extends TestCase
 
         // Another address from the same network is still served.
         $this->postJson('/api/client/v1/auth/forgot-password', ['email' => 'someone@skillserve.test'])
-            ->assertStatus(202);
+            ->assertStatus(404);
     }
 
     public function test_one_network_is_limited_across_addresses(): void
