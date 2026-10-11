@@ -2866,6 +2866,87 @@
                 ]
             }
         },
+        "/api/auth/me/photo": {
+            "post": {
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Set the signed-in administrator's profile photo",
+                "description": "Replaces any previous photo, whose file is deleted. Only the signed-in account is changed; no id is accepted. Returns the administrator with `profile_photo_url`.",
+                "operationId": "a3889c505354ae8ed7c274a4bb281727",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "photo"
+                                ],
+                                "properties": {
+                                    "photo": {
+                                        "description": "JPG, PNG or WebP, up to 5 MB",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photo saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Not an image, or larger than 5 MB"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Admin Authentication"
+                ],
+                "summary": "Remove the signed-in administrator's profile photo",
+                "description": "Deletes the stored file; the header falls back to initials.",
+                "operationId": "1801fd103df78fb64bb3171a2a531475",
+                "responses": {
+                    "200": {
+                        "description": "Photo removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/auth/change-password": {
             "post": {
                 "tags": [
@@ -24725,6 +24806,10 @@
         {
             "name": "Users",
             "description": "Manage platform user accounts (view, edit, suspend, activate, ban, delete)"
+        },
+        {
+            "name": "Admin Authentication",
+            "description": "Admin Authentication"
         },
         {
             "name": "System",

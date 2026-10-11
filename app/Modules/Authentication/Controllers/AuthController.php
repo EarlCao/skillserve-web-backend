@@ -8,6 +8,8 @@ use App\Modules\Authentication\Requests\LoginRequest;
 use App\Modules\Authentication\Resources\UserResource;
 use App\Modules\Authentication\Services\AuthenticationService;
 use App\Modules\Authentication\Services\PasswordService;
+use App\Modules\ClientAuthentication\Requests\UpdateClientProfilePhotoRequest;
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -28,6 +30,9 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthenticationService $authenticationService,
         private readonly PasswordService $passwordService,
+        // The same photo storage mobile accounts use, so a photo is stored and
+        // served one way for every account.
+        private readonly ClientProfileService $profiles,
     ) {}
 
     /**
@@ -227,6 +232,52 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return $this->success(new UserResource($request->user()), 'Authenticated user.');
+    }
+
+    #[OA\Post(
+        path: '/api/auth/me/photo',
+        summary: "Set the signed-in administrator's profile photo",
+        description: 'Replaces any previous photo, whose file is deleted. Only the signed-in account is changed; no id is accepted. Returns the administrator with `profile_photo_url`.',
+        tags: ['Admin Authentication'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(
+                required: ['photo'],
+                properties: [new OA\Property(property: 'photo', type: 'string', format: 'binary', description: 'JPG, PNG or WebP, up to 5 MB')],
+            ),
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Photo saved', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 422, description: 'Not an image, or larger than 5 MB'),
+        ],
+    )]
+    public function updateProfilePhoto(UpdateClientProfilePhotoRequest $request): JsonResponse
+    {
+        return $this->success(
+            new UserResource($this->profiles->updatePhoto($request->user(), $request->file('photo'))),
+            'Profile photo updated.',
+        );
+    }
+
+    #[OA\Delete(
+        path: '/api/auth/me/photo',
+        summary: "Remove the signed-in administrator's profile photo",
+        description: 'Deletes the stored file; the header falls back to initials.',
+        tags: ['Admin Authentication'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 200, description: 'Photo removed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+        ],
+    )]
+    public function deleteProfilePhoto(Request $request): JsonResponse
+    {
+        return $this->success(
+            new UserResource($this->profiles->removePhoto($request->user())),
+            'Profile photo removed.',
+        );
     }
 
     /**

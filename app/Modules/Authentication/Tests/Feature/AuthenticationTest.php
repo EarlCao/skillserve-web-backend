@@ -5,9 +5,11 @@ namespace App\Modules\Authentication\Tests\Feature;
 use App\Models\User;
 use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -148,6 +150,53 @@ class AuthenticationTest extends TestCase
             ->assertJsonPath('data.email', $user->email)
             ->assertJsonPath('data.roles', ['admin'])
             ->assertJsonPath('data.permissions', ['view reports']);
+    }
+
+    public function test_an_administrator_sets_replaces_and_removes_their_profile_photo(): void
+    {
+        Storage::fake('public');
+        Role::findOrCreate('admin');
+        $user = $this->createUser();
+        $user->assignRole('admin');
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/auth/me')->assertJsonPath('data.profile_photo_url', null);
+
+        $first = $this->withToken($token)
+            ->post('/api/auth/me/photo', ['photo' => UploadedFile::fake()->image('me.jpg')], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->json('data.profile_photo_url');
+        $this->assertNotNull($first);
+        $firstPath = $user->fresh()->profile_photo_path;
+        Storage::disk('public')->assertExists($firstPath);
+
+        // A new photo replaces the old file rather than piling up.
+        $this->withToken($token)
+            ->post('/api/auth/me/photo', ['photo' => UploadedFile::fake()->image('new.png')], ['Accept' => 'application/json'])
+            ->assertOk();
+        Storage::disk('public')->assertMissing($firstPath);
+
+        $this->withToken($token)->deleteJson('/api/auth/me/photo')
+            ->assertOk()
+            ->assertJsonPath('data.profile_photo_url', null);
+        $this->assertNull($user->fresh()->profile_photo_path);
+    }
+
+    public function test_a_profile_photo_must_be_an_image(): void
+    {
+        Storage::fake('public');
+        Role::findOrCreate('admin');
+        $user = $this->createUser();
+        $user->assignRole('admin');
+
+        $this->withToken($user->createToken('test')->plainTextToken)
+            ->post('/api/auth/me/photo', ['photo' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('photo');
+
+        $this->flushHeaders();
+        $this->app['auth']->forgetGuards();
+        $this->postJson('/api/auth/me/photo')->assertUnauthorized();
     }
 
     public function test_me_without_token_returns_401(): void

@@ -22,6 +22,8 @@ Route::post('/login', [AuthController::class, 'login'])
 
 Route::middleware(['auth:sanctum', CheckAbilities::class.':admin:auth'])->group(function (): void {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/me/photo', [AuthController::class, 'updateProfilePhoto']);
+    Route::delete('/me/photo', [AuthController::class, 'deleteProfilePhoto']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });

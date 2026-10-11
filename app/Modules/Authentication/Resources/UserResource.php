@@ -2,6 +2,7 @@
 
 namespace App\Modules\Authentication\Resources;
 
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Resources\BaseResource;
 use Illuminate\Http\Request;
 
@@ -23,6 +24,8 @@ class UserResource extends BaseResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            // Shown in the admin web header; null until one is uploaded.
+            'profile_photo_url' => ClientProfileService::photoUrl($this->profile_photo_path),
             'roles' => $this->getRoleNames()->values(),
             'permissions' => $this->getAllPermissions()->pluck('name')->values(),
             'created_at' => $this->created_at?->toIso8601String(),
