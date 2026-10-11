@@ -16,6 +16,35 @@ class SettingsController extends Controller
 
     public function __construct(private readonly SettingsService $settingsService) {}
 
+    #[OA\Get(
+        path: '/api/appearance',
+        summary: 'The admin web theme',
+        description: 'Public, so the sign-in page is themed too. `primary_color` is a #RRGGBB hex, or empty for the built-in SkillServe green; `font_family` is one of system, inter, poppins, roboto, outfit, nunito, open_sans, montserrat; `font_size` is small, medium, large or extra_large. Set in System Settings → Appearance.',
+        tags: ['System Settings'],
+        responses: [
+            new OA\Response(response: 200, description: 'The theme', content: new OA\JsonContent(
+                ref: '#/components/schemas/ApiEnvelope',
+                example: [
+                    'success' => true,
+                    'message' => 'Appearance retrieved.',
+                    'data' => ['primary_color' => '#03833E', 'font_family' => 'poppins', 'font_size' => 'medium'],
+                    'errors' => null,
+                    'meta' => [],
+                ],
+            )),
+        ],
+    )]
+    public function appearance(): JsonResponse
+    {
+        $value = fn (string $name): string => (string) $this->settingsService->value('appearance', $name);
+
+        return $this->success([
+            'primary_color' => $value('primary_color'),
+            'font_family' => $value('font_family'),
+            'font_size' => $value('font_size'),
+        ], 'Appearance retrieved.');
+    }
+
     #[OA\Get(path: '/api/settings', summary: 'Get system settings', description: 'meta.read_only lists "group.name" settings shown for information only (for example general.timezone, which follows the server APP_TIMEZONE).', tags: ['System Settings'], security: [['bearerAuth' => []]], responses: [new OA\Response(response: 200, description: 'Grouped system settings', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized')])]
     public function index(): JsonResponse
     {

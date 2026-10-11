@@ -57,6 +57,32 @@ class SettingsTest extends TestCase
         $this->withToken($user->createToken('t')->plainTextToken)->getJson('/api/settings')->assertForbidden();
     }
 
+    public function test_the_theme_is_public_and_defaults_to_skillserve_green(): void
+    {
+        $this->getJson('/api/appearance')
+            ->assertOk()
+            ->assertJsonPath('data', ['primary_color' => '', 'font_family' => 'system', 'font_size' => 'medium']);
+    }
+
+    public function test_an_admin_sets_the_theme_and_bad_values_are_refused(): void
+    {
+        $token = $this->adminToken();
+
+        $this->withToken($token)
+            ->putJson('/api/settings', ['appearance' => ['primary_color' => 'green', 'font_family' => 'comic_sans', 'font_size' => 'huge']])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['appearance.primary_color', 'appearance.font_family', 'appearance.font_size']);
+
+        $this->withToken($token)
+            ->putJson('/api/settings', ['appearance' => ['primary_color' => '#03833E', 'font_family' => 'poppins', 'font_size' => 'large']])
+            ->assertOk();
+
+        $this->app['auth']->forgetGuards();
+        $this->flushHeaders()->getJson('/api/appearance')
+            ->assertOk()
+            ->assertJsonPath('data', ['primary_color' => '#03833E', 'font_family' => 'poppins', 'font_size' => 'large']);
+    }
+
     private function adminToken(): string
     {
         Permission::findOrCreate('manage settings');

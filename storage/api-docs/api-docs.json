@@ -2973,116 +2973,6 @@
                 ]
             }
         },
-        "/api/auth/forgot-password": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Email an administrator a password reset link",
-                "description": "Always answers the same way, whether or not the address belongs to an active administrator, so accounts cannot be discovered. The link opens the admin web reset page and expires in 60 minutes. Rate-limited like login.",
-                "operationId": "e10dbfac5af8763c42ec829cb20838e0",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "email"
-                                ],
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "admin@skillserve.test"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Reset link sent if the account exists",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation error"
-                    },
-                    "429": {
-                        "description": "Too many attempts"
-                    }
-                }
-            }
-        },
-        "/api/auth/reset-password": {
-            "post": {
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Reset an administrator password with an emailed token",
-                "description": "Sets the new password and signs the administrator out everywhere.",
-                "operationId": "1bb992287bae6638ed9af9875134fbb2",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "token",
-                                    "email",
-                                    "password",
-                                    "password_confirmation"
-                                ],
-                                "properties": {
-                                    "token": {
-                                        "type": "string"
-                                    },
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "format": "password",
-                                        "minLength": 8
-                                    },
-                                    "password_confirmation": {
-                                        "type": "string",
-                                        "format": "password"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Password reset",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiEnvelope"
-                                }
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Invalid or expired token, or validation error"
-                    },
-                    "429": {
-                        "description": "Too many attempts"
-                    }
-                }
-            }
-        },
         "/api/bookings": {
             "get": {
                 "tags": [
@@ -19224,6 +19114,39 @@
                                             "privacy_policy": "…",
                                             "community_guidelines": "…"
                                         }
+                                    },
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/appearance": {
+            "get": {
+                "tags": [
+                    "System Settings"
+                ],
+                "summary": "The admin web theme",
+                "description": "Public, so the sign-in page is themed too. `primary_color` is a #RRGGBB hex, or empty for the built-in SkillServe green; `font_family` is one of system, inter, poppins, roboto, outfit, nunito, open_sans, montserrat; `font_size` is small, medium, large or extra_large. Set in System Settings → Appearance.",
+                "operationId": "9bb4d951b4cb44cb42f1e6d4de6fcb9b",
+                "responses": {
+                    "200": {
+                        "description": "The theme",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Appearance retrieved.",
+                                    "data": {
+                                        "primary_color": "#03833E",
+                                        "font_family": "poppins",
+                                        "font_size": "medium"
                                     },
                                     "errors": null,
                                     "meta": []

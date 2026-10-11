@@ -22,6 +22,13 @@ return [
             'commission_block_min_amount' => ['label' => 'Block providers once unpaid commission reaches (₱, 0 = any amount)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:1000000']],
             'commission_block_after_days' => ['label' => 'Also block when a commission stays unpaid for (days, 0 = off)', 'type' => 'number', 'default' => 0, 'rules' => ['integer', 'min:0', 'max:365']],
         ],
+        // How the admin web looks, for every administrator (and on the sign-in
+        // page). Empty primary_color keeps the built-in SkillServe green.
+        'appearance' => [
+            'primary_color' => ['label' => 'Theme colour', 'type' => 'color', 'default' => '', 'rules' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/']],
+            'font_family' => ['label' => 'Font', 'type' => 'select', 'default' => 'system', 'rules' => ['string', 'in:system,inter,poppins,roboto,outfit,nunito,open_sans,montserrat']],
+            'font_size' => ['label' => 'Text size', 'type' => 'select', 'default' => 'medium', 'rules' => ['string', 'in:small,medium,large,extra_large']],
+        ],
         'identity' => [
             // How long National ID images are kept after a decision. They are
             // only needed while a submission is under review or under dispute;
