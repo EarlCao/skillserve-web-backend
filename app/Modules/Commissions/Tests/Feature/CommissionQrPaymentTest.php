@@ -189,7 +189,8 @@ class CommissionQrPaymentTest extends TestCase
             && $request['data']['attributes']['currency'] === 'PHP'
             && $request['data']['attributes']['payment_method_allowed'] === ['qrph']);
         Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/payment_methods')
-            && $request['data']['attributes']['type'] === 'qrph');
+            && $request['data']['attributes']['type'] === 'qrph'
+            && $request['data']['attributes']['expiry_seconds'] === 900);
 
         $this->assertSame(CommissionLedger::OUTSTANDING, $booking->fresh()->commission_status);
         $this->as($token)->getJson('/api/client/v1/provider/commissions')
@@ -376,7 +377,8 @@ class CommissionQrPaymentTest extends TestCase
         $this->owed($profile);
         $first = $this->as($token)->postJson('/api/client/v1/provider/commission-remittances/qr')->assertCreated()->json('data.id');
 
-        $this->travel(33)->minutes();
+        // 15 minutes, plus the two-minute grace for a payment in flight.
+        $this->travel(18)->minutes();
 
         $this->as($token)->getJson("/api/client/v1/provider/commission-remittances/{$first}")
             ->assertOk()

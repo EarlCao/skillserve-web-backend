@@ -9200,7 +9200,7 @@
                     "Provider Commissions"
                 ],
                 "summary": "Get a QR Ph code to pay the outstanding commission",
-                "description": "PayMongo creates a single-use dynamic QR Ph code for everything the provider owes right now; the amount is worked out by the server, never sent by the app. Scan it with GCash, Maya or a bank app. `qr_image` is the code as PayMongo returns it (a base-64 image to show as-is) and `expires_at` when it stops working (30 minutes). The payment is confirmed only by PayMongo's signed webhook, and only when its amount and currency match; then the covered commissions are settled and the provider is notified.\n\nCalling it again while a code is still payable returns that code (200) instead of making another. 503 when QR payments are not configured — pay by GCash reference instead.",
+                "description": "PayMongo creates a single-use dynamic QR Ph code for everything the provider owes right now; the amount is worked out by the server, never sent by the app. Scan it with GCash, Maya or a bank app. `qr_image` is the code as PayMongo returns it (a base-64 image to show as-is) and `expires_at` when it stops working (15 minutes; PayMongo is asked for `expiry_seconds` 900). The payment is confirmed only by PayMongo's signed webhook, and only when its amount and currency match; then the covered commissions are settled and the provider is notified.\n\nCalling it again while a code is still payable returns that code (200) instead of making another. 503 when QR payments are not configured — pay by GCash reference instead.",
                 "operationId": "5f8af08288fc51257572af0aa4318595",
                 "responses": {
                     "201": {

@@ -26,7 +26,7 @@ use Illuminate\Support\Str;
  *      `next_action.code.image_url` (a base-64 image)
  *   4. the provider scans it with GCash, Maya or a bank app
  *   5. PayMongo calls the webhook with `payment.paid` (or `payment.failed`);
- *      an unscanned code expires after 30 minutes (`qrph.expired`)
+ *      an unscanned code expires after 15 minutes (`qrph.expired`)
  *
  * The amount is always the provider's outstanding total, worked out here —
  * never taken from the app. Only the signed webhook confirms a payment, and
@@ -37,8 +37,12 @@ use Illuminate\Support\Str;
  */
 class CommissionQrPaymentService extends BaseService
 {
-    /** How long PayMongo keeps a dynamic QR Ph code payable (its default). */
-    public const EXPIRY_MINUTES = 30;
+    /**
+     * How long a code stays payable. Sent to PayMongo as `expiry_seconds` on
+     * the payment method (it accepts 60–9000; its own default is 30 minutes),
+     * and PayMongo starts the clock at attach — when `expires_at` is set here.
+     */
+    public const EXPIRY_MINUTES = 15;
 
     public function __construct(
         private readonly PayMongoClient $client,
@@ -291,7 +295,10 @@ class CommissionQrPaymentService extends BaseService
         }
         $remittance->update(['external_id' => $intentId]);
 
-        $method = $this->client->post('/payment_methods', ['type' => 'qrph'], $key.':pm');
+        $method = $this->client->post('/payment_methods', [
+            'type' => 'qrph',
+            'expiry_seconds' => self::EXPIRY_MINUTES * 60,
+        ], $key.':pm');
 
         $attached = $this->client->post("/payment_intents/{$intentId}/attach", [
             'payment_method' => $method['id'] ?? null,
