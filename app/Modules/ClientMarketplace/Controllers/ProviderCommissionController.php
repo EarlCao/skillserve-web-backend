@@ -3,8 +3,14 @@
 namespace App\Modules\ClientMarketplace\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Modules\ClientMarketplace\Requests\ProviderCommissionRemittanceIndexRequest;
+use App\Modules\ClientMarketplace\Requests\SubmitCommissionRemittanceRequest;
+use App\Modules\ClientMarketplace\Resources\ProviderCommissionRemittanceResource;
 use App\Modules\Commissions\Services\CommissionLedger;
+use App\Modules\Commissions\Services\CommissionRemittanceService;
 use App\Modules\Commissions\Services\TransactionEligibility;
+use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -12,11 +18,12 @@ use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
 
 /**
- * What the signed-in provider owes SkillServe, and whether that is currently
- * stopping them taking on work.
+ * What the signed-in provider owes SkillServe, whether that is currently
+ * stopping them taking on work, and how they pay it.
  *
- * Read-only: no payment gateway is wired up yet, so a remittance is recorded
- * by an administrator once it arrives (see ADR-007). The app uses this to
+ * The provider sends the commission to SkillServe's GCash outside the app and
+ * submits the GCash reference number; nothing is settled until an
+ * administrator confirms the money arrived. The app uses the summary to
  * explain a refusal instead of guessing at it — the API stays authoritative.
  */
 #[OA\Tag(name: 'Provider Commissions', description: 'What the provider owes SkillServe and whether they can take on new work')]
@@ -27,12 +34,13 @@ class ProviderCommissionController extends Controller
     public function __construct(
         private readonly CommissionLedger $ledger,
         private readonly TransactionEligibility $eligibility,
+        private readonly CommissionRemittanceService $remittances,
     ) {}
 
     #[OA\Get(
         path: '/api/client/v1/provider/commissions',
         summary: "The provider's outstanding commission and transaction eligibility",
-        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.",
+        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `latest_remittance` is the provider's most recent GCash payment, or null: while it is `pending` the provider waits for confirmation and cannot submit another; a `rejected` one carries `rejection_reason`.",
         tags: ['Provider Commissions'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -52,6 +60,13 @@ class ProviderCommissionController extends Controller
                         'block_threshold' => '0.00',
                         'block_deadline' => null,
                         'currency' => 'PHP',
+                        'payment_account' => [
+                            'gcash_account_name' => 'SkillServe Inc.',
+                            'gcash_number' => '09171234567',
+                            'payment_instructions' => 'Send the exact amount, then submit the reference number.',
+                            'configured' => true,
+                        ],
+                        'latest_remittance' => null,
                         'outstanding' => [[
                             'booking_number' => 'BK-AB12CD34EF56',
                             'service' => 'Aircon Cleaning',
@@ -73,9 +88,7 @@ class ProviderCommissionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        $profile = $user->providerProfile
-            ?? throw new ApiException('Provider profile not found.', 404);
+        $profile = $this->profileOf($user);
 
         $state = $this->eligibility->forProvider($user);
 
@@ -94,10 +107,103 @@ class ProviderCommissionController extends Controller
             ->values()
             ->all();
 
+        $latest = $this->remittances->latestFor($profile->id);
+
         return $this->success([
             ...$state,
             'currency' => 'PHP',
+            'payment_account' => $this->remittances->account(),
+            'latest_remittance' => $latest ? new ProviderCommissionRemittanceResource($latest) : null,
             'outstanding' => $outstanding,
         ], 'Commission summary retrieved.');
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/provider/commission-remittances',
+        summary: "The provider's GCash commission payments",
+        description: 'Newest first, with the status of each: pending (waiting for SkillServe to confirm), confirmed, or rejected with the reason.',
+        tags: ['Provider Commissions'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 15)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Paginated payments', content: new OA\JsonContent(
+                allOf: [
+                    new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
+                    new OA\Schema(properties: [
+                        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ProviderCommissionRemittance')),
+                    ]),
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
+            new OA\Response(response: 404, description: 'Provider profile not found'),
+            new OA\Response(response: 422, description: 'Invalid per_page or page'),
+        ],
+    )]
+    public function remittances(ProviderCommissionRemittanceIndexRequest $request): JsonResponse
+    {
+        return $this->paginated(
+            $this->remittances->historyFor($this->profileOf($request->user()), $request->validated()),
+            ProviderCommissionRemittanceResource::class,
+            'Commission payments retrieved.',
+        );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/provider/commission-remittances',
+        summary: 'Submit a GCash commission payment for confirmation',
+        description: "After sending SkillServe's GCash (see `payment_account` on the commission summary) the provider submits the reference number from the GCash receipt. It covers every commission outstanding right now, so `amount_sent` must be at least their total; a receipt screenshot is optional but helps the reviewer. The provider stays blocked until an administrator confirms the payment. The reference is compared without spaces or dashes.",
+        tags: ['Provider Commissions'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(
+                required: ['reference', 'amount_sent'],
+                properties: [
+                    new OA\Property(property: 'reference', type: 'string', description: 'GCash reference number, 6–40 letters or digits once spaces and dashes are removed', example: '1012 345 678901'),
+                    new OA\Property(property: 'amount_sent', type: 'number', format: 'float', minimum: 1, example: 20),
+                    new OA\Property(property: 'proof', type: 'string', format: 'binary', nullable: true, description: 'Receipt screenshot: JPG, PNG or WebP, up to 5 MB'),
+                ],
+            ),
+        )),
+        responses: [
+            new OA\Response(response: 201, description: 'Payment submitted; waiting for confirmation', content: new OA\JsonContent(
+                allOf: [
+                    new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
+                    new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderCommissionRemittance')]),
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
+            new OA\Response(response: 404, description: 'Provider profile not found'),
+            new OA\Response(response: 409, description: 'A previous payment is still waiting for confirmation'),
+            new OA\Response(response: 422, description: 'Nothing is owed, the amount is less than what is owed, the reference has already paid a commission (confirmed), or the input is invalid'),
+        ],
+    )]
+    public function storeRemittance(SubmitCommissionRemittanceRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $remittance = $this->remittances->submit(
+            $user,
+            $this->profileOf($user),
+            $request->validated('reference'),
+            (float) $request->validated('amount_sent'),
+            $request->file('proof'),
+        );
+
+        return $this->success(
+            new ProviderCommissionRemittanceResource($remittance),
+            'Payment submitted. SkillServe will confirm it once the money arrives.',
+            status: 201,
+        );
+    }
+
+    private function profileOf(User $user): ProviderProfile
+    {
+        return $user->providerProfile
+            ?? throw new ApiException('Provider profile not found.', 404);
     }
 }

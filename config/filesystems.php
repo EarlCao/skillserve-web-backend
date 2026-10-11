@@ -69,6 +69,16 @@ return [
             'report' => false,
         ],
 
+        // Receipt screenshots a provider attaches to a commission remittance.
+        // Only the administrators confirming payments open them.
+        'commission_remittances' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/commission-remittances'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

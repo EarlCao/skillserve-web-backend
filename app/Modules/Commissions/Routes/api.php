@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Commissions\Controllers\CommissionController;
+use App\Modules\Commissions\Controllers\CommissionRemittanceController;
 use App\Modules\Commissions\Controllers\CommissionTierController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,4 +36,13 @@ Route::prefix('commissions')->middleware('auth:sanctum')->group(function (): voi
     Route::get('/', [CommissionController::class, 'index']);
     Route::patch('/{booking}/settle', [CommissionController::class, 'settle'])->whereNumber('booking');
     Route::patch('/{booking}/waive', [CommissionController::class, 'waive'])->whereNumber('booking');
+});
+
+/* GCash payments providers submit for their outstanding commission, waiting
+   for an administrator to find the reference in SkillServe's GCash history. */
+Route::prefix('commission-remittances')->middleware('auth:sanctum')->group(function (): void {
+    Route::get('/', [CommissionRemittanceController::class, 'index']);
+    Route::get('/{commissionRemittance}/proof', [CommissionRemittanceController::class, 'proof'])->whereNumber('commissionRemittance');
+    Route::patch('/{commissionRemittance}/confirm', [CommissionRemittanceController::class, 'confirm'])->whereNumber('commissionRemittance');
+    Route::patch('/{commissionRemittance}/reject', [CommissionRemittanceController::class, 'reject'])->whereNumber('commissionRemittance');
 });

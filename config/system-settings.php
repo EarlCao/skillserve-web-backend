@@ -1,5 +1,7 @@
 <?php
 
+use App\Shared\Helpers\PhilippineMobileNumber;
+
 return [
     'groups' => [
         'general' => [
@@ -21,6 +23,18 @@ return [
             // block on any debt at once, which is the original behaviour.
             'commission_block_min_amount' => ['label' => 'Block providers once unpaid commission reaches (₱, 0 = any amount)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:1000000']],
             'commission_block_after_days' => ['label' => 'Also block when a commission stays unpaid for (days, 0 = off)', 'type' => 'number', 'default' => 0, 'rules' => ['integer', 'min:0', 'max:365']],
+        ],
+        // Where providers send SkillServe its commission. Shown on the
+        // provider's Commission screen; a provider who sends it there submits
+        // the GCash reference number for an administrator to confirm.
+        'commission_payments' => [
+            'gcash_account_name' => ['label' => 'SkillServe GCash account name', 'type' => 'string', 'default' => '', 'rules' => ['nullable', 'string', 'max:120']],
+            'gcash_number' => ['label' => 'SkillServe GCash number', 'type' => 'string', 'default' => '', 'rules' => ['nullable', 'string', 'regex:'.PhilippineMobileNumber::PATTERN]],
+            'payment_instructions' => ['label' => 'Payment instructions', 'type' => 'textarea', 'default' => '', 'rules' => ['nullable', 'string', 'max:1000']],
+            // Receipt screenshots are only needed while a payment is reviewed
+            // or questioned; after this many days from the decision they are
+            // deleted (commissions:purge-receipts). The record itself is kept.
+            'receipt_retention_days' => ['label' => 'Keep receipt screenshots for (days)', 'type' => 'number', 'default' => 180, 'rules' => ['integer', 'min:1', 'max:3650']],
         ],
         'identity' => [
             // How long National ID images are kept after a decision. They are

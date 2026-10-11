@@ -37,14 +37,19 @@ use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
+use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
+use App\Modules\Commissions\Events\CommissionRemittanceRejected;
+use App\Modules\Commissions\Events\CommissionRemittanceSubmitted;
 use App\Modules\Commissions\Events\CommissionSettled;
 use App\Modules\Commissions\Events\CommissionTierCreated;
 use App\Modules\Commissions\Events\CommissionTierDeleted;
 use App\Modules\Commissions\Events\CommissionTierUpdated;
 use App\Modules\Commissions\Events\CommissionWaived;
 use App\Modules\Commissions\Listeners\LogCommissionActivity;
+use App\Modules\Commissions\Listeners\LogCommissionRemittanceActivity;
 use App\Modules\Commissions\Listeners\LogCommissionSettlementActivity;
 use App\Modules\Commissions\Listeners\NotifyProviderOfCommissionSettlement;
+use App\Modules\Commissions\Listeners\NotifyProviderOfRemittanceDecision;
 use App\Modules\Commissions\Listeners\VoidCommissionOnCancellation;
 use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Commissions\Policies\CommissionPolicy;
@@ -394,6 +399,17 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(CommissionSettled::class, LogCommissionSettlementActivity::class);
         Event::listen(CommissionWaived::class, LogCommissionSettlementActivity::class);
         Event::listen([CommissionSettled::class, CommissionWaived::class], NotifyProviderOfCommissionSettlement::class);
+
+        // GCash payments a provider submits for an administrator to confirm.
+        // Uses the same "view commissions" / "settle commissions" abilities.
+        Event::listen(
+            [CommissionRemittanceSubmitted::class, CommissionRemittanceConfirmed::class, CommissionRemittanceRejected::class],
+            LogCommissionRemittanceActivity::class,
+        );
+        Event::listen(
+            [CommissionRemittanceConfirmed::class, CommissionRemittanceRejected::class],
+            NotifyProviderOfRemittanceDecision::class,
+        );
 
         // A cancelled job earns SkillServe nothing, so anything still owed
         // on it is dropped.

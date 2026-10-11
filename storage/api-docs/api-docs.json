@@ -8970,7 +8970,7 @@
                     "Provider Commissions"
                 ],
                 "summary": "The provider's outstanding commission and transaction eligibility",
-                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.",
+                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `latest_remittance` is the provider's most recent GCash payment, or null: while it is `pending` the provider waits for confirmation and cannot submit another; a `rejected` one carries `rejection_reason`.",
                 "operationId": "5dacd0fd7595da346a2e5956064e8a63",
                 "parameters": [
                     {
@@ -9002,6 +9002,13 @@
                                         "block_threshold": "0.00",
                                         "block_deadline": null,
                                         "currency": "PHP",
+                                        "payment_account": {
+                                            "gcash_account_name": "SkillServe Inc.",
+                                            "gcash_number": "09171234567",
+                                            "payment_instructions": "Send the exact amount, then submit the reference number.",
+                                            "configured": true
+                                        },
+                                        "latest_remittance": null,
                                         "outstanding": [
                                             {
                                                 "booking_number": "BK-AB12CD34EF56",
@@ -9027,6 +9034,156 @@
                     },
                     "404": {
                         "description": "Provider profile not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/commission-remittances": {
+            "get": {
+                "tags": [
+                    "Provider Commissions"
+                ],
+                "summary": "The provider's GCash commission payments",
+                "description": "Newest first, with the status of each: pending (waiting for SkillServe to confirm), confirmed, or rejected with the reason.",
+                "operationId": "3c1cd2c5401fd1491374ed0f8a96a08b",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated payments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiEnvelope"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/ProviderCommissionRemittance"
+                                                    }
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Invalid per_page or page"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Provider Commissions"
+                ],
+                "summary": "Submit a GCash commission payment for confirmation",
+                "description": "After sending SkillServe's GCash (see `payment_account` on the commission summary) the provider submits the reference number from the GCash receipt. It covers every commission outstanding right now, so `amount_sent` must be at least their total; a receipt screenshot is optional but helps the reviewer. The provider stays blocked until an administrator confirms the payment. The reference is compared without spaces or dashes.",
+                "operationId": "8d3f3fd0fe3427de5f1767ceedacc1e9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "reference",
+                                    "amount_sent"
+                                ],
+                                "properties": {
+                                    "reference": {
+                                        "description": "GCash reference number, 6–40 letters or digits once spaces and dashes are removed",
+                                        "type": "string",
+                                        "example": "1012 345 678901"
+                                    },
+                                    "amount_sent": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 20,
+                                        "minimum": 1
+                                    },
+                                    "proof": {
+                                        "description": "Receipt screenshot: JPG, PNG or WebP, up to 5 MB",
+                                        "type": "string",
+                                        "format": "binary",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Payment submitted; waiting for confirmation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiEnvelope"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/ProviderCommissionRemittance"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "409": {
+                        "description": "A previous payment is still waiting for confirmation"
+                    },
+                    "422": {
+                        "description": "Nothing is owed, the amount is less than what is owed, the reference has already paid a commission (confirmed), or the input is invalid"
                     }
                 },
                 "security": [
@@ -10437,6 +10594,278 @@
                 ]
             }
         },
+        "/api/commission-remittances": {
+            "get": {
+                "tags": [
+                    "Commission Remittances"
+                ],
+                "summary": "List GCash commission payments",
+                "description": "Each item carries the GCash reference to look for in SkillServe's GCash history, the amount owed and the amount the provider says they sent, the provider's own GCash account (the expected sender), and the bookings a confirmation would settle. `other_claims_count` above 0 means another provider has a pending or confirmed claim on the same reference — check the sender before confirming. Pass status=pending for the review queue.",
+                "operationId": "ceb4dedb9838824ad0b9202cd6948a5e",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "pending",
+                                "confirmed",
+                                "rejected"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "provider_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search by reference number or business name",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "description": "By submission time",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "desc",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated payments",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    },
+                    "422": {
+                        "description": "Invalid filter values"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-remittances/{commissionRemittance}/proof": {
+            "get": {
+                "tags": [
+                    "Commission Remittances"
+                ],
+                "summary": "Download the GCash receipt a provider attached",
+                "description": "Served from private storage after checking the view commissions permission, and logged to the audit trail. 404 when no receipt was attached, or once it was deleted after the retention period (System Settings → Commission payments).",
+                "operationId": "ed57884270a9bfcaf0451a0bb7d414cf",
+                "parameters": [
+                    {
+                        "name": "commissionRemittance",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The receipt image"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the view commissions permission"
+                    },
+                    "404": {
+                        "description": "Payment or receipt not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-remittances/{commissionRemittance}/confirm": {
+            "patch": {
+                "tags": [
+                    "Commission Remittances"
+                ],
+                "summary": "Confirm a GCash commission payment arrived",
+                "description": "Only a pending payment can be confirmed. Settles every booking it covered that is still outstanding, recording method gcash and the payment's reference, and tells the provider. A booking waived, voided or settled by hand meanwhile is skipped. A reference pays once: confirming a second claim on an already-confirmed reference is refused with 409.",
+                "operationId": "7395a776686ffdceaa5a9457a69441b2",
+                "parameters": [
+                    {
+                        "name": "commissionRemittance",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "notes": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Payment confirmed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the settle commissions permission"
+                    },
+                    "404": {
+                        "description": "Payment not found"
+                    },
+                    "409": {
+                        "description": "The payment has already been reviewed, or its reference has already been confirmed on another claim"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/commission-remittances/{commissionRemittance}/reject": {
+            "patch": {
+                "tags": [
+                    "Commission Remittances"
+                ],
+                "summary": "Reject a GCash commission payment",
+                "description": "Only a pending payment can be rejected, and a reason is required — the provider is shown it and may submit again. Nothing is settled.",
+                "operationId": "bf8b5973b2550ec4862152c63511a50f",
+                "parameters": [
+                    {
+                        "name": "commissionRemittance",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Reference number not found in our GCash history.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Payment rejected",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Missing the settle commissions permission"
+                    },
+                    "404": {
+                        "description": "Payment not found"
+                    },
+                    "409": {
+                        "description": "The payment has already been reviewed"
+                    },
+                    "422": {
+                        "description": "Validation failed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/commission-tiers": {
             "get": {
                 "tags": [
@@ -11087,7 +11516,7 @@
                     "Dashboard"
                 ],
                 "summary": "Counts of work waiting for an administrator",
-                "description": "For the sidebar badges: support tickets still `open` (nobody has replied) and reports still `pending` (nobody has picked them up). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.",
+                "description": "For the sidebar badges: support tickets still `open` (nobody has replied), reports still `pending` (nobody has picked them up) and GCash commission payments still `pending` (nobody has confirmed them). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.",
                 "operationId": "5bd32c11ca149d313f44cc884165b487",
                 "responses": {
                     "200": {
@@ -11102,7 +11531,8 @@
                                     "message": "Attention counts retrieved.",
                                     "data": {
                                         "open_support_tickets": 3,
-                                        "pending_reports": null
+                                        "pending_reports": null,
+                                        "pending_commission_remittances": 1
                                     }
                                 }
                             }
@@ -22613,6 +23043,66 @@
                 },
                 "type": "object"
             },
+            "ProviderCommissionRemittance": {
+                "description": "A GCash commission payment the provider submitted. pending until an administrator finds the reference in SkillServe's GCash history; confirmed settles the bookings it covered; rejected carries the reason, and the provider may submit again.",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 7
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "pending",
+                        "enum": [
+                            "pending",
+                            "confirmed",
+                            "rejected"
+                        ]
+                    },
+                    "reference": {
+                        "type": "string",
+                        "example": "1012345678901"
+                    },
+                    "amount_due": {
+                        "description": "What the covered bookings owed when submitted",
+                        "type": "string",
+                        "example": "20.00"
+                    },
+                    "amount_sent": {
+                        "type": "string",
+                        "example": "20.00"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "PHP"
+                    },
+                    "has_proof": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "bookings_count": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "rejection_reason": {
+                        "type": "string",
+                        "example": null,
+                        "nullable": true
+                    },
+                    "submitted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-10-11T08:00:00+00:00"
+                    },
+                    "reviewed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": null,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "ClientSupportTicket": {
                 "properties": {
                     "id": {
@@ -22740,6 +23230,11 @@
                     "reason": {
                         "description": "Rejection reason or approval note",
                         "type": "string",
+                        "nullable": true
+                    },
+                    "remittance_id": {
+                        "description": "On commission_remittance notifications (action confirmed or rejected): the GCash commission payment decided",
+                        "type": "integer",
                         "nullable": true
                     }
                 },
@@ -24109,6 +24604,10 @@
         {
             "name": "Commissions",
             "description": "Track and settle SkillServe's share of each booking"
+        },
+        {
+            "name": "Commission Remittances",
+            "description": "Confirm or reject the GCash commission payments providers submit"
         },
         {
             "name": "Commission Tiers",

@@ -528,6 +528,23 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ProviderCommissionRemittance',
+    description: 'A GCash commission payment the provider submitted. pending until an administrator finds the reference in SkillServe\'s GCash history; confirmed settles the bookings it covered; rejected carries the reason, and the provider may submit again.',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer', example: 7),
+        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'rejected'], example: 'pending'),
+        new OA\Property(property: 'reference', type: 'string', example: '1012345678901'),
+        new OA\Property(property: 'amount_due', type: 'string', example: '20.00', description: 'What the covered bookings owed when submitted'),
+        new OA\Property(property: 'amount_sent', type: 'string', example: '20.00'),
+        new OA\Property(property: 'currency', type: 'string', example: 'PHP'),
+        new OA\Property(property: 'has_proof', type: 'boolean', example: true),
+        new OA\Property(property: 'bookings_count', type: 'integer', example: 1),
+        new OA\Property(property: 'rejection_reason', type: 'string', nullable: true, example: null),
+        new OA\Property(property: 'submitted_at', type: 'string', format: 'date-time', example: '2026-10-11T08:00:00+00:00'),
+        new OA\Property(property: 'reviewed_at', type: 'string', format: 'date-time', nullable: true, example: null),
+    ],
+)]
+#[OA\Schema(
     schema: 'ClientSupportTicket',
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
@@ -564,6 +581,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'service_id', type: 'integer', nullable: true),
         new OA\Property(property: 'service_title', type: 'string', nullable: true),
         new OA\Property(property: 'reason', type: 'string', nullable: true, description: 'Rejection reason or approval note'),
+        new OA\Property(property: 'remittance_id', type: 'integer', nullable: true, description: 'On commission_remittance notifications (action confirmed or rejected): the GCash commission payment decided'),
     ],
 )]
 #[OA\Schema(

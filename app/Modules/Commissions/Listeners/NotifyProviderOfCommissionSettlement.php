@@ -20,6 +20,12 @@ class NotifyProviderOfCommissionSettlement
 
     public function handle(CommissionSettled|CommissionWaived $event): void
     {
+        // Confirming a GCash payment settles each booking it covered; the
+        // provider hears about the payment once, not once per booking.
+        if ($event instanceof CommissionSettled && $event->settlement->commission_remittance_id !== null) {
+            return;
+        }
+
         $booking = $event->booking;
         // The full account: realtime delivery needs columns a narrow eager
         // load would leave out.

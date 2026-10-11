@@ -113,6 +113,8 @@ class CommissionLedger extends BaseService
 
     /**
      * Record that the provider remitted SkillServe's share of [$booking].
+     * [$remittanceId] links it to the provider's GCash claim when a
+     * confirmed remittance is what paid for it.
      */
     public function settle(
         Booking $booking,
@@ -120,8 +122,9 @@ class CommissionLedger extends BaseService
         string $method,
         ?string $reference = null,
         ?string $notes = null,
+        ?int $remittanceId = null,
     ): CommissionSettlement {
-        return $this->transaction(function () use ($booking, $actor, $method, $reference, $notes): CommissionSettlement {
+        return $this->transaction(function () use ($booking, $actor, $method, $reference, $notes, $remittanceId): CommissionSettlement {
             $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
 
             if ($booking->commission_status !== self::OUTSTANDING) {
@@ -135,6 +138,7 @@ class CommissionLedger extends BaseService
             $settlement = CommissionSettlement::create([
                 'booking_id' => $booking->id,
                 'provider_profile_id' => $booking->provider_id,
+                'commission_remittance_id' => $remittanceId,
                 'amount' => $booking->platform_fee,
                 'method' => $method,
                 'reference' => $reference,

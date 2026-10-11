@@ -19,6 +19,7 @@ class ClientNotificationResource extends BaseResource
             'data' => Arr::only($data, [
                 'type', 'title', 'message', 'body', 'announcement_id', 'booking_id', 'ticket_id',
                 'ticket_number', 'action', 'service_id', 'service_title', 'reason', 'report_id', 'review_id',
+                'remittance_id',
             ]),
             'read_at' => $this->read_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

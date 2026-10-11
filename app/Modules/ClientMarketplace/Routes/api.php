@@ -69,6 +69,10 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
 
     // What the provider owes SkillServe, and whether it is blocking them.
     Route::get('/provider/commissions', [ProviderCommissionController::class, 'index']);
+
+    // Paying it: the GCash reference number, for an administrator to confirm.
+    Route::get('/provider/commission-remittances', [ProviderCommissionController::class, 'remittances']);
+    Route::post('/provider/commission-remittances', [ProviderCommissionController::class, 'storeRemittance']);
 });
 
 /* Disputes belong to both parties on a booking, so they sit outside the

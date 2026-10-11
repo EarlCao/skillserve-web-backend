@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * off-platform, exactly as booking payments do (see ADR-007).
  */
 #[Fillable([
-    'booking_id', 'provider_profile_id', 'amount', 'method',
+    'booking_id', 'provider_profile_id', 'commission_remittance_id', 'amount', 'method',
     'reference', 'notes', 'settled_by', 'settled_at',
 ])]
 class CommissionSettlement extends Model
@@ -31,6 +31,12 @@ class CommissionSettlement extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ProviderProfile::class, 'provider_profile_id');
+    }
+
+    /** The provider's GCash claim this settlement confirmed, when it came from one. */
+    public function remittance(): BelongsTo
+    {
+        return $this->belongsTo(CommissionRemittance::class, 'commission_remittance_id');
     }
 
     public function settledBy(): BelongsTo

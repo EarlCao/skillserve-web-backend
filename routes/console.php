@@ -20,3 +20,7 @@ Schedule::command('data-management:purge-expired')->daily();
 // National ID images are deleted once System Settings → Identity says their
 // retention has passed. The verification decision and its history are kept.
 Schedule::command('identity:purge-documents')->daily();
+
+// Receipts attached to GCash commission payments are deleted once System
+// Settings → Commission payments says their retention has passed.
+Schedule::command('commissions:purge-receipts')->daily();

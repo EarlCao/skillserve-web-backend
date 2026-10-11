@@ -4,6 +4,7 @@ namespace App\Modules\Dashboard\Services;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\Commissions\Models\CommissionTier;
 use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Commissions\Services\CommissionTierService;
@@ -31,10 +32,11 @@ class DashboardService
 
     /**
      * What is waiting for an administrator, for the sidebar's count badges:
-     * support tickets nobody has answered yet and reports nobody has picked
-     * up. Each count is null for a viewer who may not open that list.
+     * support tickets nobody has answered yet, reports nobody has picked up,
+     * and GCash commission payments nobody has confirmed. Each count is null
+     * for a viewer who may not open that list.
      *
-     * @return array{open_support_tickets: ?int, pending_reports: ?int}
+     * @return array{open_support_tickets: ?int, pending_reports: ?int, pending_commission_remittances: ?int}
      */
     public function attention(User $viewer): array
     {
@@ -44,6 +46,9 @@ class DashboardService
                 : null,
             'pending_reports' => $viewer->can('viewAny', Report::class)
                 ? Report::query()->where('status', 'pending')->count()
+                : null,
+            'pending_commission_remittances' => $viewer->can('view commissions')
+                ? CommissionRemittance::query()->where('status', CommissionRemittance::PENDING)->count()
                 : null,
         ];
     }

@@ -132,23 +132,28 @@ class DashboardTest extends TestCase
                 'reporter_id' => $reporter->id, 'reason' => 'fraud', 'description' => 'Look.', 'status' => $status,
             ]);
         }
+        // Every permission exists in production (seeded); here only the role's.
+        Permission::findOrCreate('manage commissions');
+        Permission::findOrCreate('view commissions');
         [$token] = $this->actingAdministrator(['view support', 'view reports']);
 
         $this->withToken($token)->getJson('/api/dashboard/attention')
             ->assertOk()
-            ->assertJsonPath('data', ['open_support_tickets' => 2, 'pending_reports' => 3]);
+            ->assertJsonPath('data', ['open_support_tickets' => 2, 'pending_reports' => 3, 'pending_commission_remittances' => null]);
     }
 
     public function test_attention_hides_a_count_the_viewer_may_not_see(): void
     {
         // Every permission exists in production (seeded); here only the role's.
         Permission::findOrCreate('view reports');
+        Permission::findOrCreate('manage commissions');
+        Permission::findOrCreate('view commissions');
         // Support staff without the dashboard permission still get their badge.
         [$token] = $this->actingAdministrator(['view support']);
 
         $this->withToken($token)->getJson('/api/dashboard/attention')
             ->assertOk()
-            ->assertJsonPath('data', ['open_support_tickets' => 0, 'pending_reports' => null]);
+            ->assertJsonPath('data', ['open_support_tickets' => 0, 'pending_reports' => null, 'pending_commission_remittances' => null]);
 
         $this->app['auth']->forgetGuards();
         $this->flushHeaders()->getJson('/api/dashboard/attention')->assertUnauthorized();

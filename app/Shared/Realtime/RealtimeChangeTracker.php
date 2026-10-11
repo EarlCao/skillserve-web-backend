@@ -4,6 +4,7 @@ namespace App\Shared\Realtime;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\DataManagement\Models\DataArchive;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
@@ -48,6 +49,7 @@ class RealtimeChangeTracker
         ServiceSubcategory::class => 'service-categories',
         Service::class => 'services',
         Booking::class => 'bookings',
+        CommissionRemittance::class => 'commission-remittances',
         Message::class => 'messages',
         Review::class => 'reviews',
         Report::class => 'reports',

@@ -67,7 +67,7 @@ class DashboardController extends Controller
     #[OA\Get(
         path: '/api/dashboard/attention',
         summary: 'Counts of work waiting for an administrator',
-        description: 'For the sidebar badges: support tickets still `open` (nobody has replied) and reports still `pending` (nobody has picked them up). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.',
+        description: 'For the sidebar badges: support tickets still `open` (nobody has replied), reports still `pending` (nobody has picked them up) and GCash commission payments still `pending` (nobody has confirmed them). Needs no dashboard permission; each count is null when the viewer may not view that list. The admin web refetches it on every realtime change.',
         tags: ['Dashboard'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -76,7 +76,7 @@ class DashboardController extends Controller
                 example: [
                     'success' => true,
                     'message' => 'Attention counts retrieved.',
-                    'data' => ['open_support_tickets' => 3, 'pending_reports' => null],
+                    'data' => ['open_support_tickets' => 3, 'pending_reports' => null, 'pending_commission_remittances' => 1],
                 ],
             )),
             new OA\Response(response: 401, description: 'Unauthenticated'),
