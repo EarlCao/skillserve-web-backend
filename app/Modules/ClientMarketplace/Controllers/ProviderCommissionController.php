@@ -5,7 +5,6 @@ namespace App\Modules\ClientMarketplace\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Modules\ClientMarketplace\Requests\ProviderCommissionRemittanceIndexRequest;
-use App\Modules\ClientMarketplace\Requests\SubmitCommissionRemittanceRequest;
 use App\Modules\ClientMarketplace\Resources\ProviderCommissionRemittanceResource;
 use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\Commissions\Services\CommissionLedger;
@@ -43,7 +42,7 @@ class ProviderCommissionController extends Controller
     #[OA\Get(
         path: '/api/client/v1/provider/commissions',
         summary: "The provider's outstanding commission and transaction eligibility",
-        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `payment_account.qr_payments_available` says whether the provider can instead get a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr). `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
+        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account.qr_payments_available` says whether the provider can pay with a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr) — the only way to pay. `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
         tags: ['Provider Commissions'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -64,10 +63,6 @@ class ProviderCommissionController extends Controller
                         'block_deadline' => null,
                         'currency' => 'PHP',
                         'payment_account' => [
-                            'gcash_account_name' => 'SkillServe Inc.',
-                            'gcash_number' => '09171234567',
-                            'payment_instructions' => 'Send the exact amount, then submit the reference number.',
-                            'configured' => true,
                             'qr_payments_available' => true,
                         ],
                         'latest_remittance' => null,
@@ -117,7 +112,6 @@ class ProviderCommissionController extends Controller
             ...$state,
             'currency' => 'PHP',
             'payment_account' => [
-                ...$this->remittances->account(),
                 'qr_payments_available' => $this->qrPayments->available(),
             ],
             'latest_remittance' => $latest ? new ProviderCommissionRemittanceResource($latest) : null,
@@ -160,51 +154,22 @@ class ProviderCommissionController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/provider/commission-remittances',
-        summary: 'Submit a GCash commission payment for confirmation',
-        description: "After sending SkillServe's GCash (see `payment_account` on the commission summary) the provider submits the reference number from the GCash receipt. It covers every commission outstanding right now, so `amount_sent` must be at least their total; a receipt screenshot is optional but helps the reviewer. The provider stays blocked until an administrator confirms the payment. The reference is compared without spaces or dashes.",
+        summary: 'Retired: submit a GCash reference for the commission',
+        description: 'The commission is paid only with a QR Ph code now (POST /provider/commission-remittances/qr). This older way — GCash sent outside the app, then the reference typed in — always answers 410 so an outdated app tells the provider to update. Payments already submitted this way are still reviewed by an administrator.',
+        deprecated: true,
         tags: ['Provider Commissions'],
         security: [['bearerAuth' => []]],
-        requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
-            mediaType: 'multipart/form-data',
-            schema: new OA\Schema(
-                required: ['reference', 'amount_sent'],
-                properties: [
-                    new OA\Property(property: 'reference', type: 'string', description: 'GCash reference number, 6–40 letters or digits once spaces and dashes are removed', example: '1012 345 678901'),
-                    new OA\Property(property: 'amount_sent', type: 'number', format: 'float', minimum: 1, example: 20),
-                    new OA\Property(property: 'proof', type: 'string', format: 'binary', nullable: true, description: 'Receipt screenshot: JPG, PNG or WebP, up to 5 MB'),
-                ],
-            ),
-        )),
         responses: [
-            new OA\Response(response: 201, description: 'Payment submitted; waiting for confirmation', content: new OA\JsonContent(
-                allOf: [
-                    new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
-                    new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderCommissionRemittance')]),
-                ],
-            )),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
-            new OA\Response(response: 404, description: 'Provider profile not found'),
-            new OA\Response(response: 409, description: 'A previous payment is still waiting for confirmation'),
-            new OA\Response(response: 422, description: 'Nothing is owed, the amount is less than what is owed, the reference has already paid a commission (confirmed), or the input is invalid'),
+            new OA\Response(response: 410, description: 'Retired; pay with a QR code instead'),
         ],
     )]
-    public function storeRemittance(SubmitCommissionRemittanceRequest $request): JsonResponse
+    public function storeRemittance(): JsonResponse
     {
-        $user = $request->user();
-
-        $remittance = $this->remittances->submit(
-            $user,
-            $this->profileOf($user),
-            $request->validated('reference'),
-            (float) $request->validated('amount_sent'),
-            $request->file('proof'),
-        );
-
-        return $this->success(
-            new ProviderCommissionRemittanceResource($remittance),
-            'Payment submitted. SkillServe will confirm it once the money arrives.',
-            status: 201,
+        throw new ApiException(
+            'Paying by GCash reference has ended. Update the SkillServe app and pay with a QR code.',
+            410,
         );
     }
 

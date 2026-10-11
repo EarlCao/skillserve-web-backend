@@ -41,7 +41,8 @@ return [
     | the manual gateway above). What does use it is a provider paying their
     | OWN commission by a dynamic QR Ph code (CommissionQrPaymentService):
     | that money is SkillServe's, so collecting it keeps ADR-021 intact.
-    | Without a key the app simply offers the GCash-reference way instead.
+    | It is the only way to pay the commission in the app: without a key the
+    | provider is told to contact support.
     |
     */
     'paymongo' => [

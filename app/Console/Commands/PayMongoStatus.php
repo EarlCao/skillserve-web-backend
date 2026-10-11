@@ -55,7 +55,7 @@ class PayMongoStatus extends Command
         // (ADR-021) whatever is set here. The key only decides whether
         // providers can pay their own commission by a QR Ph code.
         if (! $client->configured()) {
-            $this->components->info('No key is set. Bookings never need one; providers can pay their commission by GCash reference only (QR Ph payments are off).');
+            $this->components->info('No key is set. Bookings never need one; providers cannot pay their commission in the app until one is set (QR Ph payments are off).');
         } elseif ($client->liveKeyBlocked()) {
             $this->components->error('A LIVE key is set but live payments are not enabled, so every request is refused. Remove PAYMONGO_SECRET_KEY unless you meant to enable live payments.');
         } elseif ($client->isLiveKey()) {

@@ -70,10 +70,11 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
     // What the provider owes SkillServe, and whether it is blocking them.
     Route::get('/provider/commissions', [ProviderCommissionController::class, 'index']);
 
-    // Paying it: the GCash reference number, for an administrator to confirm.
+    // The provider's payments. Submitting a GCash reference is retired (410,
+    // so an outdated app says to update); only the QR Ph code below is taken.
     Route::get('/provider/commission-remittances', [ProviderCommissionController::class, 'remittances']);
     Route::post('/provider/commission-remittances', [ProviderCommissionController::class, 'storeRemittance']);
-    // Or a PayMongo QR Ph code for the exact amount, confirmed by its webhook.
+    // A PayMongo QR Ph code for the exact amount, confirmed by its webhook.
     // Tapping twice returns the open code; the throttle stops a loop making
     // codes nobody pays.
     Route::post('/provider/commission-remittances/qr', [ProviderCommissionController::class, 'startQrPayment'])

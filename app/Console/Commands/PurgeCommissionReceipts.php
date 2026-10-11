@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
  *
  * A receipt is only needed while the payment is reviewed or questioned. The
  * payment, its reference and the reviewer's decision are all kept; only the
- * image goes. Retention is set in System Settings → Commission payments.
+ * image goes. Retention is CommissionRemittanceService::RECEIPT_RETENTION_DAYS.
  */
 class PurgeCommissionReceipts extends Command
 {

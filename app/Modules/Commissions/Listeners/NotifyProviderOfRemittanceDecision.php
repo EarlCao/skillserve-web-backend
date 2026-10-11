@@ -42,7 +42,7 @@ class NotifyProviderOfRemittanceDecision
             )
             : new CommissionRemittanceNotification(
                 $remittance, 'rejected', 'Commission payment not confirmed',
-                "SkillServe could not confirm your {$amount} GCash payment (ref. {$reference}). Reason: {$remittance->review_notes} You can submit it again.",
+                "SkillServe could not confirm your {$amount} GCash payment (ref. {$reference}). Reason: {$remittance->review_notes} You can pay it with a QR code in the app.",
             );
 
         $providerUser->notify($notification);

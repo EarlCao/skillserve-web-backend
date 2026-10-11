@@ -6,26 +6,25 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
 use App\Modules\Commissions\Events\CommissionRemittanceRejected;
-use App\Modules\Commissions\Events\CommissionRemittanceSubmitted;
 use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\Providers\Models\ProviderProfile;
-use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /**
- * A provider pays SkillServe its commission by GCash, outside the app, then
- * submits the GCash reference number. An administrator finds that reference in
- * SkillServe's GCash history and confirms it, which settles every booking the
- * payment covered — or rejects it with a reason, and the provider tries again.
+ * Reviewing and settling providers' commission payments.
+ *
+ * Providers now pay only by PayMongo QR Ph ({@see CommissionQrPaymentService}).
+ * Payments made the older way — GCash sent outside the app and the reference
+ * typed in — are still reviewed here: an administrator finds the reference in
+ * SkillServe's GCash history and confirms it, settling every booking it
+ * covered, or rejects it with a reason.
  *
  *   pending ──confirm──▶ confirmed   (covered bookings settled)
  *      └─────reject───▶ rejected
@@ -40,121 +39,10 @@ class CommissionRemittanceService extends BaseService
 {
     public const DISK = 'commission_remittances';
 
-    public function __construct(
-        private readonly CommissionLedger $ledger,
-        private readonly SettingsService $settings,
-    ) {}
+    /** Receipts of decided payments are deleted this long after the decision. */
+    public const RECEIPT_RETENTION_DAYS = 180;
 
-    /**
-     * Where providers send the commission, from System Settings → Commission
-     * payments. `configured` is false until both the name and number are set.
-     *
-     * @return array{gcash_account_name: string, gcash_number: string, payment_instructions: string, configured: bool}
-     */
-    public function account(): array
-    {
-        $value = fn (string $name): string => trim((string) $this->settings->value('commission_payments', $name));
-
-        $name = $value('gcash_account_name');
-        $number = $value('gcash_number');
-
-        return [
-            'gcash_account_name' => $name,
-            'gcash_number' => $number,
-            'payment_instructions' => $value('payment_instructions'),
-            'configured' => $name !== '' && $number !== '',
-        ];
-    }
-
-    /**
-     * Record the provider's claim to have paid everything they currently owe.
-     *
-     * The bookings it covers, and what each owed, are fixed now: a commission
-     * that becomes outstanding while the claim waits is not part of it.
-     */
-    public function submit(
-        User $user,
-        ProviderProfile $profile,
-        string $reference,
-        float $amountSent,
-        ?UploadedFile $proof = null,
-    ): CommissionRemittance {
-        // Write the file before taking any lock, so storage I/O never holds
-        // one; it is removed again if the database refuses the claim.
-        $stored = $proof ? $this->storeProof($profile, $proof) : null;
-
-        $this->expireStaleQr($profile->id);
-
-        try {
-            $remittance = $this->transaction(function () use ($profile, $reference, $amountSent, $stored): CommissionRemittance {
-                // Serialises this provider's submissions.
-                ProviderProfile::query()->whereKey($profile->id)->lockForUpdate()->first();
-
-                if ($pending = $this->pendingFor($profile->id)) {
-                    throw $pending->isQr()
-                        ? new ApiException(
-                            'You have a QR code open for this payment. Pay it, or wait until it expires.',
-                            409,
-                            errors: ['status' => ['A QR payment is still open.']],
-                        )
-                        : $this->alreadyPendingException();
-                }
-
-                $bookings = $this->lockOutstanding($profile->id);
-                $due = round((float) $bookings->sum('platform_fee'), 2);
-
-                if (round($amountSent, 2) < $due) {
-                    $owed = '₱'.number_format($due, 2);
-
-                    throw new ApiException(
-                        "You owe {$owed}. Send the full amount, then submit the reference number.",
-                        422,
-                        errors: ['amount_sent' => ["The amount sent must be at least {$owed}."]],
-                    );
-                }
-
-                // Only a confirmed claim reserves a reference. Pending claims may
-                // share one, or typing someone else's receipt would lock the
-                // real payer out; the reviewer is shown the clash instead.
-                if ($this->referenceConfirmed($reference)) {
-                    throw $this->referenceConfirmedException();
-                }
-
-                $remittance = CommissionRemittance::create([
-                    'provider_profile_id' => $profile->id,
-                    'method' => CommissionRemittance::METHOD_GCASH_REFERENCE,
-                    'amount_due' => $due,
-                    'amount_sent' => round($amountSent, 2),
-                    'reference' => $reference,
-                    'proof_path' => $stored['path'] ?? null,
-                    'proof_mime_type' => $stored['mime_type'] ?? null,
-                    'status' => CommissionRemittance::PENDING,
-                ]);
-
-                $this->attachCovered($remittance, $bookings);
-
-                return $remittance;
-            });
-        } catch (QueryException $exception) {
-            $this->deleteProof($stored['path'] ?? null);
-
-            // The partial unique indexes are what actually close the race
-            // between two submissions landing at the same moment.
-            if (str_contains($exception->getMessage(), 'commission_remittances_one_pending_per_provider')) {
-                throw $this->alreadyPendingException();
-            }
-
-            throw $exception;
-        } catch (\Throwable $exception) {
-            $this->deleteProof($stored['path'] ?? null);
-
-            throw $exception;
-        }
-
-        event(new CommissionRemittanceSubmitted(remittance: $remittance, actor: $user));
-
-        return $remittance->loadCount('bookings');
-    }
+    public function __construct(private readonly CommissionLedger $ledger) {}
 
     /**
      * The money arrived: settle every booking the payment covered. A booking
@@ -371,7 +259,7 @@ class CommissionRemittanceService extends BaseService
             throw new ApiException(
                 'You have no outstanding commission to pay.',
                 422,
-                errors: ['amount_sent' => ['There is nothing to pay right now.']],
+                errors: ['amount' => ['There is nothing to pay right now.']],
             );
         }
 
@@ -444,17 +332,8 @@ class CommissionRemittanceService extends BaseService
             ->exists();
     }
 
-    private function alreadyPendingException(): ApiException
-    {
-        return new ApiException(
-            'Your last payment is still waiting for confirmation.',
-            409,
-            errors: ['status' => ['Wait for SkillServe to confirm or reject it before submitting another.']],
-        );
-    }
-
-    /** 422 when a provider submits it; 409 when a reviewer tries to confirm a second claim on it. */
-    private function referenceConfirmedException(int $status = 422): ApiException
+    /** A reviewer tried to confirm a second claim on a reference already confirmed. */
+    private function referenceConfirmedException(int $status = 409): ApiException
     {
         return new ApiException(
             'This GCash reference number has already been confirmed for a commission payment.',
@@ -463,34 +342,16 @@ class CommissionRemittanceService extends BaseService
         );
     }
 
-    /** @return array{path: string, mime_type: string} */
-    private function storeProof(ProviderProfile $profile, UploadedFile $proof): array
-    {
-        // A random name: the original filename is attacker-controlled and
-        // must never determine where a file lands.
-        $path = $proof->storeAs(
-            (string) $profile->id,
-            Str::uuid().'.'.$proof->extension(),
-            ['disk' => self::DISK],
-        );
-
-        if ($path === false) {
-            throw new ApiException('The receipt could not be saved. Please try again.', 500);
-        }
-
-        return ['path' => $path, 'mime_type' => $proof->getMimeType() ?? 'application/octet-stream'];
-    }
-
     /**
-     * Delete receipt screenshots of payments decided more than the retention
-     * period ago (System Settings → Commission payments). The payment, its
-     * reference and the decision are kept; only the image goes.
+     * Delete receipt screenshots of payments decided more than
+     * RECEIPT_RETENTION_DAYS ago. The payment, its reference and the decision
+     * are kept; only the image goes.
      *
      * @return int how many receipts were deleted
      */
     public function purgeExpiredReceipts(): int
     {
-        $days = max(1, (int) $this->settings->value('commission_payments', 'receipt_retention_days'));
+        $days = self::RECEIPT_RETENTION_DAYS;
         $purged = 0;
 
         CommissionRemittance::query()

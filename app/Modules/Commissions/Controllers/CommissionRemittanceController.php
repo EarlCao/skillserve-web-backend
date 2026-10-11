@@ -65,7 +65,7 @@ class CommissionRemittanceController extends Controller
     #[OA\Get(
         path: '/api/commission-remittances/{commissionRemittance}/proof',
         summary: 'Download the GCash receipt a provider attached',
-        description: 'Served from private storage after checking the view commissions permission, and logged to the audit trail. 404 when no receipt was attached, or once it was deleted after the retention period (System Settings → Commission payments).',
+        description: 'Served from private storage after checking the view commissions permission, and logged to the audit trail. 404 when no receipt was attached, or once it was deleted 180 days after the payment was decided.',
         tags: ['Commission Remittances'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'commissionRemittance', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],

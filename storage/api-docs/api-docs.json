@@ -8970,7 +8970,7 @@
                     "Provider Commissions"
                 ],
                 "summary": "The provider's outstanding commission and transaction eligibility",
-                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `payment_account.qr_payments_available` says whether the provider can instead get a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr). `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
+                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account.qr_payments_available` says whether the provider can pay with a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr) — the only way to pay. `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
                 "operationId": "5dacd0fd7595da346a2e5956064e8a63",
                 "parameters": [
                     {
@@ -9003,10 +9003,6 @@
                                         "block_deadline": null,
                                         "currency": "PHP",
                                         "payment_account": {
-                                            "gcash_account_name": "SkillServe Inc.",
-                                            "gcash_number": "09171234567",
-                                            "payment_instructions": "Send the exact amount, then submit the reference number.",
-                                            "configured": true,
                                             "qr_payments_available": true
                                         },
                                         "latest_remittance": null,
@@ -9112,81 +9108,21 @@
                 "tags": [
                     "Provider Commissions"
                 ],
-                "summary": "Submit a GCash commission payment for confirmation",
-                "description": "After sending SkillServe's GCash (see `payment_account` on the commission summary) the provider submits the reference number from the GCash receipt. It covers every commission outstanding right now, so `amount_sent` must be at least their total; a receipt screenshot is optional but helps the reviewer. The provider stays blocked until an administrator confirms the payment. The reference is compared without spaces or dashes.",
+                "summary": "Retired: submit a GCash reference for the commission",
+                "description": "The commission is paid only with a QR Ph code now (POST /provider/commission-remittances/qr). This older way — GCash sent outside the app, then the reference typed in — always answers 410 so an outdated app tells the provider to update. Payments already submitted this way are still reviewed by an administrator.",
                 "operationId": "8d3f3fd0fe3427de5f1767ceedacc1e9",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "reference",
-                                    "amount_sent"
-                                ],
-                                "properties": {
-                                    "reference": {
-                                        "description": "GCash reference number, 6–40 letters or digits once spaces and dashes are removed",
-                                        "type": "string",
-                                        "example": "1012 345 678901"
-                                    },
-                                    "amount_sent": {
-                                        "type": "number",
-                                        "format": "float",
-                                        "example": 20,
-                                        "minimum": 1
-                                    },
-                                    "proof": {
-                                        "description": "Receipt screenshot: JPG, PNG or WebP, up to 5 MB",
-                                        "type": "string",
-                                        "format": "binary",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
                 "responses": {
-                    "201": {
-                        "description": "Payment submitted; waiting for confirmation",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "allOf": [
-                                        {
-                                            "$ref": "#/components/schemas/ApiEnvelope"
-                                        },
-                                        {
-                                            "properties": {
-                                                "data": {
-                                                    "$ref": "#/components/schemas/ProviderCommissionRemittance"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    },
                     "401": {
                         "description": "Unauthenticated"
                     },
                     "403": {
                         "description": "Active, email-verified provider account required"
                     },
-                    "404": {
-                        "description": "Provider profile not found"
-                    },
-                    "409": {
-                        "description": "A previous payment is still waiting for confirmation"
-                    },
-                    "422": {
-                        "description": "Nothing is owed, the amount is less than what is owed, the reference has already paid a commission (confirmed), or the input is invalid"
+                    "410": {
+                        "description": "Retired; pay with a QR code instead"
                     }
                 },
+                "deprecated": true,
                 "security": [
                     {
                         "bearerAuth": []
@@ -10825,7 +10761,7 @@
                     "Commission Remittances"
                 ],
                 "summary": "Download the GCash receipt a provider attached",
-                "description": "Served from private storage after checking the view commissions permission, and logged to the audit trail. 404 when no receipt was attached, or once it was deleted after the retention period (System Settings → Commission payments).",
+                "description": "Served from private storage after checking the view commissions permission, and logged to the audit trail. 404 when no receipt was attached, or once it was deleted 180 days after the payment was decided.",
                 "operationId": "ed57884270a9bfcaf0451a0bb7d414cf",
                 "parameters": [
                     {

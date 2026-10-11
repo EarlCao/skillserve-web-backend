@@ -236,21 +236,20 @@ class CommissionQrPaymentTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_one_open_payment_at_a_time_across_both_methods(): void
+    public function test_an_older_gcash_reference_payment_waiting_blocks_a_qr_code(): void
     {
         $this->fakePayMongo();
         [$profile, , $token] = $this->provider();
         $this->owed($profile);
+        // As an older app version submitted it, before the GCash-reference way was retired.
+        CommissionRemittance::create([
+            'provider_profile_id' => $profile->id, 'method' => CommissionRemittance::METHOD_GCASH_REFERENCE,
+            'amount_due' => 20, 'amount_sent' => 20, 'reference' => '2012345678901',
+            'status' => CommissionRemittance::PENDING,
+        ]);
 
-        $this->as($token)->postJson('/api/client/v1/provider/commission-remittances/qr')->assertCreated();
-        $this->as($token)->post('/api/client/v1/provider/commission-remittances', ['reference' => '1012345678901', 'amount_sent' => '20'], ['Accept' => 'application/json'])
-            ->assertStatus(409);
-
-        [$other, , $otherToken] = $this->provider();
-        $this->owed($other);
-        $this->as($otherToken)->post('/api/client/v1/provider/commission-remittances', ['reference' => '2012345678901', 'amount_sent' => '20'], ['Accept' => 'application/json'])
-            ->assertCreated();
-        $this->as($otherToken)->postJson('/api/client/v1/provider/commission-remittances/qr')->assertStatus(409);
+        $this->as($token)->postJson('/api/client/v1/provider/commission-remittances/qr')->assertStatus(409);
+        Http::assertNothingSent();
     }
 
     public function test_a_paid_webhook_settles_the_debt_and_lifts_the_block(): void

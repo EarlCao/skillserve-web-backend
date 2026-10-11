@@ -13,7 +13,6 @@ use App\Modules\Commissions\Services\CommissionRemittanceService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
-use App\Modules\Settings\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
@@ -138,117 +137,81 @@ class CommissionRemittanceTest extends TestCase
         return $this->withToken($token);
     }
 
-    private function submit(string $token, array $overrides = [])
+    /**
+     * A GCash-reference payment as an older app version submitted it, still
+     * waiting for review — the only way such claims arrive now that the
+     * endpoint is retired. Covers everything [$profile] owes.
+     */
+    private function claim(ProviderProfile $profile, array $overrides = [], bool $withReceipt = false): CommissionRemittance
     {
-        return $this->as($token)->post('/api/client/v1/provider/commission-remittances', array_merge([
-            'reference' => '1012 345 678901',
-            'amount_sent' => '20.00',
-        ], $overrides), ['Accept' => 'application/json']);
+        $bookings = Booking::query()
+            ->where('provider_id', $profile->id)
+            ->where('commission_status', CommissionLedger::OUTSTANDING)
+            ->get();
+        $due = round((float) $bookings->sum('platform_fee'), 2);
+        $proof = $withReceipt
+            ? Storage::disk(CommissionRemittanceService::DISK)->putFile((string) $profile->id, UploadedFile::fake()->create('receipt.jpg', 120, 'image/jpeg'))
+            : null;
+
+        $remittance = CommissionRemittance::create(array_merge([
+            'provider_profile_id' => $profile->id,
+            'method' => CommissionRemittance::METHOD_GCASH_REFERENCE,
+            'amount_due' => $due,
+            'amount_sent' => $due,
+            'reference' => '1012345678901',
+            'proof_path' => $proof,
+            'proof_mime_type' => $proof ? 'image/jpeg' : null,
+            'status' => CommissionRemittance::PENDING,
+        ], $overrides));
+        $remittance->bookings()->attach(
+            $bookings->mapWithKeys(fn ($booking): array => [$booking->id => ['amount' => $booking->platform_fee]])->all(),
+        );
+
+        return $remittance;
     }
 
-    private function receipt(): UploadedFile
-    {
-        return UploadedFile::fake()->create('receipt.jpg', 120, 'image/jpeg');
-    }
-
-    public function test_the_summary_shows_skillserves_gcash_once_it_is_configured(): void
-    {
-        [, , $token] = $this->provider();
-
-        $this->as($token)->getJson('/api/client/v1/provider/commissions')
-            ->assertOk()
-            ->assertJsonPath('data.payment_account.configured', false)
-            ->assertJsonPath('data.latest_remittance', null);
-
-        Setting::create(['group' => 'commission_payments', 'name' => 'gcash_account_name', 'payload' => 'SkillServe Inc.']);
-        Setting::create(['group' => 'commission_payments', 'name' => 'gcash_number', 'payload' => '09171234567']);
-
-        $this->as($token)->getJson('/api/client/v1/provider/commissions')
-            ->assertOk()
-            ->assertJsonPath('data.payment_account.configured', true)
-            ->assertJsonPath('data.payment_account.gcash_account_name', 'SkillServe Inc.')
-            ->assertJsonPath('data.payment_account.gcash_number', '09171234567');
-    }
-
-    public function test_a_provider_submits_a_payment_that_covers_everything_they_owe(): void
-    {
-        [$profile, $user, $token] = $this->provider();
-        $first = $this->owed($profile, 20);
-        $second = $this->owed($profile, 15);
-
-        $this->submit($token, ['amount_sent' => '35', 'proof' => $this->receipt()])
-            ->assertCreated()
-            ->assertJsonPath('data.status', 'pending')
-            ->assertJsonPath('data.reference', '1012345678901')
-            ->assertJsonPath('data.amount_due', '35.00')
-            ->assertJsonPath('data.amount_sent', '35.00')
-            ->assertJsonPath('data.bookings_count', 2)
-            ->assertJsonPath('data.has_proof', true);
-
-        $remittance = CommissionRemittance::sole();
-        $this->assertEqualsCanonicalizing([$first->id, $second->id], $remittance->bookings()->pluck('bookings.id')->all());
-        Storage::disk(CommissionRemittanceService::DISK)->assertExists($remittance->proof_path);
-        $this->assertTrue(Activity::query()->where('description', 'commission_remittance_submitted')->where('causer_id', $user->id)->exists());
-
-        // Nothing is settled until SkillServe has seen the money arrive.
-        $this->assertSame(CommissionLedger::OUTSTANDING, $first->fresh()->commission_status);
-        $this->as($token)->getJson('/api/client/v1/provider/commissions')
-            ->assertJsonPath('data.eligible', false)
-            ->assertJsonPath('data.latest_remittance.status', 'pending');
-    }
-
-    public function test_a_payment_short_of_what_is_owed_is_refused(): void
+    public function test_submitting_a_gcash_reference_is_retired(): void
     {
         [$profile, , $token] = $this->provider();
-        $this->owed($profile, 20);
+        $this->owed($profile);
 
-        $this->submit($token, ['amount_sent' => '19.99'])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('amount_sent');
+        $this->as($token)
+            ->post('/api/client/v1/provider/commission-remittances', ['reference' => '1012345678901', 'amount_sent' => '20'], ['Accept' => 'application/json'])
+            ->assertStatus(410);
 
         $this->assertSame(0, CommissionRemittance::count());
     }
 
-    public function test_a_provider_who_owes_nothing_cannot_submit(): void
+    public function test_only_providers_reach_the_retired_endpoint(): void
+    {
+        $token = $this->customer()->createToken('client', ['client:auth'])->plainTextToken;
+
+        $this->as($token)
+            ->postJson('/api/client/v1/provider/commission-remittances', ['reference' => '1012345678901', 'amount_sent' => '20'])
+            ->assertForbidden();
+    }
+
+    public function test_the_summary_offers_only_the_qr_code(): void
     {
         [, , $token] = $this->provider();
 
-        $this->submit($token)->assertStatus(422)->assertJsonValidationErrors('amount_sent');
+        $this->as($token)->getJson('/api/client/v1/provider/commissions')
+            ->assertOk()
+            ->assertJsonPath('data.payment_account', ['qr_payments_available' => false])
+            ->assertJsonPath('data.latest_remittance', null);
     }
 
-    public function test_the_reference_and_amount_are_required_and_shaped(): void
+    public function test_two_older_claims_on_one_reference_are_flagged_to_the_reviewer(): void
     {
-        [$profile, , $token] = $this->provider();
-        $this->owed($profile);
-
-        $this->submit($token, ['reference' => 'ab', 'amount_sent' => ''])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['reference', 'amount_sent']);
-    }
-
-    public function test_only_one_payment_waits_for_confirmation_at_a_time(): void
-    {
-        [$profile, , $token] = $this->provider();
-        $this->owed($profile);
-
-        $this->submit($token)->assertCreated();
-        $this->submit($token, ['reference' => '2000000000001'])->assertStatus(409);
-    }
-
-    public function test_a_reference_another_provider_typed_first_does_not_lock_out_the_payer(): void
-    {
-        [$squatter, , $squatterToken] = $this->provider();
+        [$squatter] = $this->provider();
         $this->owed($squatter);
-        [$payer, , $payerToken] = $this->provider();
+        [$payer] = $this->provider();
         $this->owed($payer);
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
 
-        $this->submit($squatterToken, ['reference' => '1012345678901'])->assertCreated();
+        $this->claim($squatter);
+        $this->claim($payer);
 
-        // Grouped differently, it is still the same receipt — and still accepted.
-        $this->submit($payerToken, ['reference' => '1012-345-678 901'])->assertCreated();
-
-        // The reviewer sees that two providers claim one transfer.
         $this->as($adminToken)->getJson('/api/commission-remittances?status=pending')
             ->assertOk()
             ->assertJsonPath('data.0.other_claims_count', 1)
@@ -257,33 +220,26 @@ class CommissionRemittanceTest extends TestCase
 
     public function test_a_reference_pays_only_once(): void
     {
-        [$first, , $firstToken] = $this->provider();
+        [$first] = $this->provider();
         $this->owed($first);
-        [$second, , $secondToken] = $this->provider();
+        [$second] = $this->provider();
         $this->owed($second);
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
 
-        $this->submit($firstToken)->assertCreated();
-        $this->submit($secondToken)->assertCreated();
-        [$a, $b] = CommissionRemittance::query()->orderBy('id')->pluck('id')->all();
+        $a = $this->claim($first)->id;
+        $b = $this->claim($second)->id;
 
         $this->as($adminToken)->patchJson("/api/commission-remittances/{$a}/confirm")->assertOk();
         $this->as($adminToken)->patchJson("/api/commission-remittances/{$b}/confirm")->assertStatus(409);
         $this->assertSame(CommissionRemittance::PENDING, CommissionRemittance::find($b)->status);
-
-        // Once confirmed, the receipt cannot be submitted again by anyone.
-        [$third, , $thirdToken] = $this->provider();
-        $this->owed($third);
-        $this->submit($thirdToken)->assertStatus(422)->assertJsonValidationErrors('reference');
     }
 
     public function test_confirming_settles_the_covered_bookings_and_lifts_the_block(): void
     {
         Notification::fake();
-        [$profile, $providerUser, $token] = $this->provider();
+        [$profile, $providerUser] = $this->provider();
         $booking = $this->owed($profile, 20);
-        $this->submit($token)->assertCreated();
-        $remittance = CommissionRemittance::sole();
+        $remittance = $this->claim($profile);
 
         // Owed after the payment was sent, so not part of it.
         $later = $this->owed($profile, 5);
@@ -316,12 +272,10 @@ class CommissionRemittanceTest extends TestCase
     {
         [$profile, , $token] = $this->provider();
         $this->owed($profile, 20);
-        $this->submit($token)->assertCreated();
+        $remittance = $this->claim($profile);
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
 
-        $this->as($adminToken)
-            ->patchJson('/api/commission-remittances/'.CommissionRemittance::sole()->id.'/confirm')
-            ->assertOk();
+        $this->as($adminToken)->patchJson("/api/commission-remittances/{$remittance->id}/confirm")->assertOk();
 
         $this->as($token)->getJson('/api/client/v1/provider/commissions')
             ->assertJsonPath('data.eligible', true)
@@ -333,7 +287,7 @@ class CommissionRemittanceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.type', 'commission_remittance')
             ->assertJsonPath('data.0.data.action', 'confirmed')
-            ->assertJsonPath('data.0.data.remittance_id', CommissionRemittance::sole()->id);
+            ->assertJsonPath('data.0.data.remittance_id', $remittance->id);
     }
 
     public function test_rejecting_keeps_the_debt_and_tells_the_provider_why(): void
@@ -341,8 +295,7 @@ class CommissionRemittanceTest extends TestCase
         Notification::fake();
         [$profile, $providerUser, $token] = $this->provider();
         $booking = $this->owed($profile);
-        $this->submit($token)->assertCreated();
-        $remittance = CommissionRemittance::sole();
+        $remittance = $this->claim($profile);
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
 
         $this->as($adminToken)
@@ -357,23 +310,20 @@ class CommissionRemittanceTest extends TestCase
 
         $this->assertSame(CommissionLedger::OUTSTANDING, $booking->fresh()->commission_status);
         Notification::assertSentTo($providerUser, CommissionRemittanceNotification::class,
-            fn ($notification) => str_contains($notification->toArray($providerUser)['message'], 'Reference not found'));
+            fn ($notification) => str_contains($notification->toArray($providerUser)['message'], 'Reference not found')
+                && str_contains($notification->toArray($providerUser)['message'], 'QR code'));
 
         $this->as($token)->getJson('/api/client/v1/provider/commissions')
             ->assertJsonPath('data.eligible', false)
             ->assertJsonPath('data.latest_remittance.status', 'rejected')
             ->assertJsonPath('data.latest_remittance.rejection_reason', 'Reference not found in our GCash history.');
-
-        // A rejected claim frees its reference and lets the provider try again.
-        $this->submit($token)->assertCreated();
     }
 
     public function test_a_payment_is_decided_only_once(): void
     {
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token)->assertCreated();
-        $id = CommissionRemittance::sole()->id;
+        $id = $this->claim($profile)->id;
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
 
         $this->as($adminToken)->patchJson("/api/commission-remittances/{$id}/confirm")->assertOk();
@@ -385,8 +335,7 @@ class CommissionRemittanceTest extends TestCase
     {
         [$profile, , $token] = $this->provider();
         $this->owed($profile);
-        $this->submit($token)->assertCreated();
-        $id = CommissionRemittance::sole()->id;
+        $id = $this->claim($profile)->id;
 
         [, $readerToken] = $this->admin(['view commissions']);
         [, $nobodyToken] = $this->admin([]);
@@ -401,19 +350,11 @@ class CommissionRemittanceTest extends TestCase
         $this->assertSame(CommissionRemittance::PENDING, CommissionRemittance::sole()->status);
     }
 
-    public function test_only_providers_can_submit_a_payment(): void
-    {
-        $customer = $this->customer();
-        $token = $customer->createToken('client', ['client:auth'])->plainTextToken;
-
-        $this->submit($token)->assertForbidden();
-    }
-
     public function test_the_review_queue_lists_what_to_match_and_filters_by_status(): void
     {
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile, 20);
-        $this->submit($token, ['proof' => $this->receipt()])->assertCreated();
+        $this->claim($profile, withReceipt: true);
         [, $adminToken] = $this->admin(['view commissions']);
 
         $this->as($adminToken)->getJson('/api/commission-remittances?status=pending')
@@ -436,10 +377,9 @@ class CommissionRemittanceTest extends TestCase
 
     public function test_the_receipt_downloads_only_for_reviewers(): void
     {
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token, ['proof' => $this->receipt()])->assertCreated();
-        $id = CommissionRemittance::sole()->id;
+        $id = $this->claim($profile, withReceipt: true)->id;
         [, $readerToken] = $this->admin(['view commissions']);
         [, $nobodyToken] = $this->admin([]);
 
@@ -451,20 +391,19 @@ class CommissionRemittanceTest extends TestCase
 
     public function test_receipts_are_deleted_after_the_retention_period_but_the_payment_is_kept(): void
     {
-        Setting::create(['group' => 'commission_payments', 'name' => 'receipt_retention_days', 'payload' => 30]);
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token, ['proof' => $this->receipt()])->assertCreated();
-        $remittance = CommissionRemittance::sole();
+        $remittance = $this->claim($profile, withReceipt: true);
         $path = $remittance->proof_path;
         [, $adminToken] = $this->admin(['view commissions', 'settle commissions']);
         $this->as($adminToken)->patchJson("/api/commission-remittances/{$remittance->id}/confirm")->assertOk();
 
         // Still inside the retention period: kept.
+        $remittance->refresh()->update(['reviewed_at' => now()->subDays(CommissionRemittanceService::RECEIPT_RETENTION_DAYS - 1)]);
         $this->artisan('commissions:purge-receipts')->assertExitCode(0);
         Storage::disk(CommissionRemittanceService::DISK)->assertExists($path);
 
-        $remittance->refresh()->update(['reviewed_at' => now()->subDays(31)]);
+        $remittance->refresh()->update(['reviewed_at' => now()->subDays(CommissionRemittanceService::RECEIPT_RETENTION_DAYS + 1)]);
         $this->artisan('commissions:purge-receipts')->assertExitCode(0);
 
         Storage::disk(CommissionRemittanceService::DISK)->assertMissing($path);
@@ -476,27 +415,24 @@ class CommissionRemittanceTest extends TestCase
 
     public function test_a_waiting_payment_keeps_its_receipt(): void
     {
-        Setting::create(['group' => 'commission_payments', 'name' => 'receipt_retention_days', 'payload' => 1]);
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token, ['proof' => $this->receipt()])->assertCreated();
-        CommissionRemittance::sole()->forceFill(['created_at' => now()->subYear()])->save();
+        $remittance = $this->claim($profile, withReceipt: true);
+        $remittance->forceFill(['created_at' => now()->subYears(2)])->save();
 
         $this->artisan('commissions:purge-receipts')->assertExitCode(0);
 
-        Storage::disk(CommissionRemittanceService::DISK)->assertExists(CommissionRemittance::sole()->proof_path);
+        Storage::disk(CommissionRemittanceService::DISK)->assertExists($remittance->proof_path);
     }
 
     public function test_a_payment_without_a_receipt_has_nothing_to_download(): void
     {
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token)->assertCreated()->assertJsonPath('data.has_proof', false);
+        $id = $this->claim($profile)->id;
         [, $readerToken] = $this->admin(['view commissions']);
 
-        $this->as($readerToken)
-            ->getJson('/api/commission-remittances/'.CommissionRemittance::sole()->id.'/proof')
-            ->assertNotFound();
+        $this->as($readerToken)->getJson("/api/commission-remittances/{$id}/proof")->assertNotFound();
     }
 
     public function test_the_provider_sees_their_payment_history(): void
@@ -504,7 +440,7 @@ class CommissionRemittanceTest extends TestCase
         [$profile, , $token] = $this->provider();
         [, , $otherToken] = $this->provider();
         $this->owed($profile);
-        $this->submit($token)->assertCreated();
+        $this->claim($profile);
 
         $this->as($token)->getJson('/api/client/v1/provider/commission-remittances')
             ->assertOk()
@@ -523,9 +459,9 @@ class CommissionRemittanceTest extends TestCase
 
     public function test_the_sidebar_counts_payments_waiting_for_confirmation(): void
     {
-        [$profile, , $token] = $this->provider();
+        [$profile] = $this->provider();
         $this->owed($profile);
-        $this->submit($token)->assertCreated();
+        $this->claim($profile);
         [, $readerToken] = $this->admin(['view commissions']);
         [, $nobodyToken] = $this->admin([]);
 
@@ -536,18 +472,5 @@ class CommissionRemittanceTest extends TestCase
         $this->as($nobodyToken)->getJson('/api/dashboard/attention')
             ->assertOk()
             ->assertJsonPath('data.pending_commission_remittances', null);
-    }
-
-    public function test_skillserves_gcash_number_must_be_a_philippine_mobile_number(): void
-    {
-        [, $adminToken] = $this->admin(['manage settings']);
-
-        $this->as($adminToken)
-            ->putJson('/api/settings', ['commission_payments' => ['gcash_number' => '12345']])
-            ->assertStatus(422);
-
-        $this->as($adminToken)
-            ->putJson('/api/settings', ['commission_payments' => ['gcash_number' => '09171234567', 'gcash_account_name' => 'SkillServe Inc.']])
-            ->assertOk();
     }
 }
