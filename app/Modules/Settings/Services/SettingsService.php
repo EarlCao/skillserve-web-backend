@@ -86,7 +86,11 @@ class SettingsService
 
                     Setting::query()->updateOrCreate(
                         ['group' => $group, 'name' => $name],
-                        ['payload' => $value],
+                        // A cleared optional field arrives as null (the API
+                        // turns empty strings into null), but `payload` is
+                        // NOT NULL: store it as the empty value it means —
+                        // e.g. no support email, or the default theme colour.
+                        ['payload' => $value ?? ''],
                     );
                 }
             }

@@ -83,6 +83,25 @@ class SettingsTest extends TestCase
             ->assertJsonPath('data', ['primary_color' => '#03833E', 'font_family' => 'poppins', 'font_size' => 'large']);
     }
 
+    public function test_an_optional_setting_can_be_cleared(): void
+    {
+        $token = $this->adminToken();
+
+        $this->withToken($token)
+            ->putJson('/api/settings', ['appearance' => ['primary_color' => '#03833E'], 'general' => ['support_email' => 'help@skillserve.test']])
+            ->assertOk();
+
+        // Empty strings reach the service as null; clearing must still save.
+        $this->withToken($token)
+            ->putJson('/api/settings', ['appearance' => ['primary_color' => ''], 'general' => ['support_email' => '']])
+            ->assertOk()
+            ->assertJsonPath('data.appearance.primary_color', '')
+            ->assertJsonPath('data.general.support_email', '');
+
+        $this->app['auth']->forgetGuards();
+        $this->flushHeaders()->getJson('/api/appearance')->assertJsonPath('data.primary_color', '');
+    }
+
     private function adminToken(): string
     {
         Permission::findOrCreate('manage settings');
