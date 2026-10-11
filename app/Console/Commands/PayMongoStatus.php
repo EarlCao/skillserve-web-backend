@@ -51,17 +51,17 @@ class PayMongoStatus extends Command
 
         $this->newLine();
 
-        // The healthy state, and why. Both methods settle directly between the
-        // customer and the provider (ADR-021), so PayMongo should be holding
-        // nothing and reachable by nothing.
+        // Bookings settle directly between the customer and the provider
+        // (ADR-021) whatever is set here. The key only decides whether
+        // providers can pay their own commission by a QR Ph code.
         if (! $client->configured()) {
-            $this->components->info('No key is set, which is the expected state: no booking is payable online, so nothing needs one.');
+            $this->components->info('No key is set. Bookings never need one; providers can pay their commission by GCash reference only (QR Ph payments are off).');
         } elseif ($client->liveKeyBlocked()) {
             $this->components->error('A LIVE key is set but live payments are not enabled, so every request is refused. Remove PAYMONGO_SECRET_KEY unless you meant to enable live payments.');
         } elseif ($client->isLiveKey()) {
-            $this->components->warn('A LIVE key is set AND live payments are enabled. Real money can move. This is not needed for bookings.');
+            $this->components->warn('A LIVE key is set AND live payments are enabled: commission QR Ph payments collect real money. Bookings still never use PayMongo.');
         } else {
-            $this->components->warn('A test key is set. Harmless, but nothing uses it while both methods route to the manual gateway.');
+            $this->components->info('A test key is set: commission QR Ph payments run in PayMongo test mode, and no real money moves. Bookings never use PayMongo.');
         }
 
         if ($this->option('probe-key')) {

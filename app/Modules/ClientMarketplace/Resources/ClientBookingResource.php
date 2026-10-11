@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\Locations\Services\PhAddressService;
+use App\Shared\Helpers\QrPh;
 use App\Shared\Resources\BaseResource;
 
 class ClientBookingResource extends BaseResource
@@ -72,6 +73,10 @@ class ClientBookingResource extends BaseResource
                         'gcash_name' => $this->provider->gcash_name,
                         'amount' => $this->total_price,
                         'reference' => $this->booking_number,
+                        // The provider's own QR with this booking's amount in
+                        // it: scanning it pays the provider directly, amount
+                        // pre-filled.
+                        'qr_payload' => $this->qrWithAmount(),
                         'note' => 'Send this amount to the provider in GCash, then ask them to confirm it. '
                             .'Check the name GCash shows you matches before you send.',
                     ]
@@ -81,6 +86,7 @@ class ClientBookingResource extends BaseResource
                         'gcash_name' => null,
                         'amount' => $this->total_price,
                         'reference' => $this->booking_number,
+                        'qr_payload' => $this->qrWithAmount(),
                         'note' => 'This provider has not added their GCash details yet. '
                             .'Message them to arrange payment.',
                     ],
@@ -91,5 +97,20 @@ class ClientBookingResource extends BaseResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * The provider's GCash QR with this booking's total written into it, or
+     * null when they have not added one (or it no longer reads as QR Ph).
+     */
+    private function qrWithAmount(): ?string
+    {
+        $payload = $this->provider?->gcash_qr_payload;
+
+        if ($payload === null || ! QrPh::isValid($payload)) {
+            return null;
+        }
+
+        return QrPh::withAmount($payload, (float) $this->total_price);
     }
 }

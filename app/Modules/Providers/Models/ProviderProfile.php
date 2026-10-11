@@ -28,6 +28,7 @@ class ProviderProfile extends Model
         'website',
         'gcash_number',
         'gcash_name',
+        'gcash_qr_payload',
         'social_links',
         'portfolio',
         'skills',

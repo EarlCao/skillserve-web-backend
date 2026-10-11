@@ -33,11 +33,12 @@ class NotifyProviderOfRemittanceDecision
 
         $amount = '₱'.number_format((float) $remittance->amount_sent, 2);
         $reference = $remittance->reference;
+        $how = $remittance->isQr() ? 'QR' : 'GCash';
 
         $notification = $event instanceof CommissionRemittanceConfirmed
             ? new CommissionRemittanceNotification(
                 $remittance, 'confirmed', 'Commission payment confirmed',
-                "SkillServe received your {$amount} GCash payment (ref. {$reference}). {$this->remaining($remittance->provider_profile_id)}",
+                "SkillServe received your {$amount} {$how} payment (ref. {$reference}). {$this->remaining($remittance->provider_profile_id)}",
             )
             : new CommissionRemittanceNotification(
                 $remittance, 'rejected', 'Commission payment not confirmed',

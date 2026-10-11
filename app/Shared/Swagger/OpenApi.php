@@ -255,6 +255,10 @@ use OpenApi\Attributes as OA;
             new OA\Property(property: 'rejection_reason', type: 'string', nullable: true),
             new OA\Property(property: 'is_featured', type: 'boolean'),
             new OA\Property(property: 'is_suspended', type: 'boolean'),
+            new OA\Property(property: 'gcash_number', type: 'string', nullable: true),
+            new OA\Property(property: 'gcash_name', type: 'string', nullable: true),
+            new OA\Property(property: 'gcash_qr_payload', type: 'string', nullable: true, description: 'The QR Ph text of the provider\'s GCash QR; null until added'),
+            new OA\Property(property: 'can_receive_gcash', type: 'boolean'),
         ]),
     ],
 )]
@@ -400,6 +404,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'gcash_name', type: 'string', nullable: true, example: 'Juan Dela Cruz', description: 'The name GCash shows for that number, for the customer to check before sending'),
         new OA\Property(property: 'amount', type: 'string', example: '200.00'),
         new OA\Property(property: 'reference', type: 'string', example: 'BK-AB12CD34EF56', description: 'The booking number, for the GCash message'),
+        new OA\Property(property: 'qr_payload', type: 'string', nullable: true, description: "The provider's own GCash QR Ph code with this booking's exact amount written into it, for the app to draw as a QR. Scanning it in GCash (or any QR Ph app) pays the provider directly with the amount pre-filled. Null when the provider has not added their QR."),
         new OA\Property(property: 'note', type: 'string'),
     ],
 )]
@@ -529,10 +534,11 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Schema(
     schema: 'ProviderCommissionRemittance',
-    description: 'A GCash commission payment the provider submitted. pending until an administrator finds the reference in SkillServe\'s GCash history; confirmed settles the bookings it covered; rejected carries the reason, and the provider may submit again.',
+    description: 'A commission payment the provider made: a GCash reference SkillServe confirms by hand, or a PayMongo QR Ph code PayMongo confirms. confirmed settles the bookings it covered; rejected carries the reason; a QR code that was not paid ends expired or failed. The provider may then pay again.',
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 7),
-        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'rejected'], example: 'pending'),
+        new OA\Property(property: 'method', type: 'string', enum: ['gcash_reference', 'qrph'], example: 'qrph', description: 'gcash_reference: the provider typed the GCash reference and SkillServe confirms it; qrph: a PayMongo QR Ph code confirmed by PayMongo'),
+        new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'rejected', 'expired', 'failed'], example: 'pending'),
         new OA\Property(property: 'reference', type: 'string', example: '1012345678901'),
         new OA\Property(property: 'amount_due', type: 'string', example: '20.00', description: 'What the covered bookings owed when submitted'),
         new OA\Property(property: 'amount_sent', type: 'string', example: '20.00'),
@@ -540,6 +546,9 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'has_proof', type: 'boolean', example: true),
         new OA\Property(property: 'bookings_count', type: 'integer', example: 1),
         new OA\Property(property: 'rejection_reason', type: 'string', nullable: true, example: null),
+        new OA\Property(property: 'qr_image', type: 'string', nullable: true, description: 'qrph only: the QR Ph code as PayMongo returns it (a base-64 image), while it can still be paid'),
+        new OA\Property(property: 'expires_at', type: 'string', format: 'date-time', nullable: true, description: 'qrph only: when the code stops working'),
+        new OA\Property(property: 'failure_reason', type: 'string', nullable: true, description: 'Why a failed QR payment failed'),
         new OA\Property(property: 'submitted_at', type: 'string', format: 'date-time', example: '2026-10-11T08:00:00+00:00'),
         new OA\Property(property: 'reviewed_at', type: 'string', format: 'date-time', nullable: true, example: null),
     ],

@@ -4,12 +4,14 @@ namespace App\Modules\Payments\Services;
 
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Services\BookingPaymentService;
+use App\Modules\Commissions\Services\CommissionQrPaymentService;
 use App\Modules\Payments\Models\PaymentIntent;
 use App\Shared\Services\BaseService;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Applies a verified PayMongo webhook to a booking.
+ * Applies a verified PayMongo webhook to a booking, or to a provider's
+ * commission QR Ph payment ({@see CommissionQrPaymentService}).
  *
  * This is the only place a GCash booking becomes paid. The customer's return
  * redirect is not trusted for that: it is a browser navigation anyone can
@@ -22,7 +24,10 @@ use Illuminate\Support\Facades\Log;
  */
 class PayMongoWebhookProcessor extends BaseService
 {
-    public function __construct(private readonly BookingPaymentService $payments) {}
+    public function __construct(
+        private readonly BookingPaymentService $payments,
+        private readonly CommissionQrPaymentService $commissionQr,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $event  the decoded `data` object
@@ -36,9 +41,9 @@ class PayMongoWebhookProcessor extends BaseService
             return;
         }
 
-        // Only payment outcomes act on a booking. Anything else is
+        // Only payment outcomes act on anything. Anything else is
         // acknowledged so PayMongo stops retrying, and ignored.
-        if (! in_array($type, ['payment.paid', 'payment.failed'], true)) {
+        if (! in_array($type, ['payment.paid', 'payment.failed', 'qrph.expired'], true)) {
             return;
         }
 
@@ -48,6 +53,16 @@ class PayMongoWebhookProcessor extends BaseService
         $intent = $intentId === null
             ? null
             : PaymentIntent::query()->where('external_id', $intentId)->first();
+
+        // Not a booking: a provider paying their commission by QR Ph.
+        if ($intent === null && $this->commissionQr->applyWebhook($type, $payment, $eventId)) {
+            return;
+        }
+
+        // An expired QR code only matters to a commission payment.
+        if ($type === 'qrph.expired') {
+            return;
+        }
 
         if ($intent === null) {
             // A payment SkillServe has no record of. Worth knowing about, but

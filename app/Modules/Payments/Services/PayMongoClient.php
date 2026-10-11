@@ -20,11 +20,11 @@ use Illuminate\Support\Facades\Log;
  * {@see GatewayRequestFailed} carrying the provider's own message, so callers
  * never have to parse provider JSON.
  *
- * A **live** key is refused unless `payments.paymongo.allow_live` is on. Under
- * ADR-021 nothing routes to PayMongo, so a live key in the environment is a
- * mistake, and the cost of that mistake is real money moving on a flow that
- * has never been run end to end. Refusing here is the last line before the
- * HTTP call.
+ * A **live** key is refused unless `payments.paymongo.allow_live` is on: the
+ * one flow that uses PayMongo (a provider paying their commission by QR Ph)
+ * moves real money with a live key, so enabling that is a deliberate step
+ * after rehearsing with test keys, never a key merely appearing in the
+ * environment. Refusing here is the last line before the HTTP call.
  */
 class PayMongoClient
 {

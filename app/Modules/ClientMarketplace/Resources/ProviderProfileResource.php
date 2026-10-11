@@ -23,6 +23,9 @@ class ProviderProfileResource extends ClientProviderResource
             // deliberately does not carry these.
             'gcash_number' => $this->gcash_number,
             'gcash_name' => $this->gcash_name,
+            // Their GCash QR as the QR Ph text it encodes, for the app to show
+            // back to them; null until they add one.
+            'gcash_qr_payload' => $this->gcash_qr_payload,
             // Whether this provider can actually be paid by GCash yet.
             'can_receive_gcash' => $this->canReceiveGcash(),
         ]);

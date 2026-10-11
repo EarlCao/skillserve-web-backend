@@ -21,7 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class CommissionSettlement extends Model
 {
     /** How the remittance reached SkillServe. */
-    public const METHODS = ['gcash', 'bank_transfer', 'cash', 'offset', 'other'];
+    /** `qrph`: paid by a PayMongo QR Ph code and confirmed by its webhook. */
+    public const METHODS = ['gcash', 'qrph', 'bank_transfer', 'cash', 'offset', 'other'];
 
     public function booking(): BelongsTo
     {

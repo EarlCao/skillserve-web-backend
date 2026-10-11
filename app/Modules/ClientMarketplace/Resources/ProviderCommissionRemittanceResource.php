@@ -16,6 +16,8 @@ class ProviderCommissionRemittanceResource extends BaseResource
     {
         return [
             'id' => $this->id,
+            // gcash_reference (SkillServe confirms it) or qrph (PayMongo does).
+            'method' => $this->method,
             'status' => $this->status,
             'reference' => $this->reference,
             'amount_due' => $this->amount_due,
@@ -24,6 +26,11 @@ class ProviderCommissionRemittanceResource extends BaseResource
             'has_proof' => $this->proof_path !== null,
             'bookings_count' => $this->whenCounted('bookings'),
             'rejection_reason' => $this->status === CommissionRemittance::REJECTED ? $this->review_notes : null,
+            // The QR Ph code to scan, as PayMongo returns it (a base-64 image),
+            // only while it can still be paid.
+            'qr_image' => $this->isPayableQr() ? $this->qr_image : null,
+            'expires_at' => $this->when($this->isQr(), fn () => $this->expires_at?->toIso8601String()),
+            'failure_reason' => $this->status === CommissionRemittance::FAILED ? $this->failure_reason : null,
             'submitted_at' => $this->created_at?->toIso8601String(),
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
         ];

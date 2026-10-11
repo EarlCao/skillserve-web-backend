@@ -18,6 +18,8 @@ class CommissionRemittanceResource extends BaseResource
     {
         return [
             'id' => $this->id,
+            // gcash_reference (a person confirms it) or qrph (PayMongo does).
+            'method' => $this->method,
             'status' => $this->status,
             'reference' => $this->reference,
             'amount_due' => $this->amount_due,
@@ -49,6 +51,9 @@ class CommissionRemittanceResource extends BaseResource
             ])->values()->all()),
 
             'review_notes' => $this->review_notes,
+            // Why a QR payment failed, or why a paid one needs a person.
+            'failure_reason' => $this->failure_reason,
+            'external_payment_id' => $this->external_payment_id,
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
             'reviewed_by' => $this->whenLoaded('reviewedBy', fn () => $this->reviewedBy?->only(['id', 'name'])),
 

@@ -36,6 +36,9 @@ class ProviderAccountService
         // pays into).
         'gcash_number',
         'gcash_name',
+        // The provider's GCash QR, as the QR Ph text it encodes; each GCash
+        // booking gets a copy with its exact amount.
+        'gcash_qr_payload',
         'business_name',
         'bio',
         'specialization',

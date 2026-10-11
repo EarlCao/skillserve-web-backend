@@ -70,6 +70,7 @@ class ProviderProfileController extends Controller
                 new OA\Property(property: 'website', type: 'string', format: 'uri', nullable: true),
                 new OA\Property(property: 'gcash_number', type: 'string', nullable: true, example: '09171234567', description: 'Where customers send GCash payments. Philippine mobile number; +63 / 63 / spaces are accepted and stored as 11 digits starting with 09.'),
                 new OA\Property(property: 'gcash_name', type: 'string', maxLength: 120, nullable: true, example: 'Juan Dela Cruz', description: 'The name registered on that GCash account; customers check it against what GCash shows before sending.'),
+                new OA\Property(property: 'gcash_qr_payload', type: 'string', maxLength: 512, nullable: true, example: '00020101021127830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDO83CHRU5204601653036085802PH5913JUAN DELA CRUZ6011Quezon City6304ABCD', description: "The text inside the provider's GCash Receive via QR code, read on the phone. Must be a checksum-valid Philippine QR Ph code. Each GCash booking gets a copy with its exact amount; null removes it."),
                 new OA\Property(property: 'skills', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
                 new OA\Property(property: 'certifications', type: 'array', items: new OA\Items(type: 'string'), nullable: true),
                 new OA\Property(property: 'languages', type: 'array', items: new OA\Items(type: 'string'), nullable: true),

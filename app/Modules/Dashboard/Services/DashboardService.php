@@ -48,7 +48,7 @@ class DashboardService
                 ? Report::query()->where('status', 'pending')->count()
                 : null,
             'pending_commission_remittances' => $viewer->can('view commissions')
-                ? CommissionRemittance::query()->where('status', CommissionRemittance::PENDING)->count()
+                ? CommissionRemittance::query()->needsReview()->count()
                 : null,
         ];
     }

@@ -9,9 +9,11 @@ use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
+use App\Shared\Helpers\QrPh;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Tests\Feature\QrPhTest;
 use Tests\TestCase;
 
 /**
@@ -110,6 +112,59 @@ class DirectPaymentTest extends TestCase
             ->assertJsonPath('data.payment_instructions.gcash_name', 'Juan Dela Cruz')
             ->assertJsonPath('data.payment_instructions.amount', '200.00')
             ->assertJsonPath('data.payment_instructions.reference', $booking->booking_number);
+    }
+
+    public function test_the_customer_gets_the_providers_own_qr_with_the_exact_amount(): void
+    {
+        [, , $booking, $token] = $this->scenario([
+            'gcash_number' => '09171234567',
+            'gcash_name' => 'Juan Dela Cruz',
+            'gcash_qr_payload' => QrPhTest::staticCode(),
+        ]);
+
+        $qr = $this->withToken($token)
+            ->getJson("/api/client/v1/bookings/{$booking->id}")
+            ->assertOk()
+            ->json('data.payment_instructions.qr_payload');
+
+        $fields = QrPh::parse($qr);
+        $this->assertNotNull($fields, 'a scannable QR Ph code');
+        $this->assertSame('200.00', $fields['54']);
+        // Still the provider's own account: the money never passes SkillServe.
+        $this->assertSame(QrPh::parse(QrPhTest::staticCode())['27'], $fields['27']);
+    }
+
+    public function test_without_a_saved_qr_the_customer_gets_the_number_only(): void
+    {
+        [, , $booking, $token] = $this->scenario(
+            ['gcash_number' => '09171234567', 'gcash_name' => 'Juan Dela Cruz'],
+        );
+
+        $this->withToken($token)
+            ->getJson("/api/client/v1/bookings/{$booking->id}")
+            ->assertOk()
+            ->assertJsonPath('data.payment_instructions.qr_payload', null);
+    }
+
+    public function test_a_provider_saves_their_gcash_qr_and_only_a_valid_one(): void
+    {
+        [$profile] = $this->scenario();
+        $token = $profile->user->createToken('provider', ['client:auth'])->plainTextToken;
+
+        $this->withToken($token)
+            ->patchJson('/api/client/v1/provider/profile', ['gcash_qr_payload' => 'https://example.com/not-a-qr'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('gcash_qr_payload');
+
+        $this->withToken($token)
+            ->patchJson('/api/client/v1/provider/profile', ['gcash_qr_payload' => QrPhTest::staticCode()])
+            ->assertOk()
+            ->assertJsonPath('data.gcash_qr_payload', QrPhTest::staticCode());
+
+        $this->withToken($token)
+            ->patchJson('/api/client/v1/provider/profile', ['gcash_qr_payload' => null])
+            ->assertOk()
+            ->assertJsonPath('data.gcash_qr_payload', null);
     }
 
     public function test_a_provider_without_gcash_details_says_so_rather_than_showing_nothing(): void

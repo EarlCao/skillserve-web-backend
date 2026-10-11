@@ -34,7 +34,7 @@ class PayMongoWebhookController extends Controller
     #[OA\Post(
         path: '/api/webhooks/paymongo',
         summary: 'PayMongo webhook receiver',
-        description: "Called by PayMongo, not by SkillServe clients. Verifies the `Paymongo-Signature` header (`t=<unix>,te=<test>,li=<live>`; HMAC-SHA256 of `<t>.<raw body>` under the webhook secret) against the raw request body, then applies `payment.paid` / `payment.failed` to the booking.\n\nA booking is marked paid **here**, never from the customer's return redirect. Events are deduplicated by event id, because PayMongo redelivers.",
+        description: "Called by PayMongo, not by SkillServe clients. Verifies the `Paymongo-Signature` header (`t=<unix>,te=<test>,li=<live>`; HMAC-SHA256 of `<t>.<raw body>` under the webhook secret) against the raw request body, then applies `payment.paid` / `payment.failed` to the booking — or, for a provider's commission QR Ph payment, `payment.paid` (settles the covered commissions when the amount and currency match), `payment.failed` and `qrph.expired`.\n\nA booking is marked paid **here**, never from the customer's return redirect. Events are deduplicated by event id, because PayMongo redelivers.",
         tags: ['Payment Webhooks'],
         responses: [
             new OA\Response(response: 200, description: 'Event accepted (or acknowledged and ignored)'),

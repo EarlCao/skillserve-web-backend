@@ -132,13 +132,13 @@ class LiveKeyGuardTest extends TestCase
             ->assertExitCode(0);
     }
 
-    public function test_the_status_command_calls_an_empty_environment_expected(): void
+    public function test_the_status_command_says_an_empty_environment_turns_qr_payments_off(): void
     {
         $this->client(null);
 
         $this->artisan('paymongo:status')
             ->expectsOutputToContain('not set')
-            ->expectsOutputToContain('expected state')
+            ->expectsOutputToContain('QR Ph payments are off')
             ->assertExitCode(0);
     }
 

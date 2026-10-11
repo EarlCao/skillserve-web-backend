@@ -3,6 +3,7 @@
 namespace App\Modules\Commissions\Services;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
 use App\Modules\Commissions\Events\CommissionRemittanceRejected;
 use App\Modules\Commissions\Events\CommissionRemittanceSubmitted;
@@ -82,27 +83,24 @@ class CommissionRemittanceService extends BaseService
         // one; it is removed again if the database refuses the claim.
         $stored = $proof ? $this->storeProof($profile, $proof) : null;
 
+        $this->expireStaleQr($profile->id);
+
         try {
             $remittance = $this->transaction(function () use ($profile, $reference, $amountSent, $stored): CommissionRemittance {
                 // Serialises this provider's submissions.
                 ProviderProfile::query()->whereKey($profile->id)->lockForUpdate()->first();
 
-                if ($this->pendingFor($profile->id) !== null) {
-                    throw $this->alreadyPendingException();
+                if ($pending = $this->pendingFor($profile->id)) {
+                    throw $pending->isQr()
+                        ? new ApiException(
+                            'You have a QR code open for this payment. Pay it, or wait until it expires.',
+                            409,
+                            errors: ['status' => ['A QR payment is still open.']],
+                        )
+                        : $this->alreadyPendingException();
                 }
 
-                $bookings = $this->ledger->outstandingQuery($profile->id)
-                    ->lockForUpdate()
-                    ->get(['id', 'platform_fee']);
-
-                if ($bookings->isEmpty()) {
-                    throw new ApiException(
-                        'You have no outstanding commission to pay.',
-                        422,
-                        errors: ['amount_sent' => ['There is nothing to pay right now.']],
-                    );
-                }
-
+                $bookings = $this->lockOutstanding($profile->id);
                 $due = round((float) $bookings->sum('platform_fee'), 2);
 
                 if (round($amountSent, 2) < $due) {
@@ -124,6 +122,7 @@ class CommissionRemittanceService extends BaseService
 
                 $remittance = CommissionRemittance::create([
                     'provider_profile_id' => $profile->id,
+                    'method' => CommissionRemittance::METHOD_GCASH_REFERENCE,
                     'amount_due' => $due,
                     'amount_sent' => round($amountSent, 2),
                     'reference' => $reference,
@@ -132,11 +131,7 @@ class CommissionRemittanceService extends BaseService
                     'status' => CommissionRemittance::PENDING,
                 ]);
 
-                $remittance->bookings()->attach(
-                    $bookings->mapWithKeys(fn ($booking): array => [
-                        $booking->id => ['amount' => $booking->platform_fee],
-                    ])->all(),
-                );
+                $this->attachCovered($remittance, $bookings);
 
                 return $remittance;
             });
@@ -196,13 +191,7 @@ class CommissionRemittanceService extends BaseService
             throw $this->referenceConfirmedException(409);
         }
 
-        foreach ($remittance->bookings()->get() as $booking) {
-            if ($booking->commission_status !== CommissionLedger::OUTSTANDING) {
-                continue;
-            }
-
-            $this->ledger->settle($booking, $actor, 'gcash', $remittance->reference, $notes, $remittance->id);
-        }
+        $this->settleCovered($remittance, $actor, $notes);
 
         $remittance->update([
             'status' => CommissionRemittance::CONFIRMED,
@@ -245,7 +234,12 @@ class CommissionRemittanceService extends BaseService
         $query = $this->withAdminRelations(CommissionRemittance::query());
 
         if ($status = trim((string) ($filters['status'] ?? ''))) {
-            $query->where('status', $status);
+            // "Waiting for confirmation" means waiting for a person: a QR code
+            // waiting to be scanned is PayMongo's to confirm, so it only
+            // appears once something about it needs a reviewer.
+            $status === CommissionRemittance::PENDING
+                ? $query->needsReview()
+                : $query->where('status', $status);
         }
 
         if ($providerId = $filters['provider_id'] ?? null) {
@@ -270,6 +264,8 @@ class CommissionRemittanceService extends BaseService
     /** The provider's own payment history, newest first. */
     public function historyFor(ProviderProfile $profile, array $filters): LengthAwarePaginator
     {
+        $this->expireStaleQr($profile->id);
+
         return CommissionRemittance::query()
             ->where('provider_profile_id', $profile->id)
             ->withCount('bookings')
@@ -281,6 +277,8 @@ class CommissionRemittanceService extends BaseService
     /** The provider's most recent payment, whatever became of it. */
     public function latestFor(int $providerProfileId): ?CommissionRemittance
     {
+        $this->expireStaleQr($providerProfileId);
+
         return CommissionRemittance::query()
             ->where('provider_profile_id', $providerProfileId)
             ->withCount('bookings')
@@ -348,12 +346,94 @@ class CommissionRemittanceService extends BaseService
         return $remittance;
     }
 
-    private function pendingFor(int $providerProfileId): ?CommissionRemittance
+    /** The provider's one claim still open, of either method. */
+    public function pendingFor(int $providerProfileId): ?CommissionRemittance
     {
         return CommissionRemittance::query()
             ->where('provider_profile_id', $providerProfileId)
             ->where('status', CommissionRemittance::PENDING)
             ->first();
+    }
+
+    /**
+     * The bookings a payment made now covers, locked. Call inside a
+     * transaction; 422 when nothing is owed.
+     *
+     * @return Collection<int, Booking>
+     */
+    public function lockOutstanding(int $providerProfileId): Collection
+    {
+        $bookings = $this->ledger->outstandingQuery($providerProfileId)
+            ->lockForUpdate()
+            ->get(['id', 'platform_fee']);
+
+        if ($bookings->isEmpty()) {
+            throw new ApiException(
+                'You have no outstanding commission to pay.',
+                422,
+                errors: ['amount_sent' => ['There is nothing to pay right now.']],
+            );
+        }
+
+        return $bookings;
+    }
+
+    /** Fix which bookings [$remittance] pays for, and what each owed. */
+    public function attachCovered(CommissionRemittance $remittance, Collection $bookings): void
+    {
+        $remittance->bookings()->attach(
+            $bookings->mapWithKeys(fn ($booking): array => [
+                $booking->id => ['amount' => $booking->platform_fee],
+            ])->all(),
+        );
+    }
+
+    /**
+     * Settle every booking [$remittance] covers that is still outstanding.
+     * One waived, voided or settled by hand meanwhile is skipped — the ledger
+     * refuses to settle it twice. Call inside the transaction holding the
+     * remittance's lock.
+     */
+    public function settleCovered(CommissionRemittance $remittance, User $actor, ?string $notes): void
+    {
+        $method = $remittance->isQr() ? 'qrph' : 'gcash';
+
+        foreach ($remittance->bookings()->get() as $booking) {
+            if ($booking->commission_status !== CommissionLedger::OUTSTANDING) {
+                continue;
+            }
+
+            $this->ledger->settle($booking, $actor, $method, $remittance->reference, $notes, $remittance->id);
+        }
+    }
+
+    /**
+     * Stop waiting on QR codes nobody can pay any more, so they no longer
+     * block a new attempt: one past its expiry becomes `expired`, and one
+     * PayMongo never finished creating becomes `failed`.
+     *
+     * The expiry check allows two extra minutes, so a payment made in the
+     * code's last moments is still confirmed by its webhook rather than racing
+     * a fresh attempt for the same debt. A late `payment.paid` confirms an
+     * expired claim anyway — the money arrived.
+     */
+    public function expireStaleQr(int $providerProfileId): void
+    {
+        $qr = fn () => CommissionRemittance::query()
+            ->where('provider_profile_id', $providerProfileId)
+            ->where('method', CommissionRemittance::METHOD_QRPH)
+            ->where('status', CommissionRemittance::PENDING);
+
+        $qr()->whereNotNull('expires_at')
+            ->where('expires_at', '<', now()->subMinutes(2))
+            ->update(['status' => CommissionRemittance::EXPIRED, 'qr_image' => null]);
+
+        $qr()->whereNull('qr_image')
+            ->where('created_at', '<', now()->subMinutes(5))
+            ->update([
+                'status' => CommissionRemittance::FAILED,
+                'failure_reason' => 'The QR code was never created.',
+            ]);
     }
 
     private function referenceConfirmed(string $reference): bool

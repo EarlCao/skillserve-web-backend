@@ -73,6 +73,13 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
     // Paying it: the GCash reference number, for an administrator to confirm.
     Route::get('/provider/commission-remittances', [ProviderCommissionController::class, 'remittances']);
     Route::post('/provider/commission-remittances', [ProviderCommissionController::class, 'storeRemittance']);
+    // Or a PayMongo QR Ph code for the exact amount, confirmed by its webhook.
+    // Tapping twice returns the open code; the throttle stops a loop making
+    // codes nobody pays.
+    Route::post('/provider/commission-remittances/qr', [ProviderCommissionController::class, 'startQrPayment'])
+        ->middleware('throttle:10,1');
+    Route::get('/provider/commission-remittances/{commissionRemittance}', [ProviderCommissionController::class, 'showRemittance'])
+        ->whereNumber('commissionRemittance');
 });
 
 /* Disputes belong to both parties on a booking, so they sit outside the

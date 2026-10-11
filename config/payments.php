@@ -37,9 +37,11 @@ return [
     | PayMongo credentials
     |--------------------------------------------------------------------------
     |
-    | The integration is built and tested; no keys are committed. Nothing uses
-    | it while both booking methods map to the manual gateway above, so an
-    | empty value here changes no booking behaviour.
+    | No keys are committed. Bookings never use PayMongo (both methods map to
+    | the manual gateway above). What does use it is a provider paying their
+    | OWN commission by a dynamic QR Ph code (CommissionQrPaymentService):
+    | that money is SkillServe's, so collecting it keeps ADR-021 intact.
+    | Without a key the app simply offers the GCash-reference way instead.
     |
     */
     'paymongo' => [
@@ -52,7 +54,9 @@ return [
         // key is only needed for in-browser card tokenisation, which
         // SkillServe does not do.
 
-        // Issued when the webhook endpoint is registered with PayMongo. This
+        // Issued when the webhook endpoint is registered with PayMongo
+        // (https://<backend>/api/webhooks/paymongo, events payment.paid,
+        // payment.failed and qrph.expired). This
         // is NOT the secret key — it is the only thing that distinguishes a
         // genuine webhook from a forged one, so a missing value makes the
         // endpoint refuse everything rather than trust it.
@@ -67,9 +71,9 @@ return [
 
         // Whether an `sk_live_` key may be used at all.
         //
-        // Off, because under ADR-021 nothing is supposed to reach PayMongo: a
-        // live key in the environment is a mistake by default, and the cost of
-        // that mistake is real money moving on a flow that has never been run.
+        // Off by default: a live key collects real commission payments, so it
+        // is switched on deliberately once the QR Ph flow has been rehearsed
+        // with test keys — never by a key merely appearing in the environment.
         // PayMongoClient refuses every request while a live key is configured
         // and this is false, and says so in the log.
         //

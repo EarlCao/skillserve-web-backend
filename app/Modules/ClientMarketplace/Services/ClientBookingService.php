@@ -405,7 +405,7 @@ class ClientBookingService extends BaseService
             'service.provider:id,business_name,average_rating,total_reviews',
             // gcash_* are needed for the payment instructions on an unpaid
             // GCash booking; ClientBookingResource decides whether to show them.
-            'provider:id,business_name,average_rating,total_reviews,gcash_number,gcash_name',
+            'provider:id,business_name,average_rating,total_reviews,gcash_number,gcash_name,gcash_qr_payload',
             'review:id,booking_id,reviewer_id,provider_id,service_id,rating,comment,status,created_at,updated_at',
         ];
     }

@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Requests;
 
 use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Helpers\PhilippineMobileNumber;
+use App\Shared\Helpers\QrPh;
 use App\Shared\Requests\BaseFormRequest;
 
 /**
@@ -32,6 +33,11 @@ class UpdateProviderProfileRequest extends BaseFormRequest
         // Store one shape whatever the provider types: +63/63/9xxxxxxxxx all
         // become 09XXXXXXXXX, so the number the customer is shown always looks
         // like the one they will type into GCash.
+        if ($this->has('gcash_qr_payload')) {
+            $payload = trim((string) $this->input('gcash_qr_payload'));
+            $this->merge(['gcash_qr_payload' => $payload === '' ? null : $payload]);
+        }
+
         if ($this->has('gcash_number')) {
             $this->merge(['gcash_number' => PhilippineMobileNumber::normalise($this->input('gcash_number'))]);
         }
@@ -53,6 +59,14 @@ class UpdateProviderProfileRequest extends BaseFormRequest
             // only to a customer who has a booking with this provider.
             'gcash_number' => ['sometimes', 'nullable', ...PhilippineMobileNumber::rules()],
             'gcash_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            // The text inside the provider's GCash "Receive via QR" code, read
+            // on the phone. Must be a checksum-valid Philippine QR Ph code, or
+            // the copies with amounts built from it would not scan.
+            'gcash_qr_payload' => ['sometimes', 'nullable', 'string', 'max:512', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (is_string($value) && ! QrPh::isValid($value)) {
+                    $fail('That is not a GCash or QR Ph payment code. In GCash, open Receive → Receive via QR and save that QR.');
+                }
+            }],
             'skills' => ['sometimes', 'nullable', 'array', 'max:50'],
             'skills.*' => ['string', 'max:100'],
             'certifications' => ['sometimes', 'nullable', 'array', 'max:50'],

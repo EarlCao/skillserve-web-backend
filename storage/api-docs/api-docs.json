@@ -8970,7 +8970,7 @@
                     "Provider Commissions"
                 ],
                 "summary": "The provider's outstanding commission and transaction eligibility",
-                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `latest_remittance` is the provider's most recent GCash payment, or null: while it is `pending` the provider waits for confirmation and cannot submit another; a `rejected` one carries `rejection_reason`.",
+                "description": "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `payment_account.qr_payments_available` says whether the provider can instead get a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr). `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
                 "operationId": "5dacd0fd7595da346a2e5956064e8a63",
                 "parameters": [
                     {
@@ -9006,7 +9006,8 @@
                                             "gcash_account_name": "SkillServe Inc.",
                                             "gcash_number": "09171234567",
                                             "payment_instructions": "Send the exact amount, then submit the reference number.",
-                                            "configured": true
+                                            "configured": true,
+                                            "qr_payments_available": true
                                         },
                                         "latest_remittance": null,
                                         "outstanding": [
@@ -9193,6 +9194,130 @@
                 ]
             }
         },
+        "/api/client/v1/provider/commission-remittances/qr": {
+            "post": {
+                "tags": [
+                    "Provider Commissions"
+                ],
+                "summary": "Get a QR Ph code to pay the outstanding commission",
+                "description": "PayMongo creates a single-use dynamic QR Ph code for everything the provider owes right now; the amount is worked out by the server, never sent by the app. Scan it with GCash, Maya or a bank app. `qr_image` is the code as PayMongo returns it (a base-64 image to show as-is) and `expires_at` when it stops working (30 minutes). The payment is confirmed only by PayMongo's signed webhook, and only when its amount and currency match; then the covered commissions are settled and the provider is notified.\n\nCalling it again while a code is still payable returns that code (200) instead of making another. 503 when QR payments are not configured — pay by GCash reference instead.",
+                "operationId": "5f8af08288fc51257572af0aa4318595",
+                "responses": {
+                    "201": {
+                        "description": "A new QR code",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiEnvelope"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/ProviderCommissionRemittance"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "The QR code already open"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "409": {
+                        "description": "A GCash-reference payment is waiting for confirmation, or a QR code is still being prepared"
+                    },
+                    "422": {
+                        "description": "Nothing is owed, or the amount is outside what PayMongo accepts"
+                    },
+                    "429": {
+                        "description": "Too many attempts"
+                    },
+                    "502": {
+                        "description": "PayMongo could not create the code; try again"
+                    },
+                    "503": {
+                        "description": "QR payments are not configured"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/commission-remittances/{commissionRemittance}": {
+            "get": {
+                "tags": [
+                    "Provider Commissions"
+                ],
+                "summary": "One of the provider's commission payments",
+                "description": "For the app to follow a QR payment while it waits: `status` turns `confirmed` once PayMongo confirms it, or `expired` / `failed`. Only the provider's own payments; anyone else's is a 404.",
+                "operationId": "62503bca746dde3f3b7f03df66d211d8",
+                "parameters": [
+                    {
+                        "name": "commissionRemittance",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The payment",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "allOf": [
+                                        {
+                                            "$ref": "#/components/schemas/ApiEnvelope"
+                                        },
+                                        {
+                                            "properties": {
+                                                "data": {
+                                                    "$ref": "#/components/schemas/ProviderCommissionRemittance"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, email-verified provider account required"
+                    },
+                    "404": {
+                        "description": "Not found, or not this provider's"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/provider/profile": {
             "get": {
                 "tags": [
@@ -9289,6 +9414,13 @@
                                         "example": "Juan Dela Cruz",
                                         "nullable": true,
                                         "maxLength": 120
+                                    },
+                                    "gcash_qr_payload": {
+                                        "description": "The text inside the provider's GCash Receive via QR code, read on the phone. Must be a checksum-valid Philippine QR Ph code. Each GCash booking gets a copy with its exact amount; null removes it.",
+                                        "type": "string",
+                                        "example": "00020101021127830012com.p2pqrpay0111GXCHPHM2XXX02089996440303152170200000006560417DWQM4TK3JDO83CHRU5204601653036085802PH5913JUAN DELA CRUZ6011Quezon City6304ABCD",
+                                        "nullable": true,
+                                        "maxLength": 512
                                     },
                                     "skills": {
                                         "type": "array",
@@ -10612,7 +10744,9 @@
                             "enum": [
                                 "pending",
                                 "confirmed",
-                                "rejected"
+                                "rejected",
+                                "expired",
+                                "failed"
                             ]
                         }
                     },
@@ -12970,7 +13104,7 @@
                     "Payment Webhooks"
                 ],
                 "summary": "PayMongo webhook receiver",
-                "description": "Called by PayMongo, not by SkillServe clients. Verifies the `Paymongo-Signature` header (`t=<unix>,te=<test>,li=<live>`; HMAC-SHA256 of `<t>.<raw body>` under the webhook secret) against the raw request body, then applies `payment.paid` / `payment.failed` to the booking.\n\nA booking is marked paid **here**, never from the customer's return redirect. Events are deduplicated by event id, because PayMongo redelivers.",
+                "description": "Called by PayMongo, not by SkillServe clients. Verifies the `Paymongo-Signature` header (`t=<unix>,te=<test>,li=<live>`; HMAC-SHA256 of `<t>.<raw body>` under the webhook secret) against the raw request body, then applies `payment.paid` / `payment.failed` to the booking — or, for a provider's commission QR Ph payment, `payment.paid` (settles the covered commissions when the amount and currency match), `payment.failed` and `qrph.expired`.\n\nA booking is marked paid **here**, never from the customer's return redirect. Events are deduplicated by event id, because PayMongo redelivers.",
                 "operationId": "26cdfb71c9afc6a12ec23d06bd766203",
                 "responses": {
                     "200": {
@@ -22042,6 +22176,22 @@
                             },
                             "is_suspended": {
                                 "type": "boolean"
+                            },
+                            "gcash_number": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "gcash_name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "gcash_qr_payload": {
+                                "description": "The QR Ph text of the provider's GCash QR; null until added",
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "can_receive_gcash": {
+                                "type": "boolean"
                             }
                         },
                         "type": "object"
@@ -22587,6 +22737,11 @@
                         "type": "string",
                         "example": "BK-AB12CD34EF56"
                     },
+                    "qr_payload": {
+                        "description": "The provider's own GCash QR Ph code with this booking's exact amount written into it, for the app to draw as a QR. Scanning it in GCash (or any QR Ph app) pays the provider directly with the amount pre-filled. Null when the provider has not added their QR.",
+                        "type": "string",
+                        "nullable": true
+                    },
                     "note": {
                         "type": "string"
                     }
@@ -23044,11 +23199,20 @@
                 "type": "object"
             },
             "ProviderCommissionRemittance": {
-                "description": "A GCash commission payment the provider submitted. pending until an administrator finds the reference in SkillServe's GCash history; confirmed settles the bookings it covered; rejected carries the reason, and the provider may submit again.",
+                "description": "A commission payment the provider made: a GCash reference SkillServe confirms by hand, or a PayMongo QR Ph code PayMongo confirms. confirmed settles the bookings it covered; rejected carries the reason; a QR code that was not paid ends expired or failed. The provider may then pay again.",
                 "properties": {
                     "id": {
                         "type": "integer",
                         "example": 7
+                    },
+                    "method": {
+                        "description": "gcash_reference: the provider typed the GCash reference and SkillServe confirms it; qrph: a PayMongo QR Ph code confirmed by PayMongo",
+                        "type": "string",
+                        "example": "qrph",
+                        "enum": [
+                            "gcash_reference",
+                            "qrph"
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -23056,7 +23220,9 @@
                         "enum": [
                             "pending",
                             "confirmed",
-                            "rejected"
+                            "rejected",
+                            "expired",
+                            "failed"
                         ]
                     },
                     "reference": {
@@ -23087,6 +23253,22 @@
                     "rejection_reason": {
                         "type": "string",
                         "example": null,
+                        "nullable": true
+                    },
+                    "qr_image": {
+                        "description": "qrph only: the QR Ph code as PayMongo returns it (a base-64 image), while it can still be paid",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expires_at": {
+                        "description": "qrph only: when the code stops working",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "failure_reason": {
+                        "description": "Why a failed QR payment failed",
+                        "type": "string",
                         "nullable": true
                     },
                     "submitted_at": {

@@ -21,6 +21,10 @@
         </include>
     </source>
     <php>
+        <!-- The whole suite runs in one process and peaks near PHP's 128M
+             default (127M at 770 tests), so it would start failing at random
+             as tests are added. Tests only; production limits are untouched. -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

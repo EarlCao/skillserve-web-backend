@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Modules\ClientMarketplace\Requests\ProviderCommissionRemittanceIndexRequest;
 use App\Modules\ClientMarketplace\Requests\SubmitCommissionRemittanceRequest;
 use App\Modules\ClientMarketplace\Resources\ProviderCommissionRemittanceResource;
+use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\Commissions\Services\CommissionLedger;
+use App\Modules\Commissions\Services\CommissionQrPaymentService;
 use App\Modules\Commissions\Services\CommissionRemittanceService;
 use App\Modules\Commissions\Services\TransactionEligibility;
 use App\Modules\Providers\Models\ProviderProfile;
@@ -35,12 +37,13 @@ class ProviderCommissionController extends Controller
         private readonly CommissionLedger $ledger,
         private readonly TransactionEligibility $eligibility,
         private readonly CommissionRemittanceService $remittances,
+        private readonly CommissionQrPaymentService $qrPayments,
     ) {}
 
     #[OA\Get(
         path: '/api/client/v1/provider/commissions',
         summary: "The provider's outstanding commission and transaction eligibility",
-        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `latest_remittance` is the provider's most recent GCash payment, or null: while it is `pending` the provider waits for confirmation and cannot submit another; a `rejected` one carries `rejection_reason`.",
+        description: "SkillServe's commission is included in the price the provider advertises, so on an on-hand job the provider collects the whole amount and owes the platform's share back. Once the block applies the provider cannot accept new jobs or publish services; declining, cancelling and finishing agreed work stay available. By default any unpaid commission blocks at once; an administrator can instead start the block at a minimum unpaid total (`block_threshold`) and/or after the oldest unpaid commission reaches an age (`block_deadline`, null when off). Whichever comes first blocks.\n\n`eligible` is false with `reason` = `outstanding_commission` when the block applies.\n\n`payment_account` is SkillServe's GCash, where the provider sends the commission (`configured` is false until an administrator sets it). `payment_account.qr_payments_available` says whether the provider can instead get a PayMongo QR Ph code for the exact amount (POST /provider/commission-remittances/qr). `latest_remittance` is the provider's most recent payment of either kind, or null: while it is `pending` they cannot start another (a QR one carries `qr_image` while it can be scanned); a `rejected` one carries `rejection_reason`.",
         tags: ['Provider Commissions'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -65,6 +68,7 @@ class ProviderCommissionController extends Controller
                             'gcash_number' => '09171234567',
                             'payment_instructions' => 'Send the exact amount, then submit the reference number.',
                             'configured' => true,
+                            'qr_payments_available' => true,
                         ],
                         'latest_remittance' => null,
                         'outstanding' => [[
@@ -112,7 +116,10 @@ class ProviderCommissionController extends Controller
         return $this->success([
             ...$state,
             'currency' => 'PHP',
-            'payment_account' => $this->remittances->account(),
+            'payment_account' => [
+                ...$this->remittances->account(),
+                'qr_payments_available' => $this->qrPayments->available(),
+            ],
             'latest_remittance' => $latest ? new ProviderCommissionRemittanceResource($latest) : null,
             'outstanding' => $outstanding,
         ], 'Commission summary retrieved.');
@@ -199,6 +206,76 @@ class ProviderCommissionController extends Controller
             'Payment submitted. SkillServe will confirm it once the money arrives.',
             status: 201,
         );
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/provider/commission-remittances/qr',
+        summary: 'Get a QR Ph code to pay the outstanding commission',
+        description: "PayMongo creates a single-use dynamic QR Ph code for everything the provider owes right now; the amount is worked out by the server, never sent by the app. Scan it with GCash, Maya or a bank app. `qr_image` is the code as PayMongo returns it (a base-64 image to show as-is) and `expires_at` when it stops working (30 minutes). The payment is confirmed only by PayMongo's signed webhook, and only when its amount and currency match; then the covered commissions are settled and the provider is notified.\n\nCalling it again while a code is still payable returns that code (200) instead of making another. 503 when QR payments are not configured — pay by GCash reference instead.",
+        tags: ['Provider Commissions'],
+        security: [['bearerAuth' => []]],
+        responses: [
+            new OA\Response(response: 201, description: 'A new QR code', content: new OA\JsonContent(
+                allOf: [
+                    new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
+                    new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderCommissionRemittance')]),
+                ],
+            )),
+            new OA\Response(response: 200, description: 'The QR code already open'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
+            new OA\Response(response: 404, description: 'Provider profile not found'),
+            new OA\Response(response: 409, description: 'A GCash-reference payment is waiting for confirmation, or a QR code is still being prepared'),
+            new OA\Response(response: 422, description: 'Nothing is owed, or the amount is outside what PayMongo accepts'),
+            new OA\Response(response: 429, description: 'Too many attempts'),
+            new OA\Response(response: 502, description: 'PayMongo could not create the code; try again'),
+            new OA\Response(response: 503, description: 'QR payments are not configured'),
+        ],
+    )]
+    public function startQrPayment(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        [$remittance, $created] = $this->qrPayments->start($user, $this->profileOf($user));
+
+        return $this->success(
+            new ProviderCommissionRemittanceResource($remittance),
+            $created ? 'Scan this QR code to pay.' : 'Your QR code is still open.',
+            status: $created ? 201 : 200,
+        );
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/provider/commission-remittances/{commissionRemittance}',
+        summary: 'One of the provider\'s commission payments',
+        description: 'For the app to follow a QR payment while it waits: `status` turns `confirmed` once PayMongo confirms it, or `expired` / `failed`. Only the provider\'s own payments; anyone else\'s is a 404.',
+        tags: ['Provider Commissions'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'commissionRemittance', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'The payment', content: new OA\JsonContent(
+                allOf: [
+                    new OA\Schema(ref: '#/components/schemas/ApiEnvelope'),
+                    new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderCommissionRemittance')]),
+                ],
+            )),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, email-verified provider account required'),
+            new OA\Response(response: 404, description: 'Not found, or not this provider\'s'),
+        ],
+    )]
+    public function showRemittance(Request $request, int $commissionRemittance): JsonResponse
+    {
+        $profile = $this->profileOf($request->user());
+        $this->remittances->expireStaleQr($profile->id);
+
+        // Scoped to the provider, so another provider's id is simply absent.
+        $remittance = CommissionRemittance::query()
+            ->where('provider_profile_id', $profile->id)
+            ->withCount('bookings')
+            ->findOrFail($commissionRemittance);
+
+        return $this->success(new ProviderCommissionRemittanceResource($remittance), 'Commission payment retrieved.');
     }
 
     private function profileOf(User $user): ProviderProfile
