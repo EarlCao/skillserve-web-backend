@@ -80,7 +80,9 @@ class BookingListTest extends TestCase
     private function booking(string $service, string $client, string $provider, array $attributes = []): Booking
     {
         $clientUser = User::factory()->create(['name' => $client, 'user_type' => 'customer', 'status' => 'active']);
-        $providerUser = User::factory()->create(['user_type' => 'provider', 'status' => 'active']);
+        // A fixed name: a random Faker one ("Mariah …") could match a search
+        // term meant for another booking and make the totals flaky.
+        $providerUser = User::factory()->create(['name' => $provider.' Owner', 'user_type' => 'provider', 'status' => 'active']);
         $profile = ProviderProfile::create(['user_id' => $providerUser->id, 'business_name' => $provider]);
         $category = ServiceCategory::create(['name' => 'List '.Str::random(6), 'status' => 'enabled']);
         $serviceModel = Service::create([
