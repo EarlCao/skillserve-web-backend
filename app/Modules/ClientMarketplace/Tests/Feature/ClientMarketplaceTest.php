@@ -13,6 +13,7 @@ use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use App\Modules\Services\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -163,6 +164,29 @@ class ClientMarketplaceTest extends TestCase
         // LIKE wildcards are matched literally, not as "anything".
         $this->assertSame([], $ids('/api/client/v1/services?search=%25'));
         $this->assertSame([], $ids('/api/client/v1/providers?search=_'));
+    }
+
+    public function test_search_matches_accented_skills_including_ones_saved_escaped(): void
+    {
+        [$provider] = $this->provider(['business_name' => 'Kusina ni Lola', 'skills' => ['Lechón', 'niño cakes']]);
+        $this->service($provider, $this->category('Catering'));
+
+        // Saved as written, so the search matches the way a customer types.
+        $this->assertStringContainsString('Lechón', (string) $provider->getRawOriginal('skills'));
+        $this->getJson('/api/client/v1/providers?search=niño')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1);
+
+        // A row saved before the change holds escapes; the data migration
+        // rewrites it, and only the encoding changes.
+        DB::table('provider_profiles')->where('id', $provider->id)
+            ->update(['skills' => json_encode(['niño cakes'])]);
+        $this->getJson('/api/client/v1/providers?search=niño')->assertJsonPath('meta.pagination.total', 0);
+
+        (require database_path('migrations/2026_10_13_000001_unescape_provider_profile_json_text.php'))->up();
+
+        $this->assertSame(['niño cakes'], $provider->fresh()->skills);
+        $this->getJson('/api/client/v1/providers?search=niño')->assertJsonPath('meta.pagination.total', 1);
     }
 
     public function test_admin_tokens_cannot_use_client_bookings_and_clients_cannot_read_each_other(): void

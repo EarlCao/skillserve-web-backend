@@ -63,6 +63,16 @@ class ProviderProfile extends Model
     ];
 
     /**
+     * JSON columns keep accented letters as written ("Niño", not
+     * "Ni\u00f1o"), so the marketplace search can match a skill the way a
+     * customer types it.
+     */
+    protected function asJson($value, $flags = 0)
+    {
+        return parent::asJson($value, $flags | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * The user that owns this provider profile.
      */
     public function user(): BelongsTo
