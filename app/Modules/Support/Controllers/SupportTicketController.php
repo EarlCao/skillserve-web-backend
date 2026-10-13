@@ -4,6 +4,7 @@ namespace App\Modules\Support\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use App\Modules\Support\Requests\AssigneeIndexRequest;
 use App\Modules\Support\Requests\AssignSupportTicketRequest;
 use App\Modules\Support\Requests\ResolveSupportTicketRequest;
@@ -11,9 +12,11 @@ use App\Modules\Support\Requests\StoreSupportTicketResponseRequest;
 use App\Modules\Support\Requests\SupportTicketIndexRequest;
 use App\Modules\Support\Resources\SupportTicketResource;
 use App\Modules\Support\Services\SupportTicketService;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Support', description: 'Manage support tickets, assignments, responses, and resolutions')]
 class SupportTicketController extends Controller
@@ -86,6 +89,31 @@ class SupportTicketController extends Controller
         $this->authorize('view', $ticket);
 
         return $this->success(new SupportTicketResource($this->supportService->show($ticket)), 'Support ticket retrieved.');
+    }
+
+    #[OA\Get(
+        path: '/api/support/tickets/{ticket}/attachments/{attachment}',
+        summary: 'A photo the requester attached to the ticket or a reply',
+        description: 'Streamed from private storage after checking that the caller may view the ticket. The ids come from the ticket\'s `attachments` and each message\'s `attachments` (`download_path`).',
+        tags: ['Support'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'attachment', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'The photo', content: new OA\MediaType(mediaType: 'image/*')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'No such photo on this ticket'),
+        ],
+    )]
+    public function attachment(SupportTicket $ticket, SupportTicketAttachment $attachment): StreamedResponse
+    {
+        $this->authorize('view', $ticket);
+        abort_unless((int) $attachment->support_ticket_id === (int) $ticket->id, 404);
+
+        return PrivateImages::stream(SupportTicketAttachment::DISK, $attachment->path);
     }
 
     #[OA\Patch(

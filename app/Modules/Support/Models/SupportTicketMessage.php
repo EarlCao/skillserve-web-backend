@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable(['support_ticket_id', 'author_id', 'body'])]
 class SupportTicketMessage extends Model
@@ -13,6 +14,12 @@ class SupportTicketMessage extends Model
     public function ticket(): BelongsTo
     {
         return $this->belongsTo(SupportTicket::class, 'support_ticket_id');
+    }
+
+    /** Photos sent with this reply. */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(SupportTicketAttachment::class)->orderBy('id');
     }
 
     public function author(): BelongsTo

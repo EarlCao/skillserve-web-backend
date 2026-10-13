@@ -12,8 +12,13 @@ use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class ClientReportTest extends TestCase
@@ -48,6 +53,89 @@ class ClientReportTest extends TestCase
         $this->assertSame($client->id, (int) $report->reporter_id);
         // The booking is named so a moderator knows which job this is about.
         $this->assertStringContainsString($booking->booking_number, $report->description);
+    }
+
+    public function test_photos_sent_with_a_report_reach_the_moderator_and_stay_private(): void
+    {
+        Storage::fake('report_attachments');
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $booking = $this->booking($client, $provider);
+
+        $report = $this->withToken($this->clientToken($client))
+            ->post('/api/client/v1/reports', [
+                'booking_id' => $booking->id,
+                'reason' => 'service_quality',
+                'description' => 'The pipe is still leaking, see the photos.',
+                'images' => [UploadedFile::fake()->image('leak.jpg', 800, 600), UploadedFile::fake()->image('floor.png', 800, 600)],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data.attachments')
+            ->json('data');
+
+        $this->assertCount(2, Storage::disk('report_attachments')->allFiles());
+        $photoUrl = parse_url($report['attachments'][0]['url'], PHP_URL_PATH);
+
+        // The reporter can open their own photo; nobody else through the app.
+        $this->get($photoUrl)->assertOk();
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))
+            ->get($photoUrl, ['Accept' => 'application/json'])
+            ->assertNotFound();
+
+        // A moderator with view reports sees them with the report and opens them.
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Permission::findOrCreate('view reports', 'web');
+        $moderator = User::factory()->create(['status' => 'active']);
+        $moderator->assignRole(Role::findOrCreate('moderator', 'web')->givePermissionTo('view reports'));
+
+        Auth::forgetGuards();
+        $token = $moderator->createToken('admin-test')->plainTextToken;
+        $path = $this->withToken($token)
+            ->getJson("/api/reports/{$report['id']}")
+            ->assertJsonCount(2, 'data.attachments')
+            ->json('data.attachments.1.download_path');
+        $this->withToken($token)->get('/api'.$path)->assertOk();
+
+        // An attachment id from another report is not this report's.
+        $this->withToken($token)
+            ->getJson("/api/reports/{$report['id']}/attachments/999999")
+            ->assertNotFound();
+    }
+
+    public function test_report_photos_are_checked_and_a_refused_report_keeps_no_files(): void
+    {
+        Storage::fake('report_attachments');
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $booking = $this->booking($client, $provider);
+        $token = $this->clientToken($client);
+        $form = fn (array $images): array => [
+            'booking_id' => $booking->id,
+            'reason' => 'no_show',
+            'description' => 'The provider never arrived for the appointment.',
+            'images' => $images,
+        ];
+
+        $this->withToken($token)
+            ->post('/api/client/v1/reports', $form(array_fill(0, 6, UploadedFile::fake()->image('a.jpg'))), ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('images');
+        $this->withToken($token)
+            ->post('/api/client/v1/reports', $form([UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf')]), ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('images.0');
+
+        $this->withToken($token)
+            ->post('/api/client/v1/reports', $form([UploadedFile::fake()->image('a.jpg')]), ['Accept' => 'application/json'])
+            ->assertCreated();
+        // A second open report about the same person is refused, and its photo
+        // is not left behind.
+        $this->withToken($token)
+            ->post('/api/client/v1/reports', $form([UploadedFile::fake()->image('b.jpg')]), ['Accept' => 'application/json'])
+            ->assertStatus(409);
+
+        $this->assertCount(1, Storage::disk('report_attachments')->allFiles());
     }
 
     public function test_a_provider_can_report_the_customer_on_their_booking(): void

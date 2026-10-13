@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\ClientCommunication\Services\BookingMessageService;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
 use App\Modules\ReportsAndModeration\Requests\AddInvestigationNoteRequest;
 use App\Modules\ReportsAndModeration\Requests\InvestigateReportRequest;
 use App\Modules\ReportsAndModeration\Requests\RejectReportRequest;
@@ -13,6 +14,7 @@ use App\Modules\ReportsAndModeration\Requests\ResolveReportRequest;
 use App\Modules\ReportsAndModeration\Requests\TakeModerationActionRequest;
 use App\Modules\ReportsAndModeration\Resources\ReportResource;
 use App\Modules\ReportsAndModeration\Services\ReportService;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -109,6 +111,31 @@ class ReportController extends Controller
         $report = $this->reportService->show($report);
 
         return $this->success(new ReportResource($report), 'Report retrieved.');
+    }
+
+    #[OA\Get(
+        path: '/api/reports/{report}/attachments/{attachment}',
+        summary: 'A photo the reporter attached as proof',
+        description: 'Streamed from private storage after checking the view-reports permission. The ids come from the report\'s `attachments` (`download_path`).',
+        tags: ['Reports'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'report', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'attachment', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'The photo', content: new OA\MediaType(mediaType: 'image/*')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'No such photo on this report'),
+        ],
+    )]
+    public function attachment(Report $report, ReportAttachment $attachment): StreamedResponse
+    {
+        $this->authorize('view', $report);
+        abort_unless((int) $attachment->report_id === (int) $report->id, 404);
+
+        return PrivateImages::stream(ReportAttachment::DISK, $attachment->path);
     }
 
     #[OA\Get(

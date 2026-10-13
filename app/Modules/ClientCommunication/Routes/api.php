@@ -35,6 +35,8 @@ Route::middleware(['auth:sanctum', EnsureMobileAccount::class])->group(function 
         Route::post('/', [ClientSupportTicketController::class, 'store']);
         Route::get('/{ticket}', [ClientSupportTicketController::class, 'show']);
         Route::post('/{ticket}/replies', [ClientSupportTicketController::class, 'reply']);
+        Route::get('/{ticket}/attachments/{attachment}', [ClientSupportTicketController::class, 'attachment'])
+            ->whereNumber('attachment');
     });
 });
 
@@ -44,6 +46,8 @@ Route::prefix('reports')->middleware(['auth:sanctum', EnsureMobileAccount::class
     Route::get('/', [ClientReportController::class, 'index']);
     Route::post('/', [ClientReportController::class, 'store']);
     Route::get('/{report}', [ClientReportController::class, 'show'])->whereNumber('report');
+    Route::get('/{report}/attachments/{attachment}', [ClientReportController::class, 'attachment'])
+        ->whereNumber(['report', 'attachment']);
 });
 
 // The Messages inbox. Customers and providers both have conversations, so the

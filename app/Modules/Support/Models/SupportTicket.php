@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 #[Fillable([
     'ticket_number', 'requester_id', 'subject', 'description', 'category',
@@ -41,6 +42,25 @@ class SupportTicket extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at');
+    }
+
+    /** Every photo on the ticket: its own and its replies'. */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(SupportTicketAttachment::class)->orderBy('id');
+    }
+
+    /**
+     * The loaded photos sent with the ticket itself ([messageId] null) or with
+     * one reply.
+     *
+     * @return Collection<int, SupportTicketAttachment>
+     */
+    public function attachmentsOf(?int $messageId): Collection
+    {
+        return $this->attachments
+            ->filter(fn (SupportTicketAttachment $attachment): bool => $attachment->support_ticket_message_id === ($messageId === null ? null : (int) $messageId))
+            ->values();
     }
 
     public function isResolved(): bool

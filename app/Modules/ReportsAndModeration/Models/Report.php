@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -56,6 +57,12 @@ class Report extends Model
     public function reportable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** Photos the reporter sent as proof. */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ReportAttachment::class)->orderBy('id');
     }
 
     public function reporter(): BelongsTo

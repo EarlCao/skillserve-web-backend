@@ -123,6 +123,7 @@ class SupportTicketService extends BaseService
             'assignedBy:id,name,email',
             'resolvedBy:id,name,email',
             'messages.author:id,name,email',
+            'attachments',
         ];
     }
 

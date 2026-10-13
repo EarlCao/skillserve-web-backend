@@ -9,11 +9,13 @@ use App\Modules\ClientCommunication\Requests\StoreClientReportRequest;
 use App\Modules\ClientCommunication\Resources\ClientReportResource;
 use App\Modules\ClientCommunication\Services\ClientReportService;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Client Reports', description: 'Complaints filed from the mobile app')]
 class ClientReportController extends Controller
@@ -55,21 +57,36 @@ class ClientReportController extends Controller
     #[OA\Post(
         path: '/api/client/v1/reports',
         summary: 'Report a person, a review or a message',
-        description: 'Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller\'s own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller\'s own); `provider_id` reports a provider listed in the marketplace, from their public profile (not the caller themself) — the report is about the provider\'s account. Moderators review every report from the admin console. One open report per subject per reporter.',
+        description: 'Send JSON, or multipart/form-data to attach up to 5 photos as proof in `images[]` (JPG, PNG or WebP, 5 MB each); moderators see them with the report. Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller\'s own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller\'s own); `provider_id` reports a provider listed in the marketplace, from their public profile (not the caller themself) — the report is about the provider\'s account. Moderators review every report from the admin console. One open report per subject per reporter.',
         tags: ['Client Reports'],
         security: [['bearerAuth' => []]],
-        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['reason', 'description'],
-            properties: [
-                new OA\Property(property: 'booking_id', type: 'integer', nullable: true, description: 'Report the other party on this booking'),
-                new OA\Property(property: 'review_id', type: 'integer', nullable: true, description: 'Report this published review'),
-                new OA\Property(property: 'message_id', type: 'integer', nullable: true, description: 'Report this message the caller received'),
-                new OA\Property(property: 'service_id', type: 'integer', nullable: true, description: 'Report this service listing'),
-                new OA\Property(property: 'provider_id', type: 'integer', nullable: true, description: 'Report this provider (a provider profile id from the public catalog)'),
-                new OA\Property(property: 'reason', type: 'string', enum: Report::REASONS),
-                new OA\Property(property: 'description', type: 'string', minLength: 10, maxLength: 2000),
-            ],
-        )),
+        requestBody: new OA\RequestBody(required: true, content: [
+            new OA\JsonContent(
+                required: ['reason', 'description'],
+                properties: [
+                    new OA\Property(property: 'booking_id', type: 'integer', nullable: true, description: 'Report the other party on this booking'),
+                    new OA\Property(property: 'review_id', type: 'integer', nullable: true, description: 'Report this published review'),
+                    new OA\Property(property: 'message_id', type: 'integer', nullable: true, description: 'Report this message the caller received'),
+                    new OA\Property(property: 'service_id', type: 'integer', nullable: true, description: 'Report this service listing'),
+                    new OA\Property(property: 'provider_id', type: 'integer', nullable: true, description: 'Report this provider (a provider profile id from the public catalog)'),
+                    new OA\Property(property: 'reason', type: 'string', enum: Report::REASONS),
+                    new OA\Property(property: 'description', type: 'string', minLength: 10, maxLength: 2000),
+                ],
+            ),
+            new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(
+                required: ['reason', 'description'],
+                properties: [
+                    new OA\Property(property: 'booking_id', type: 'integer'),
+                    new OA\Property(property: 'review_id', type: 'integer'),
+                    new OA\Property(property: 'message_id', type: 'integer'),
+                    new OA\Property(property: 'service_id', type: 'integer'),
+                    new OA\Property(property: 'provider_id', type: 'integer'),
+                    new OA\Property(property: 'reason', type: 'string', enum: Report::REASONS),
+                    new OA\Property(property: 'description', type: 'string', minLength: 10, maxLength: 2000),
+                    new OA\Property(property: 'images[]', type: 'array', maxItems: 5, items: new OA\Items(type: 'string', format: 'binary')),
+                ],
+            )),
+        ]),
         responses: [
             new OA\Response(response: 201, description: 'Report filed', content: new OA\JsonContent(ref: '#/components/schemas/ClientReportEnvelope')),
             new OA\Response(response: 401, description: 'Unauthenticated'),
@@ -83,7 +100,7 @@ class ClientReportController extends Controller
     {
         $this->ensure($this->reportPolicy->create($request->user()));
 
-        $report = $this->reportService->create($request->user(), $request->validated());
+        $report = $this->reportService->create($request->user(), $request->validated(), $request->file('images', []));
 
         return $this->success(
             // Re-read so the subject loads with the same narrow shape the list uses.
@@ -114,6 +131,27 @@ class ClientReportController extends Controller
             new ClientReportResource($this->reportService->show($request->user(), $report)),
             'Report retrieved.',
         );
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/reports/{report}/attachments/{attachment}',
+        summary: 'A photo the caller attached to their report',
+        description: 'Streamed from private storage to the reporter only. The attachment ids and URLs come from the report\'s `attachments`.',
+        tags: ['Client Reports'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'report', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'attachment', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'The photo', content: new OA\MediaType(mediaType: 'image/*')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 404, description: 'Not the caller\'s report, or no such photo'),
+        ],
+    )]
+    public function attachment(Request $request, Report $report, ReportAttachment $attachment): StreamedResponse
+    {
+        return $this->reportService->attachment($request->user(), $report, $attachment);
     }
 
     private function ensure(bool $allowed): void

@@ -6871,11 +6871,64 @@
                     "Client Reports"
                 ],
                 "summary": "Report a person, a review or a message",
-                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller's own); `provider_id` reports a provider listed in the marketplace, from their public profile (not the caller themself) — the report is about the provider's account. Moderators review every report from the admin console. One open report per subject per reporter.",
+                "description": "Send JSON, or multipart/form-data to attach up to 5 photos as proof in `images[]` (JPG, PNG or WebP, 5 MB each); moderators see them with the report. Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller's own); `provider_id` reports a provider listed in the marketplace, from their public profile (not the caller themself) — the report is about the provider's account. Moderators review every report from the admin console. One open report per subject per reporter.",
                 "operationId": "c7856bfbe60e0f4d287c6af7118453dd",
                 "requestBody": {
                     "required": true,
                     "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "reason",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "booking_id": {
+                                        "type": "integer"
+                                    },
+                                    "review_id": {
+                                        "type": "integer"
+                                    },
+                                    "message_id": {
+                                        "type": "integer"
+                                    },
+                                    "service_id": {
+                                        "type": "integer"
+                                    },
+                                    "provider_id": {
+                                        "type": "integer"
+                                    },
+                                    "reason": {
+                                        "type": "string",
+                                        "enum": [
+                                            "service_quality",
+                                            "no_show",
+                                            "safety_concern",
+                                            "payment_dispute",
+                                            "misleading_information",
+                                            "harassment",
+                                            "inappropriate_content",
+                                            "spam",
+                                            "other"
+                                        ]
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "maxLength": 2000,
+                                        "minLength": 10
+                                    },
+                                    "images[]": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        },
+                                        "maxItems": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
                         "application/json": {
                             "schema": {
                                 "required": [
@@ -7012,6 +7065,53 @@
                 ]
             }
         },
+        "/api/client/v1/reports/{report}/attachments/{attachment}": {
+            "get": {
+                "tags": [
+                    "Client Reports"
+                ],
+                "summary": "A photo the caller attached to their report",
+                "description": "Streamed from private storage to the reporter only. The attachment ids and URLs come from the report's `attachments`.",
+                "operationId": "9634f6a031844332986f2f37582de441",
+                "parameters": [
+                    {
+                        "name": "report",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "attachment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The photo",
+                        "content": {
+                            "image/*": {}
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Not the caller's report, or no such photo"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/client/v1/support/tickets": {
             "get": {
                 "tags": [
@@ -7083,10 +7183,42 @@
                     "Client Support"
                 ],
                 "summary": "Raise a support ticket as a customer or provider",
+                "description": "Send JSON, or multipart/form-data to attach up to 5 photos (screenshots, proof) in `images[]` — JPG, PNG or WebP, 5 MB each. Support staff see them with the ticket.",
                 "operationId": "111d45bdedbc95a634c281d8a8253958",
                 "requestBody": {
                     "required": true,
                     "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "subject",
+                                    "description"
+                                ],
+                                "properties": {
+                                    "subject": {
+                                        "type": "string",
+                                        "maxLength": 160
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "maxLength": 10000
+                                    },
+                                    "category": {
+                                        "type": "string",
+                                        "maxLength": 40
+                                    },
+                                    "images[]": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        },
+                                        "maxItems": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
                         "application/json": {
                             "schema": {
                                 "required": [
@@ -7186,6 +7318,7 @@
                     "Client Support"
                 ],
                 "summary": "Reply to a support ticket the account raised",
+                "description": "Text, photos, or both: `body` is required unless `images[]` (multipart, up to 5 JPG/PNG/WebP photos of 5 MB) is sent.",
                 "operationId": "bf72a8d1f5de4ecb4424ace803421d20",
                 "parameters": [
                     {
@@ -7200,6 +7333,25 @@
                 "requestBody": {
                     "required": true,
                     "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "type": "string",
+                                        "maxLength": 5000
+                                    },
+                                    "images[]": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        },
+                                        "maxItems": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
                         "application/json": {
                             "schema": {
                                 "required": [
@@ -7235,6 +7387,53 @@
                     },
                     "422": {
                         "description": "Validation error or resolved ticket"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/support/tickets/{ticket}/attachments/{attachment}": {
+            "get": {
+                "tags": [
+                    "Client Support"
+                ],
+                "summary": "A photo on a support ticket the account raised",
+                "description": "Streamed from private storage to the requester only. The URLs come from the ticket's and each message's `attachments`.",
+                "operationId": "7b0db2c9d6d68dcc01ae2dda12f9537e",
+                "parameters": [
+                    {
+                        "name": "ticket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "attachment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The photo",
+                        "content": {
+                            "image/*": {}
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Not the caller's ticket, or no such photo"
                     }
                 },
                 "security": [
@@ -16139,6 +16338,56 @@
                 ]
             }
         },
+        "/api/reports/{report}/attachments/{attachment}": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "A photo the reporter attached as proof",
+                "description": "Streamed from private storage after checking the view-reports permission. The ids come from the report's `attachments` (`download_path`).",
+                "operationId": "630bfd6ff0759c820fa9904575e1dafb",
+                "parameters": [
+                    {
+                        "name": "report",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "attachment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The photo",
+                        "content": {
+                            "image/*": {}
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "No such photo on this report"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/reports/{report}/message-image": {
             "get": {
                 "tags": [
@@ -20295,6 +20544,56 @@
                     },
                     "404": {
                         "description": "Support ticket not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/support/tickets/{ticket}/attachments/{attachment}": {
+            "get": {
+                "tags": [
+                    "Support"
+                ],
+                "summary": "A photo the requester attached to the ticket or a reply",
+                "description": "Streamed from private storage after checking that the caller may view the ticket. The ids come from the ticket's `attachments` and each message's `attachments` (`download_path`).",
+                "operationId": "1f4a755c032976e1cf10fd598ed049e6",
+                "parameters": [
+                    {
+                        "name": "ticket",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "attachment",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The photo",
+                        "content": {
+                            "image/*": {}
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "No such photo on this ticket"
                     }
                 },
                 "security": [

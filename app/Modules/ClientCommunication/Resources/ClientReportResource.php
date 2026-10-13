@@ -37,6 +37,11 @@ class ClientReportResource extends BaseResource
             // named them in the first place.
             'reported' => $this->whenLoaded('reportable', fn () => $this->reportedShape()),
             'outcome' => $this->outcome(),
+            // The reporter's proof photos, read with their token.
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment): array => [
+                'id' => $attachment->id,
+                'url' => url("/api/client/v1/reports/{$this->id}/attachments/{$attachment->id}"),
+            ])->values()->all()),
             'resolved_at' => $this->resolved_at?->toIso8601String(),
             'rejected_at' => $this->rejected_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),

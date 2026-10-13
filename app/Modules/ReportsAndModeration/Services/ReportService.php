@@ -302,6 +302,7 @@ class ReportService extends BaseService
                 Message::class => ['sender:id,name,email', 'receiver:id,name,email'],
             ]),
             'reporter:id,name,email',
+            'attachments',
             'investigatedBy:id,name',
             'resolvedBy:id,name',
             'rejectedBy:id,name',

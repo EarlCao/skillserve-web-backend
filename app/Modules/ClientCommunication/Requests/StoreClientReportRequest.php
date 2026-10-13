@@ -3,6 +3,8 @@
 namespace App\Modules\ClientCommunication\Requests;
 
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Requests\BaseFormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,6 +26,10 @@ class StoreClientReportRequest extends BaseFormRequest
             'provider_id' => ['nullable', 'integer', ...$oneOf('provider_id')],
             'reason' => ['required', 'string', Rule::in(Report::REASONS)],
             'description' => ['required', 'string', 'min:10', 'max:2000'],
+
+            // Optional photos as proof, sent as multipart images[].
+            'images' => ['sometimes', 'array', 'max:'.ReportAttachment::MAX_PER_REPORT],
+            'images.*' => PrivateImages::RULES,
         ];
     }
 
@@ -31,6 +37,7 @@ class StoreClientReportRequest extends BaseFormRequest
     {
         return [
             'description.min' => 'Please describe what happened in at least 10 characters.',
+            ...PrivateImages::RULE_MESSAGES,
         ];
     }
 }

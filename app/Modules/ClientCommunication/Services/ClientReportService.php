@@ -8,14 +8,18 @@ use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Complaints filed from the mobile app.
@@ -42,7 +46,7 @@ class ClientReportService extends BaseService
             ->where('reporter_id', $reporter->id)
             ->whereIn('reportable_type', self::SUBJECT_TYPES)
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->with(['reportable' => fn (MorphTo $morph) => $this->loadSubjects($morph)])
+            ->with(['reportable' => fn (MorphTo $morph) => $this->loadSubjects($morph), 'attachments'])
             ->latest()
             ->paginate(max(1, min(100, (int) ($filters['per_page'] ?? 20))));
     }
@@ -52,11 +56,27 @@ class ClientReportService extends BaseService
         return Report::query()
             ->where('reporter_id', $reporter->id)
             ->whereKey($report->id)
-            ->with(['reportable' => fn (MorphTo $morph) => $this->loadSubjects($morph)])
+            ->with(['reportable' => fn (MorphTo $morph) => $this->loadSubjects($morph), 'attachments'])
             ->firstOrFail();
     }
 
-    public function create(User $reporter, array $data): Report
+    /** One of the reporter's own proof photos. */
+    public function attachment(User $reporter, Report $report, ReportAttachment $attachment): StreamedResponse
+    {
+        abort_unless(
+            (int) $report->reporter_id === (int) $reporter->id && (int) $attachment->report_id === (int) $report->id,
+            404,
+        );
+
+        return PrivateImages::stream(ReportAttachment::DISK, $attachment->path);
+    }
+
+    /**
+     * Files the report, with any [images] the reporter attached as proof.
+     *
+     * @param  array<int, UploadedFile>  $images
+     */
+    public function create(User $reporter, array $data, array $images = []): Report
     {
         [$subject, $context] = match (true) {
             ! empty($data['review_id']) => [$this->review($reporter, (int) $data['review_id']), 'Review'],
@@ -66,8 +86,10 @@ class ClientReportService extends BaseService
             default => $this->bookingCounterpart($reporter, (int) $data['booking_id']),
         };
 
+        $stored = PrivateImages::store($images, ReportAttachment::DISK, (string) $reporter->id);
+
         try {
-            return $this->transaction(function () use ($reporter, $subject, $context, $data): Report {
+            return $this->transaction(function () use ($reporter, $subject, $context, $data, $stored): Report {
                 $this->assertNoOpenReport($reporter, $subject);
 
                 $report = Report::query()->create([
@@ -87,9 +109,18 @@ class ClientReportService extends BaseService
                     $subject->update(['is_reported' => true, 'report_reason' => $data['reason']]);
                 }
 
-                return $report;
+                foreach ($stored as $photo) {
+                    $report->attachments()->create([...$photo, 'uploaded_by' => $reporter->id]);
+                }
+
+                return $report->load('attachments');
             });
-        } catch (QueryException $exception) {
+        } catch (\Throwable $exception) {
+            PrivateImages::delete(ReportAttachment::DISK, $stored);
+
+            if (! $exception instanceof QueryException) {
+                throw $exception;
+            }
             // Two submits racing past the check above meet the database's
             // one-open-report index; the loser gets the same answer as a check.
             if ($this->isDuplicateOpenReport($exception)) {

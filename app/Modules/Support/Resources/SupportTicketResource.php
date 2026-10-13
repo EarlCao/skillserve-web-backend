@@ -13,6 +13,8 @@ class SupportTicketResource extends BaseResource
             'ticket_number' => $this->ticket_number,
             'subject' => $this->subject,
             'description' => $this->description,
+            // Photos the requester sent with the ticket; each reply carries its own.
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->photos(null)),
             'category' => $this->category,
             'priority' => $this->priority,
             'status' => $this->status,
@@ -26,12 +28,25 @@ class SupportTicketResource extends BaseResource
             'messages' => $this->whenLoaded('messages', fn () => $this->messages->map(fn ($message) => [
                 'id' => $message->id,
                 'body' => $message->body,
+                'attachments' => $this->relationLoaded('attachments') ? $this->photos($message->id) : [],
                 'author' => $message->relationLoaded('author') ? $this->person($message->author) : null,
                 'created_at' => $message->created_at?->toIso8601String(),
             ])->values()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /** Photos, opened through the authorised download at download_path. */
+    private function photos(?int $messageId): array
+    {
+        return $this->attachmentsOf($messageId)->map(fn ($attachment): array => [
+            'id' => $attachment->id,
+            'mime_type' => $attachment->mime_type,
+            'size_bytes' => $attachment->size_bytes,
+            'download_path' => "/support/tickets/{$this->id}/attachments/{$attachment->id}",
+            'created_at' => $attachment->created_at?->toIso8601String(),
+        ])->all();
     }
 
     private function person(mixed $user): ?array

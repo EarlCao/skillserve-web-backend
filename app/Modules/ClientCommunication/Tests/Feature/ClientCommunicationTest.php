@@ -314,6 +314,72 @@ class ClientCommunicationTest extends TestCase
         $this->withToken($this->clientToken($this->customer()))->getJson("/api/reports/{$reportId}/message-image")->assertForbidden();
     }
 
+    public function test_photos_on_a_support_ticket_and_its_replies_reach_support_staff(): void
+    {
+        Storage::fake('support_attachments');
+        $client = $this->customer();
+        $token = $this->clientToken($client);
+
+        $ticket = $this->withToken($token)
+            ->post('/api/client/v1/support/tickets', [
+                'subject' => 'Payment shows twice',
+                'description' => 'My GCash was charged twice, screenshot attached.',
+                'images' => [UploadedFile::fake()->image('gcash.png', 600, 1200)],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(1, 'data.attachments')
+            ->json('data');
+
+        // A reply can be a photo alone.
+        $reply = $this->withToken($token)
+            ->post("/api/client/v1/support/tickets/{$ticket['id']}/replies", [
+                'images' => [UploadedFile::fake()->image('receipt.jpg'), UploadedFile::fake()->image('bank.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.messages.0.body', '')
+            ->assertJsonCount(2, 'data.messages.0.attachments')
+            // The ticket's own photos stay with the ticket.
+            ->assertJsonCount(1, 'data.attachments')
+            ->json('data');
+
+        // Neither text nor photo is refused.
+        $this->withToken($token)
+            ->postJson("/api/client/v1/support/tickets/{$ticket['id']}/replies", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('body');
+
+        $this->assertCount(3, Storage::disk('support_attachments')->allFiles());
+        $this->get(parse_url($reply['messages'][0]['attachments'][0]['url'], PHP_URL_PATH))->assertOk();
+
+        // Another account cannot open them.
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))
+            ->get(parse_url($ticket['attachments'][0]['url'], PHP_URL_PATH), ['Accept' => 'application/json'])
+            ->assertNotFound();
+
+        // Support staff see them and open them.
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Permission::findOrCreate('view support', 'web');
+        $agent = User::factory()->create(['status' => 'active']);
+        $agent->assignRole(Role::findOrCreate('support-agent', 'web')->givePermissionTo('view support'));
+
+        Auth::forgetGuards();
+        $agentToken = $agent->createToken('admin-test')->plainTextToken;
+        $admin = $this->withToken($agentToken)
+            ->getJson("/api/support/tickets/{$ticket['id']}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.attachments')
+            ->assertJsonCount(2, 'data.messages.0.attachments')
+            ->json('data');
+        $this->withToken($agentToken)->get('/api'.$admin['messages'][0]['attachments'][1]['download_path'])->assertOk();
+
+        // Without the permission, nothing.
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))
+            ->getJson('/api'.$admin['attachments'][0]['download_path'])
+            ->assertForbidden();
+    }
+
     public function test_notifications_can_be_archived_restored_and_deleted_by_their_owner_only(): void
     {
         Event::fake([ClientNotificationsChanged::class]);

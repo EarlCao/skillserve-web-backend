@@ -17,7 +17,7 @@ export REVERB_SERVER_HOST=127.0.0.1 REVERB_SERVER_PORT=8080
 # evidence) live under storage/app. In production a Render persistent disk is
 # mounted there so they survive deploys; a new disk starts empty, so recreate
 # the folders the disks expect. See DEPLOYMENT.md → "Uploaded files".
-mkdir -p storage/app/public storage/app/private/dispute-evidence storage/app/private/message-images 2>/dev/null || true
+mkdir -p storage/app/public storage/app/private/dispute-evidence storage/app/private/message-images storage/app/private/report-attachments storage/app/private/support-attachments 2>/dev/null || true
 if ! touch storage/app/.write-check 2>/dev/null; then
     echo "WARNING: storage/app is not writable by $(id -un); uploads will fail. Check the Render disk mount." >&2
 else

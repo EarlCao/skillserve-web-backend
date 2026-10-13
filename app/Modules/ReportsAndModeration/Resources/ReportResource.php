@@ -38,6 +38,15 @@ class ReportResource extends BaseResource
             'action_taken_by' => $this->whenLoaded('actionTakenBy', fn () => $this->actor($this->actionTakenBy)),
             'action_taken_at' => $this->action_taken_at?->toIso8601String(),
             'action_note' => $this->action_note,
+            // Photos the reporter sent as proof; opened through the authorised
+            // download at download_path.
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map(fn ($attachment): array => [
+                'id' => $attachment->id,
+                'mime_type' => $attachment->mime_type,
+                'size_bytes' => $attachment->size_bytes,
+                'download_path' => "/reports/{$this->id}/attachments/{$attachment->id}",
+                'created_at' => $attachment->created_at?->toIso8601String(),
+            ])->values()->all()),
             'reporter' => $this->whenLoaded('reporter', fn () => $this->reporter ? [
                 'id' => $this->reporter->id,
                 'name' => $this->reporter->name,

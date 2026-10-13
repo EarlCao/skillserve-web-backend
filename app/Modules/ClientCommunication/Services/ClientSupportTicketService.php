@@ -7,9 +7,13 @@ use App\Modules\ClientCommunication\Actions\CreateSupportTicketAction;
 use App\Modules\Support\Actions\AddSupportTicketResponseAction;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
 use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use App\Shared\Helpers\PageSize;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Services\BaseService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ClientSupportTicketService extends BaseService
 {
@@ -33,13 +37,27 @@ class ClientSupportTicketService extends BaseService
             ->paginate($this->perPage($filters));
     }
 
-    public function create(User $client, array $data): SupportTicket
+    /**
+     * Raises a ticket, with any [images] attached to it.
+     *
+     * @param  array<int, UploadedFile>  $images
+     */
+    public function create(User $client, array $data, array $images = []): SupportTicket
     {
-        return $this->transaction(function () use ($client, $data): SupportTicket {
-            return $this->createAction
-                ->handle($client, $data)
-                ->load($this->relations(true));
-        });
+        $stored = PrivateImages::store($images, SupportTicketAttachment::DISK, (string) $client->id);
+
+        try {
+            return $this->transaction(function () use ($client, $data, $stored): SupportTicket {
+                $ticket = $this->createAction->handle($client, $data);
+                $this->attach($ticket, null, $client, $stored);
+
+                return $ticket->load($this->relations(true));
+            });
+        } catch (\Throwable $exception) {
+            PrivateImages::delete(SupportTicketAttachment::DISK, $stored);
+
+            throw $exception;
+        }
     }
 
     public function show(User $client, SupportTicket $ticket): SupportTicket
@@ -47,16 +65,51 @@ class ClientSupportTicketService extends BaseService
         return $this->ownedTicket($client, $ticket)->load($this->relations(true));
     }
 
-    public function reply(User $client, SupportTicket $ticket, string $body): SupportTicket
+    /**
+     * Adds the requester's reply: text, [images], or both.
+     *
+     * @param  array<int, UploadedFile>  $images
+     */
+    public function reply(User $client, SupportTicket $ticket, ?string $body, array $images = []): SupportTicket
     {
-        return $this->transaction(function () use ($client, $ticket, $body): SupportTicket {
-            $ticket = $this->ownedTicket($client, $ticket);
-            $message = $this->responseAction->handle($ticket, $client, $body);
-            $ticket = $ticket->fresh($this->relations(true));
-            event(new SupportTicketResponseAdded($ticket, $message, $client));
+        $ticket = $this->ownedTicket($client, $ticket);
+        $stored = PrivateImages::store($images, SupportTicketAttachment::DISK, (string) $client->id);
 
-            return $ticket;
-        });
+        try {
+            return $this->transaction(function () use ($client, $ticket, $body, $stored): SupportTicket {
+                $message = $this->responseAction->handle($ticket, $client, (string) $body);
+                $this->attach($ticket, $message->id, $client, $stored);
+                $ticket = $ticket->fresh($this->relations(true));
+                event(new SupportTicketResponseAdded($ticket, $message, $client));
+
+                return $ticket;
+            });
+        } catch (\Throwable $exception) {
+            PrivateImages::delete(SupportTicketAttachment::DISK, $stored);
+
+            throw $exception;
+        }
+    }
+
+    /** One of the photos on the requester's own ticket. */
+    public function attachment(User $client, SupportTicket $ticket, SupportTicketAttachment $attachment): StreamedResponse
+    {
+        $ticket = $this->ownedTicket($client, $ticket);
+        abort_unless((int) $attachment->support_ticket_id === (int) $ticket->id, 404);
+
+        return PrivateImages::stream(SupportTicketAttachment::DISK, $attachment->path);
+    }
+
+    /** @param  array<int, array{path: string, mime_type: string, size_bytes: int}>  $stored */
+    private function attach(SupportTicket $ticket, ?int $messageId, User $uploader, array $stored): void
+    {
+        foreach ($stored as $photo) {
+            $ticket->attachments()->create([
+                ...$photo,
+                'support_ticket_message_id' => $messageId,
+                'uploaded_by' => $uploader->id,
+            ]);
+        }
     }
 
     private function ownedTicket(User $client, SupportTicket $ticket): SupportTicket
@@ -70,7 +123,7 @@ class ClientSupportTicketService extends BaseService
     private function relations(bool $withMessages): array
     {
         return $withMessages
-            ? ['requester:id,name,role_id', 'messages.author:id,name']
+            ? ['requester:id,name,role_id', 'messages.author:id,name', 'attachments']
             : ['requester:id,name,role_id'];
     }
 
