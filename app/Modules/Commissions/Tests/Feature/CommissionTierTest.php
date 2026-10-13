@@ -133,7 +133,7 @@ class CommissionTierTest extends TestCase
             'percentage' => 12,
         ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors('min_amount');
+            ->assertJsonPath('errors.min_amount.0', 'Another tier already has this price range ("Standard", 200.00–499.99).');
 
         $this->assertDatabaseMissing('commission_tiers', ['name' => 'Clashing']);
     }

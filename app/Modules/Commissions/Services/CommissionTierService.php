@@ -241,7 +241,7 @@ class CommissionTierService extends BaseService
 
         throw ValidationException::withMessages([
             'min_amount' => [sprintf(
-                'This range overlaps the active tier "%s" (%s–%s).',
+                'Another tier already has this price range ("%s", %s–%s).',
                 $clash->name,
                 number_format((float) $clash->min_amount, 2, '.', ''),
                 $clash->max_amount === null ? 'above' : number_format((float) $clash->max_amount, 2, '.', ''),
@@ -269,7 +269,7 @@ class CommissionTierService extends BaseService
             }
 
             throw ValidationException::withMessages([
-                'min_amount' => ['This range overlaps an active commission tier. Reload the page and try again.'],
+                'min_amount' => ['Another tier already has this price range. Reload the page and try again.'],
             ]);
         }
     }
