@@ -31,7 +31,7 @@ class ProviderServiceService extends BaseService
         'duration', 'location', 'status', 'approval_status', 'is_featured', 'is_hidden',
     ];
 
-    private const RELATIONS = ['category:id,name', 'subcategory:id,name', 'provider:id,business_name,average_rating,total_reviews'];
+    private const RELATIONS = ['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name,average_rating,total_reviews', 'provider.user:id,name,profile_photo_path'];
 
     public function __construct(
         private readonly CreateServiceAction $createServiceAction,

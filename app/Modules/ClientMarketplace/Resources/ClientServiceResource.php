@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Resources\BaseResource;
@@ -37,6 +38,8 @@ class ClientServiceResource extends BaseResource
             'provider' => $this->whenLoaded('provider', fn () => $this->provider ? [
                 'id' => $this->provider->id,
                 'business_name' => $this->provider->business_name,
+                'display_name' => $this->provider->displayName(),
+                'profile_photo_url' => ClientProfileService::photoUrl($this->provider->user?->profile_photo_path),
                 'average_rating' => $this->provider->average_rating,
                 'total_reviews' => $this->provider->total_reviews,
             ] : null),

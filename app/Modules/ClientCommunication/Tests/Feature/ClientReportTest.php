@@ -35,7 +35,8 @@ class ClientReportTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.reason', 'no_show')
             ->assertJsonPath('data.status', 'pending')
-            ->assertJsonPath('data.reported.name', $providerUser->name)
+            // Named as the marketplace names them: the business, not the person.
+            ->assertJsonPath('data.reported.name', 'Reported Provider')
             // Nothing has been decided yet, so there is no outcome to show.
             ->assertJsonPath('data.outcome', null);
 
@@ -296,6 +297,68 @@ class ClientReportTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_a_provider_can_be_reported_from_their_public_profile_without_a_booking(): void
+    {
+        $customer = $this->customer();
+        [$provider, $providerUser] = $this->provider();
+
+        $data = $this->withToken($this->clientToken($customer))
+            ->postJson('/api/client/v1/reports', [
+                'provider_id' => $provider->id,
+                'reason' => 'misleading_information',
+                'description' => 'The profile claims licences they do not hold.',
+            ])
+            ->assertCreated()
+            // About the provider's account, like a booking report, but named
+            // by their business: a report must not reveal the person behind it.
+            ->assertJsonPath('data.subject_type', 'user')
+            ->assertJsonPath('data.reported.name', 'Reported Provider')
+            ->json('data');
+        $this->assertStringNotContainsString($providerUser->name, json_encode($data));
+
+        $report = Report::query()->findOrFail($data['id']);
+        $this->assertSame(User::class, $report->reportable_type);
+        $this->assertSame($providerUser->id, (int) $report->reportable_id);
+        $this->assertStringStartsWith('Provider profile "Reported Provider": ', $report->description);
+
+        // A second one while the first is open is a double submit.
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($customer))
+            ->postJson('/api/client/v1/reports', [
+                'provider_id' => $provider->id,
+                'reason' => 'other',
+                'description' => 'Reporting the same provider again.',
+            ])
+            ->assertStatus(409);
+    }
+
+    public function test_you_cannot_report_yourself_or_a_provider_the_public_cannot_see(): void
+    {
+        [$provider, $providerUser] = $this->provider();
+        $payload = fn () => ['provider_id' => $provider->id, 'reason' => 'other', 'description' => 'Reporting this provider profile.'];
+
+        $this->withToken($providerUser->createToken('provider', ['client:auth'])->plainTextToken)
+            ->postJson('/api/client/v1/reports', $payload())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['provider_id']);
+
+        Auth::forgetGuards();
+        $provider->update(['suspended_at' => now()]);
+        $this->withToken($this->clientToken($this->customer()))
+            ->postJson('/api/client/v1/reports', $payload())
+            ->assertNotFound();
+
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))
+            ->postJson('/api/client/v1/reports', ['provider_id' => 999999, 'reason' => 'other', 'description' => 'Nobody by this id at all.'])
+            ->assertNotFound();
+
+        Auth::forgetGuards();
+        $this->flushHeaders()->postJson('/api/client/v1/reports', $payload())->assertUnauthorized();
+
+        $this->assertDatabaseCount('reports', 0);
+    }
+
     public function test_you_cannot_report_your_own_review_or_a_hidden_one(): void
     {
         $author = $this->customer();
@@ -386,6 +449,16 @@ class ClientReportTest extends TestCase
             ->postJson('/api/client/v1/reports', [
                 'booking_id' => $booking->id,
                 'review_id' => $review->id,
+                'reason' => 'other',
+                'description' => 'Two subjects at once.',
+            ])
+            ->assertStatus(422);
+
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($client))
+            ->postJson('/api/client/v1/reports', [
+                'service_id' => $booking->service_id,
+                'provider_id' => $provider->id,
                 'reason' => 'other',
                 'description' => 'Two subjects at once.',
             ])

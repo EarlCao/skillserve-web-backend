@@ -95,6 +95,76 @@ class ClientMarketplaceTest extends TestCase
         $this->assertSame(1, $categories[$repair->id]['provider_count']);
     }
 
+    public function test_a_provider_without_a_business_name_is_shown_and_found_by_their_own_name(): void
+    {
+        [$provider, $providerUser] = $this->provider(['business_name' => '']);
+        $providerUser->update(['name' => 'Maria Santos']);
+        $category = $this->category('Tutoring');
+        $service = $this->service($provider, $category, ['title' => 'Algebra lessons']);
+
+        $this->getJson('/api/client/v1/providers?search=santos')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('data.0.display_name', 'Maria Santos')
+            ->assertJsonPath('data.0.profile_photo_url', null)
+            ->assertJsonMissingPath('data.0.user');
+
+        $this->getJson("/api/client/v1/services/{$service->id}")
+            ->assertOk()
+            ->assertJsonPath('data.provider.display_name', 'Maria Santos');
+
+        // Searching the person's name also finds what they offer.
+        $this->getJson('/api/client/v1/services?search=maria')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('data.0.id', $service->id);
+
+        // A business name, when given, is what customers see.
+        $provider->update(['business_name' => 'Santos Tutorials']);
+        $this->getJson("/api/client/v1/providers/{$provider->id}")
+            ->assertOk()
+            ->assertJsonPath('data.display_name', 'Santos Tutorials');
+    }
+
+    public function test_search_matches_every_place_a_keyword_can_appear(): void
+    {
+        [$repairer] = $this->provider(['business_name' => 'Fix-It Shop']);
+        [$tutor] = $this->provider(['business_name' => 'Bright Minds', 'skills' => ['soldering', 'arduino']]);
+        $electronics = $this->category('Electronics');
+        $tutoring = $this->category('Tutoring');
+        $gadgets = ServiceSubcategory::create(['category_id' => $tutoring->id, 'name' => 'Gadget basics', 'status' => 'enabled']);
+
+        $laptop = $this->service($repairer, $electronics, ['title' => 'Laptop repair', 'location' => 'Cebu City']);
+        $phone = $this->service($repairer, $electronics, ['title' => 'Phone screen fix', 'location' => 'Iloilo City']);
+        $lesson = $this->service($tutor, $tutoring, ['title' => 'Intro lesson', 'subcategory_id' => $gadgets->id]);
+        $this->service($tutor, $tutoring, ['title' => 'Electronics theory', 'is_hidden' => true]);
+
+        $ids = fn (string $path): array => collect($this->getJson($path)->assertOk()->json('data'))->pluck('id')->sort()->values()->all();
+
+        // A category name finds every service in it, in any letter case.
+        $this->assertSame([$laptop->id, $phone->id], $ids('/api/client/v1/services?search=ELECTRONICS'));
+        // Part of a word is enough.
+        $this->assertSame([$laptop->id, $phone->id], $ids('/api/client/v1/services?search=electro'));
+        // Subcategories and locations count too.
+        $this->assertSame([$lesson->id], $ids('/api/client/v1/services?search=gadget'));
+        // Every word has to match somewhere.
+        $this->assertSame([$laptop->id], $ids('/api/client/v1/services?search=electronics%20cebu'));
+        $this->assertSame([], $ids('/api/client/v1/services?search=electronics%20manila'));
+
+        // Providers are found through what they offer, their skills and name.
+        $this->assertSame([$repairer->id], $ids('/api/client/v1/providers?search=electronics'));
+        $this->assertSame([$repairer->id], $ids('/api/client/v1/providers?search=laptop'));
+        $this->assertSame([$tutor->id], $ids('/api/client/v1/providers?search=arduino'));
+        $this->assertSame([$tutor->id], $ids('/api/client/v1/providers?search=bright'));
+
+        // A hidden listing never makes its provider match.
+        $this->assertSame([], $ids('/api/client/v1/providers?search=theory'));
+
+        // LIKE wildcards are matched literally, not as "anything".
+        $this->assertSame([], $ids('/api/client/v1/services?search=%25'));
+        $this->assertSame([], $ids('/api/client/v1/providers?search=_'));
+    }
+
     public function test_admin_tokens_cannot_use_client_bookings_and_clients_cannot_read_each_other(): void
     {
         $owner = $this->customer();

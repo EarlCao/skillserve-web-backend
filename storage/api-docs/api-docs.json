@@ -6580,7 +6580,7 @@
                     "Client Reports"
                 ],
                 "summary": "Report a person, a review or a message",
-                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller's own). Moderators review every report from the admin console. One open report per subject per reporter.",
+                "description": "Send exactly one subject. `booking_id` reports the other party on a booking the caller took part in; `review_id` reports a published review (not the caller's own); `message_id` reports a message the caller received; `service_id` reports a service listed in the marketplace (not the caller's own); `provider_id` reports a provider listed in the marketplace, from their public profile (not the caller themself) — the report is about the provider's account. Moderators review every report from the admin console. One open report per subject per reporter.",
                 "operationId": "c7856bfbe60e0f4d287c6af7118453dd",
                 "requestBody": {
                     "required": true,
@@ -6609,6 +6609,11 @@
                                     },
                                     "service_id": {
                                         "description": "Report this service listing",
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "provider_id": {
+                                        "description": "Report this provider (a provider profile id from the public catalog)",
                                         "type": "integer",
                                         "nullable": true
                                     },
@@ -7710,8 +7715,10 @@
                     {
                         "name": "search",
                         "in": "query",
+                        "description": "Keywords, case-insensitive. Every word must appear somewhere: the title, description or location, the category or subcategory name, or the provider's name, specialization, bio, location or skills. Part of a word matches.",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "maxLength": 100
                         }
                     },
                     {
@@ -7839,8 +7846,10 @@
                     {
                         "name": "search",
                         "in": "query",
+                        "description": "Keywords, case-insensitive. Every word must appear somewhere: the provider's display name (business or account name), specialization, bio, location or skills, or the title, description, category or subcategory of one of their public services. Part of a word matches.",
                         "schema": {
-                            "type": "string"
+                            "type": "string",
+                            "maxLength": 100
                         }
                     },
                     {
@@ -22197,6 +22206,16 @@
                     "business_name": {
                         "type": "string"
                     },
+                    "display_name": {
+                        "description": "What to call the provider: the business name, or the account holder's name when no business name was given",
+                        "type": "string"
+                    },
+                    "profile_photo_url": {
+                        "description": "The provider's account photo, used as their avatar",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
                     "average_rating": {
                         "type": "string",
                         "example": "4.50"
@@ -22219,6 +22238,16 @@
                     },
                     "business_name": {
                         "type": "string"
+                    },
+                    "display_name": {
+                        "description": "What to call the provider: the business name, or the account holder's name when no business name was given",
+                        "type": "string"
+                    },
+                    "profile_photo_url": {
+                        "description": "The provider's account photo, used as their avatar",
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
                     },
                     "bio": {
                         "type": "string",

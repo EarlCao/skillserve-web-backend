@@ -15,6 +15,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class ClientCatalogService extends BaseService
 {
+    /** Words beyond this are ignored, so one search cannot build a huge query. */
+    private const MAX_SEARCH_WORDS = 8;
+
     public function categories(array $filters): LengthAwarePaginator
     {
         return ServiceCategory::query()
@@ -47,7 +50,8 @@ class ClientCatalogService extends BaseService
             ->with([
                 'category:id,name',
                 'subcategory:id,name',
-                'provider:id,business_name,average_rating,total_reviews',
+                'provider:id,user_id,business_name,average_rating,total_reviews',
+                'provider.user:id,name,profile_photo_path',
             ]);
 
         $this->applyServiceFilters($query, $filters);
@@ -66,7 +70,8 @@ class ClientCatalogService extends BaseService
             ->with([
                 'category:id,name',
                 'subcategory:id,name',
-                'provider:id,business_name,average_rating,total_reviews',
+                'provider:id,user_id,business_name,average_rating,total_reviews',
+                'provider.user:id,name,profile_photo_path',
                 'reviews' => fn ($query) => $query
                     ->where('status', 'active')
                     ->with('reviewer:id,name')
@@ -80,13 +85,8 @@ class ClientCatalogService extends BaseService
     {
         $query = $this->publicProvidersQuery();
 
-        if ($search = trim((string) ($filters['search'] ?? ''))) {
-            $term = '%'.mb_strtolower($search).'%';
-            $query->where(function ($builder) use ($term): void {
-                $builder->whereRaw('LOWER(business_name) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(specialization) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(location) LIKE ?', [$term]);
-            });
+        foreach ($this->searchTerms($filters) as $term) {
+            $query->where(fn (Builder $builder) => $this->matchProvider($builder, $term));
         }
 
         if (array_key_exists('featured', $filters) && $filters['featured'] !== null) {
@@ -162,7 +162,7 @@ class ClientCatalogService extends BaseService
     {
         $service = $this->publicServicesQuery()
             ->whereKey($serviceId)
-            ->with(['provider:id,business_name,average_rating,total_reviews'])
+            ->with(['provider:id,user_id,business_name,average_rating,total_reviews', 'provider.user:id,name,profile_photo_path'])
             ->first();
 
         if (! $service) {
@@ -232,6 +232,9 @@ class ClientCatalogService extends BaseService
             ->select('provider_profiles.*')
             ->addSelect(['primary_category' => $primaryCategory])
             ->withMin(['services as starting_price' => fn ($query) => $this->applyPublicServiceFilters($query)], 'price')
+            // The account name stands in for a missing business name, and the
+            // account photo is the provider's avatar on cards and the profile.
+            ->with('user:id,name,profile_photo_path')
             ->where('verification_status', 'verified')
             ->whereNull('suspended_at')
             ->whereHas('user', fn ($query) => $this->applyDiscoverableUserFilters($query));
@@ -258,14 +261,8 @@ class ClientCatalogService extends BaseService
 
     private function applyServiceFilters(Builder $query, array $filters): void
     {
-        if ($search = trim((string) ($filters['search'] ?? ''))) {
-            $term = '%'.mb_strtolower($search).'%';
-            $query->where(function ($builder) use ($term): void {
-                $builder->whereRaw('LOWER(title) LIKE ?', [$term])
-                    ->orWhereRaw('LOWER(description) LIKE ?', [$term])
-                    ->orWhereHas('provider', fn ($providerQuery) => $providerQuery
-                        ->whereRaw('LOWER(business_name) LIKE ?', [$term]));
-            });
+        foreach ($this->searchTerms($filters) as $term) {
+            $query->where(fn (Builder $builder) => $this->matchService($builder, $term));
         }
 
         foreach (['category_id', 'subcategory_id', 'provider_id'] as $field) {
@@ -287,6 +284,83 @@ class ClientCatalogService extends BaseService
         }
 
         $this->applyRatingFilter($query, $filters);
+    }
+
+    /**
+     * The search as LIKE patterns, one per word. Every word has to match
+     * somewhere — "laptop cebu" finds a laptop service in Cebu — and a word
+     * matches anywhere inside a field, so "electronic" finds "Electronics".
+     * LIKE wildcards the customer typed are matched literally, escaped with
+     * "!" — a backslash would also need escaping for PDO's placeholder parser
+     * on PostgreSQL.
+     *
+     * @return array<int, string>
+     */
+    private function searchTerms(array $filters): array
+    {
+        $search = mb_strtolower(trim((string) ($filters['search'] ?? '')));
+        $words = array_unique(preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: []);
+
+        return array_map(
+            fn (string $word): string => '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $word).'%',
+            array_slice($words, 0, self::MAX_SEARCH_WORDS),
+        );
+    }
+
+    /**
+     * A service matches a word through anything a customer sees on its card or
+     * detail page: its own text, its category and subcategory, and who offers
+     * it.
+     */
+    private function matchService(Builder $query, string $term): void
+    {
+        $this->whereContains($query, ['title', 'description', 'location'], $term);
+        $query->orWhereHas('category', fn (Builder $categoryQuery) => $this->whereContains($categoryQuery, ['name'], $term))
+            ->orWhereHas('subcategory', fn (Builder $subcategoryQuery) => $this->whereContains($subcategoryQuery, ['name'], $term))
+            ->orWhereHas('provider', fn (Builder $providerQuery) => $providerQuery
+                ->where(fn (Builder $builder) => $this->matchProviderIdentity($builder, $term)));
+    }
+
+    /**
+     * A provider matches a word through their name and profile, or through
+     * any service they publish — so searching "electronics" lists the people
+     * who offer electronics work, not only the listings.
+     */
+    private function matchProvider(Builder $query, string $term): void
+    {
+        $this->matchProviderIdentity($query, $term);
+        $query->orWhereHas('services', fn (Builder $serviceQuery) => $this->applyPublicServiceFilters($serviceQuery)
+            ->where(function (Builder $builder) use ($term): void {
+                $this->whereContains($builder, ['title', 'description'], $term);
+                $builder->orWhereHas('category', fn (Builder $categoryQuery) => $this->whereContains($categoryQuery, ['name'], $term))
+                    ->orWhereHas('subcategory', fn (Builder $subcategoryQuery) => $this->whereContains($subcategoryQuery, ['name'], $term));
+            }));
+    }
+
+    /**
+     * The provider's own name and profile text, including their account name.
+     * Callers wrap it in a group: it ends in an OR.
+     */
+    private function matchProviderIdentity(Builder $query, string $term): void
+    {
+        $this->whereContains($query, ['business_name', 'specialization', 'bio', 'location', 'CAST(skills AS TEXT)'], $term);
+        $query->orWhereHas('user', fn (Builder $userQuery) => $this->whereContains($userQuery, ['name'], $term));
+    }
+
+    /**
+     * Case-insensitive "contains" over [columns], OR-ed inside a group of its
+     * own — inside a whereHas the OR must not reach the relation's join
+     * condition. Columns are fixed names from this class, never input.
+     *
+     * @param  array<int, string>  $columns
+     */
+    private function whereContains(Builder $query, array $columns, string $term): void
+    {
+        $query->where(function (Builder $group) use ($columns, $term): void {
+            foreach ($columns as $column) {
+                $group->orWhereRaw("LOWER({$column}) LIKE ? ESCAPE '!'", [$term]);
+            }
+        });
     }
 
     /**

@@ -159,6 +159,19 @@ class ProviderProfile extends Model
     }
 
     /**
+     * The name customers know the provider by: the business name when one was
+     * given, otherwise the account holder's own name. Registration leaves the
+     * business name optional, so without the fallback many providers would
+     * appear — and be searchable — as a blank.
+     */
+    public function displayName(): string
+    {
+        $businessName = trim((string) $this->business_name);
+
+        return $businessName !== '' ? $businessName : trim((string) $this->user?->name);
+    }
+
+    /**
      * Whether the provider is verified.
      */
     public function isVerified(): bool

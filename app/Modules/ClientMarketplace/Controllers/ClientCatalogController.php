@@ -65,7 +65,7 @@ class ClientCatalogController extends Controller
         summary: 'List bookable published services',
         tags: ['Client Marketplace'],
         parameters: [
-            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'search', in: 'query', description: 'Keywords, case-insensitive. Every word must appear somewhere: the title, description or location, the category or subcategory name, or the provider\'s name, specialization, bio, location or skills. Part of a word matches.', schema: new OA\Schema(type: 'string', maxLength: 100)),
             new OA\Parameter(name: 'category_id', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'subcategory_id', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'provider_id', in: 'query', schema: new OA\Schema(type: 'integer')),
@@ -108,7 +108,7 @@ class ClientCatalogController extends Controller
         summary: 'List verified active providers',
         tags: ['Client Marketplace'],
         parameters: [
-            new OA\Parameter(name: 'search', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'search', in: 'query', description: 'Keywords, case-insensitive. Every word must appear somewhere: the provider\'s display name (business or account name), specialization, bio, location or skills, or the title, description, category or subcategory of one of their public services. Part of a word matches.', schema: new OA\Schema(type: 'string', maxLength: 100)),
             new OA\Parameter(name: 'category_id', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'subcategory_id', in: 'query', schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'featured', in: 'query', description: 'Only providers administrators have featured', schema: new OA\Schema(type: 'boolean')),

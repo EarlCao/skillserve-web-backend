@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Shared\Resources\BaseResource;
 
 class ClientProviderResource extends BaseResource
@@ -11,6 +12,11 @@ class ClientProviderResource extends BaseResource
         return [
             'id' => $this->id,
             'business_name' => $this->business_name,
+            // What to call the provider: the business name, or the account
+            // holder's name when no business name was given. Name and photo
+            // only — the owning account itself is never exposed.
+            'display_name' => $this->resource->displayName(),
+            'profile_photo_url' => ClientProfileService::photoUrl($this->user?->profile_photo_path),
             'bio' => $this->bio,
             'specialization' => $this->specialization,
             'experience_years' => $this->experience_years,

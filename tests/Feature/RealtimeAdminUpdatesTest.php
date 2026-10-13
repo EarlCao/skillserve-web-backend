@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
+use App\Modules\Services\Models\Service;
 use App\Shared\Realtime\AdminDataChanged;
+use App\Shared\Realtime\MarketplaceChanged;
 use App\Shared\Realtime\RealtimeChangeTracker;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
@@ -80,6 +84,69 @@ class RealtimeAdminUpdatesTest extends TestCase
             AdminDataChanged::class,
             fn (AdminDataChanged $event) => $event->resources === ['service-categories', 'users'],
         );
+    }
+
+    public function test_catalog_changes_also_tell_the_mobile_marketplace_once(): void
+    {
+        Event::fake([AdminDataChanged::class, MarketplaceChanged::class]);
+
+        $category = ServiceCategory::create(['name' => 'Electronics', 'status' => 'enabled']);
+        $user = User::factory()->create(['user_type' => 'provider']);
+        $provider = ProviderProfile::create(['user_id' => $user->id, 'business_name' => 'Fix-It', 'verification_status' => 'verified']);
+        Service::create([
+            'provider_id' => $provider->id,
+            'category_id' => $category->id,
+            'title' => 'Laptop repair',
+            'price' => 500,
+            'price_type' => 'fixed',
+            'currency' => 'PHP',
+            'status' => 'published',
+            'approval_status' => 'approved',
+        ]);
+        app(RealtimeChangeTracker::class)->flush();
+
+        Event::assertDispatchedTimes(MarketplaceChanged::class, 1);
+        Event::assertDispatched(
+            MarketplaceChanged::class,
+            fn (MarketplaceChanged $event) => $event->resources === ['categories', 'providers', 'services'],
+        );
+    }
+
+    public function test_only_account_changes_customers_can_see_refresh_the_marketplace(): void
+    {
+        $user = User::factory()->create(['user_type' => 'provider']);
+        app(RealtimeChangeTracker::class)->flush();
+        Event::fake([MarketplaceChanged::class]);
+
+        // Signing in writes the users table but changes nothing public.
+        $user->forceFill(['last_login_at' => now()])->save();
+        app(RealtimeChangeTracker::class)->flush();
+        Event::assertNotDispatched(MarketplaceChanged::class);
+
+        // Customers never appear in the catalog, whatever changes.
+        $customer = User::factory()->create(['user_type' => 'customer']);
+        app(RealtimeChangeTracker::class)->flush();
+        $customer->update(['name' => 'Renamed Customer', 'status' => 'suspended']);
+        app(RealtimeChangeTracker::class)->flush();
+        Event::assertNotDispatched(MarketplaceChanged::class);
+
+        // A new name is shown on the provider's cards.
+        $user->update(['name' => 'New Display Name']);
+        app(RealtimeChangeTracker::class)->flush();
+        Event::assertDispatched(
+            MarketplaceChanged::class,
+            fn (MarketplaceChanged $event) => $event->resources === ['providers'],
+        );
+    }
+
+    public function test_the_marketplace_channel_is_public(): void
+    {
+        $event = new MarketplaceChanged(['services']);
+
+        $this->assertSame([MarketplaceChanged::CHANNEL], array_map(fn ($channel) => $channel->name, $event->broadcastOn()));
+        $this->assertNotInstanceOf(PrivateChannel::class, $event->broadcastOn()[0]);
+        $this->assertSame('marketplace.changed', $event->broadcastAs());
+        $this->assertSame(['resources' => ['services']], $event->broadcastWith());
     }
 
     public function test_unreachable_websocket_server_does_not_fail_the_write(): void

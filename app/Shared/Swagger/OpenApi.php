@@ -279,6 +279,8 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'business_name', type: 'string'),
+        new OA\Property(property: 'display_name', type: 'string', description: 'What to call the provider: the business name, or the account holder\'s name when no business name was given'),
+        new OA\Property(property: 'profile_photo_url', type: 'string', format: 'uri', nullable: true, description: 'The provider\'s account photo, used as their avatar'),
         new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
         new OA\Property(property: 'total_reviews', type: 'integer', nullable: true),
         new OA\Property(property: 'total_bookings', type: 'integer', nullable: true),
@@ -289,6 +291,8 @@ use OpenApi\Attributes as OA;
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'business_name', type: 'string'),
+        new OA\Property(property: 'display_name', type: 'string', description: 'What to call the provider: the business name, or the account holder\'s name when no business name was given'),
+        new OA\Property(property: 'profile_photo_url', type: 'string', format: 'uri', nullable: true, description: 'The provider\'s account photo, used as their avatar'),
         new OA\Property(property: 'bio', type: 'string', nullable: true),
         new OA\Property(property: 'specialization', type: 'string', nullable: true),
         new OA\Property(property: 'experience_years', type: 'integer', nullable: true),

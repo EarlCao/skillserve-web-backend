@@ -27,7 +27,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
  *   or ban);
  * - a published review (a Review — hide or remove), because reviews are public;
  * - a message the reporter received (a Message — remove);
- * - a service listing anyone can see in the marketplace (a Service — hide).
+ * - a service listing anyone can see in the marketplace (a Service — hide);
+ * - a provider anyone can see in the marketplace, from their public profile
+ *   (the provider's User — warn, suspend or ban, like a booking report).
  */
 class ClientReportService extends BaseService
 {
@@ -60,6 +62,7 @@ class ClientReportService extends BaseService
             ! empty($data['review_id']) => [$this->review($reporter, (int) $data['review_id']), 'Review'],
             ! empty($data['message_id']) => [$this->message($reporter, (int) $data['message_id']), 'Message'],
             ! empty($data['service_id']) => $this->service($reporter, (int) $data['service_id']),
+            ! empty($data['provider_id']) => $this->provider($reporter, (int) $data['provider_id']),
             default => $this->bookingCounterpart($reporter, (int) $data['booking_id']),
         };
 
@@ -181,6 +184,36 @@ class ClientReportService extends BaseService
     }
 
     /**
+     * Any provider listed in the marketplace, except the reporter themself. The
+     * report is about the provider's account — the same subject a booking
+     * report names — so moderators can warn, suspend or ban it. A provider the
+     * public cannot see is reported as missing.
+     *
+     * @return array{0: User, 1: string}
+     */
+    private function provider(User $reporter, int $providerId): array
+    {
+        $provider = app(ClientCatalogService::class)
+            ->publicProvidersQuery()
+            ->whereKey($providerId)
+            ->first()
+            ?? throw new ApiException('Provider not found.', 404);
+
+        if ((int) $provider->user_id === (int) $reporter->id) {
+            throw new ApiException(
+                'You cannot report yourself.',
+                422,
+                errors: ['provider_id' => ['You cannot report your own profile.']],
+            );
+        }
+
+        $account = User::query()->find($provider->user_id)
+            ?? throw new ApiException('Provider not found.', 404);
+
+        return [$account, 'Provider profile "'.$provider->displayName().'"'];
+    }
+
+    /**
      * Only a message the reporter received. Their own messages, and other
      * people's conversations, are reported as missing.
      */
@@ -242,6 +275,7 @@ class ClientReportService extends BaseService
     private function loadSubjects(MorphTo $morph): void
     {
         $morph->morphWith([
+            User::class => ['providerProfile:id,user_id,business_name'],
             Review::class => ['reviewer:id,name'],
             Message::class => ['sender:id,name'],
             Service::class => ['provider:id,business_name'],

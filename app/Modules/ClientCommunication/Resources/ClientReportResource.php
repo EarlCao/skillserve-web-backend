@@ -59,6 +59,22 @@ class ClientReportResource extends BaseResource
     }
 
     /**
+     * A provider is named as the marketplace names them — their business name
+     * when they have one — so filing a report never reveals the personal name
+     * behind a business. Anyone else is named by their account.
+     */
+    private function personName(User $user): ?string
+    {
+        $profile = $user->providerProfile;
+
+        if ($profile === null) {
+            return $user->name;
+        }
+
+        return $profile->setRelation('user', $user)->displayName();
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     private function reportedShape(): ?array
@@ -66,7 +82,7 @@ class ClientReportResource extends BaseResource
         $target = $this->reportable;
 
         return match (true) {
-            $target instanceof User => ['name' => $target->name],
+            $target instanceof User => ['name' => $this->personName($target)],
             // The reporter already saw this text; it reminds them what they
             // flagged. Nothing else about the author is exposed.
             $target instanceof Review => [
