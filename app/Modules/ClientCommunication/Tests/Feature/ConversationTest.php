@@ -45,6 +45,8 @@ class ConversationTest extends TestCase
             ->assertJsonPath('data.0.service_title', 'Messaging service')
             // The customer sees the provider, by business name.
             ->assertJsonPath('data.0.counterpart.id', $providerUser->id)
+            // The customer can open the provider's public profile from the chat.
+            ->assertJsonPath('data.0.counterpart.provider_id', $booking->provider_id)
             ->assertJsonPath('data.0.counterpart.name', 'Test Provider')
             ->assertJsonPath('data.0.last_message.content', 'Are you free on Friday?')
             ->assertJsonPath('data.0.last_message.is_mine', true);
@@ -58,6 +60,7 @@ class ConversationTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 1)
             ->assertJsonPath('data.0.counterpart.id', $client->id)
+            ->assertJsonMissingPath('data.0.counterpart.provider_id')
             ->assertJsonPath('data.0.counterpart.name', $client->name)
             ->assertJsonPath('data.0.last_message.is_mine', false)
             ->assertJsonPath('data.0.unread_count', 1);

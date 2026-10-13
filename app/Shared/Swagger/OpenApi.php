@@ -476,7 +476,8 @@ use OpenApi\Attributes as OA;
     description: 'The other party on the booking, resolved against the signed-in account.',
     properties: [
         new OA\Property(property: 'id', type: 'integer', description: 'Their user id'),
-        new OA\Property(property: 'name', type: 'string', description: 'A provider\'s business name, or a customer\'s name'),
+        new OA\Property(property: 'provider_id', type: 'integer', nullable: true, description: 'Present only when the other party is the provider (the customer\'s view): their provider profile id, for GET /api/client/v1/providers/{provider}'),
+        new OA\Property(property: 'name', type: 'string', description: 'A provider\'s display name (business name, else account name), or a customer\'s name'),
         new OA\Property(property: 'profile_picture', type: 'string', nullable: true),
     ],
 )]

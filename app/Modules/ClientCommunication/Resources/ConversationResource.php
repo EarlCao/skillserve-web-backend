@@ -52,7 +52,9 @@ class ConversationResource extends BaseResource
 
         return [
             'id' => $provider->user_id,
-            'name' => $provider->business_name ?: $provider->user?->name,
+            // Their public profile, so the customer can open it from the chat.
+            'provider_id' => $provider->id,
+            'name' => $provider->displayName(),
             'profile_picture' => ClientProfileService::photoUrl($provider->user?->profile_photo_path),
         ];
     }
