@@ -23300,6 +23300,55 @@
                         "type": "string",
                         "example": "150.00"
                     },
+                    "commission_rate": {
+                        "description": "The rate recorded when the booking was made",
+                        "type": "string",
+                        "example": "10.00",
+                        "nullable": true
+                    },
+                    "net_amount": {
+                        "description": "total_price − platform_fee",
+                        "type": "string",
+                        "example": "1350.00"
+                    },
+                    "earnings": {
+                        "description": "What the provider gets, worked out by the commission ledger. A waived share leaves the whole price; a cancelled booking (voided) earns and owes nothing.",
+                        "properties": {
+                            "price": {
+                                "type": "string",
+                                "example": "1500.00"
+                            },
+                            "commission_rate": {
+                                "type": "string",
+                                "example": "10.00",
+                                "nullable": true
+                            },
+                            "commission": {
+                                "type": "string",
+                                "example": "150.00"
+                            },
+                            "provider_receives": {
+                                "type": "string",
+                                "example": "1350.00"
+                            },
+                            "commission_status": {
+                                "type": "string",
+                                "enum": [
+                                    "pending",
+                                    "outstanding",
+                                    "settled",
+                                    "waived",
+                                    "voided"
+                                ]
+                            },
+                            "commission_settled_at": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
                     "currency": {
                         "type": "string"
                     },

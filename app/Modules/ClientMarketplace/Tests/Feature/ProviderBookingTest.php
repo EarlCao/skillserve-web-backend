@@ -44,6 +44,43 @@ class ProviderBookingTest extends TestCase
         $this->assertArrayNotHasKey('email', $response->json('data.0.client'));
     }
 
+    public function test_a_provider_sees_exactly_what_they_receive_after_commission(): void
+    {
+        [$provider, , $token] = $this->provider();
+        $service = $this->service($provider);
+        $client = $this->client();
+
+        $booking = $this->booking($client, $service, [
+            'total_price' => 1500,
+            'platform_fee' => 150,
+            'commission_rate' => 10,
+            'commission_status' => 'outstanding',
+        ]);
+
+        $this->withToken($token)
+            ->getJson("/api/client/v1/provider/bookings/{$booking->id}")
+            ->assertOk()
+            ->assertJsonPath('data.earnings.price', '1500.00')
+            ->assertJsonPath('data.earnings.commission_rate', '10.00')
+            ->assertJsonPath('data.earnings.commission', '150.00')
+            ->assertJsonPath('data.earnings.provider_receives', '1350.00')
+            ->assertJsonPath('data.earnings.commission_status', 'outstanding');
+
+        // A waived share leaves the whole price with the provider.
+        $booking->update(['commission_status' => 'waived']);
+        $this->withToken($token)
+            ->getJson("/api/client/v1/provider/bookings/{$booking->id}")
+            ->assertJsonPath('data.earnings.commission', '0.00')
+            ->assertJsonPath('data.earnings.provider_receives', '1500.00');
+
+        // A cancelled booking earns and owes nothing.
+        $booking->update(['status' => 'cancelled', 'commission_status' => 'voided']);
+        $this->withToken($token)
+            ->getJson("/api/client/v1/provider/bookings/{$booking->id}")
+            ->assertJsonPath('data.earnings.commission', '0.00')
+            ->assertJsonPath('data.earnings.provider_receives', '0.00');
+    }
+
     public function test_the_booking_list_can_be_filtered_by_status_and_rejects_an_unknown_one(): void
     {
         [$provider, , $token] = $this->provider();

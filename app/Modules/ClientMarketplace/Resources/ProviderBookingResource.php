@@ -4,6 +4,7 @@ namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
+use App\Modules\Commissions\Services\CommissionLedger;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Resources\BaseResource;
 
@@ -39,6 +40,10 @@ class ProviderBookingResource extends BaseResource
                 round((float) $this->total_price - (float) $this->platform_fee, 2),
                 2, '.', '',
             ),
+            // The full sum for the provider — price, SkillServe's share and
+            // what they receive — with where that share stands (owed, paid,
+            // waived). Worked out by the commission ledger.
+            'earnings' => app(CommissionLedger::class)->breakdownFor($this->resource),
             'currency' => $this->currency,
             'payment_method' => $this->payment_method,
             'client_notes' => $this->client_notes,

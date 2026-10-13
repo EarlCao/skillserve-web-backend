@@ -255,6 +255,38 @@ class CommissionLedger extends BaseService
     }
 
     /** Bookings on which [$providerProfileId] still owes SkillServe. */
+    /**
+     * What the provider gets from one booking, with every step shown: the
+     * price the customer pays, SkillServe's share (the rate recorded when it
+     * was booked) and what is left for the provider — the one place this is
+     * worked out, so the app never does the sum itself.
+     *
+     * A waived share leaves the provider the whole price; a cancelled booking
+     * (voided) earns and owes nothing.
+     *
+     * @return array<string, mixed>
+     */
+    public function breakdownFor(Booking $booking): array
+    {
+        $price = round((float) $booking->total_price, 2);
+        $status = $booking->commission_status ?? self::PENDING;
+        $commission = in_array($status, [self::WAIVED, self::VOIDED], true)
+            ? 0.0
+            : round((float) $booking->platform_fee, 2);
+        $receives = $status === self::VOIDED ? 0.0 : max(0, round($price - $commission, 2));
+
+        $money = fn (float $amount): string => number_format($amount, 2, '.', '');
+
+        return [
+            'price' => $money($price),
+            'commission_rate' => $booking->commission_rate === null ? null : $money((float) $booking->commission_rate),
+            'commission' => $money($commission),
+            'provider_receives' => $money($receives),
+            'commission_status' => $status,
+            'commission_settled_at' => $booking->commission_settled_at?->toIso8601String(),
+        ];
+    }
+
     public function outstandingQuery(int $providerProfileId)
     {
         return Booking::query()
