@@ -22,6 +22,22 @@ class HealthCheckTest extends TestCase
             ->assertJsonPath('services.storage.status', 'up');
     }
 
+    public function test_health_warns_in_production_when_uploads_would_not_survive_a_restart(): void
+    {
+        // In the test container storage/app is not a separate mount.
+        $this->getJson('/api/health')
+            ->assertOk()
+            ->assertJsonPath('services.storage.persistent', false)
+            ->assertJsonMissingPath('services.storage.warning');
+
+        $this->app['env'] = 'production';
+        $this->getJson('/api/health')
+            ->assertJsonPath('services.storage.status', 'up')
+            ->assertJsonPath('services.storage.persistent', false)
+            ->assertJsonPath('status', 'ok');
+        $this->assertStringContainsString('persistent disk', $this->getJson('/api/health')->json('services.storage.warning'));
+    }
+
     public function test_a_database_failure_is_reported_without_its_error_text(): void
     {
         $default = config('database.default');

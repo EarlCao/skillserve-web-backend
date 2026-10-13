@@ -10,7 +10,6 @@ use App\Modules\Administrators\Requests\StoreAdministratorRequest;
 use App\Modules\Administrators\Requests\UpdateAdministratorRequest;
 use App\Modules\Administrators\Resources\AdministratorResource;
 use App\Modules\Administrators\Services\AdministratorService;
-use App\Modules\Administrators\Support\SystemRole;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -123,19 +122,19 @@ class AdministratorController extends Controller
     #[OA\Post(
         path: '/api/administrators',
         summary: 'Create an administrator',
+        description: 'Every new administrator gets the `admin` role — SkillServe has exactly one super administrator, which is never granted. `role` may be omitted; if sent it must be `admin`.',
         tags: ['Administrators'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
-                required: ['first_name', 'last_name', 'email', 'password', 'role'],
+                required: ['first_name', 'last_name', 'email', 'password'],
                 example: [
                     'first_name' => 'Jane',
                     'last_name' => 'Doe',
                     'email' => 'jane.doe@skillserve.test',
                     'password' => 'Secret#2026',
                     'password_confirmation' => 'Secret#2026',
-                    'role' => 'admin',
                 ],
                 properties: [
                     new OA\Property(property: 'first_name', type: 'string', example: 'Jane'),
@@ -143,7 +142,7 @@ class AdministratorController extends Controller
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane.doe@skillserve.test'),
                     new OA\Property(property: 'password', type: 'string', format: 'password', minLength: 8),
                     new OA\Property(property: 'password_confirmation', type: 'string', format: 'password'),
-                    new OA\Property(property: 'role', type: 'string', example: 'admin'),
+                    new OA\Property(property: 'role', type: 'string', enum: ['admin'], nullable: true, description: 'Optional; always admin'),
                 ],
             ),
         ),
@@ -227,10 +226,6 @@ class AdministratorController extends Controller
     public function store(StoreAdministratorRequest $request): JsonResponse
     {
         $this->authorize('create', User::class);
-
-        if ($request->validated('role') === SystemRole::SUPER_ADMIN) {
-            $this->authorize('assignSuperAdmin', User::class);
-        }
 
         $administrator = $this->administratorService->store(
             $request->validated(),
@@ -356,7 +351,7 @@ class AdministratorController extends Controller
                     new OA\Property(property: 'first_name', type: 'string', example: 'Jane'),
                     new OA\Property(property: 'last_name', type: 'string', example: 'Doe'),
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane.doe@skillserve.test'),
-                    new OA\Property(property: 'role', type: 'string', example: 'admin'),
+                    new OA\Property(property: 'role', type: 'string', example: 'admin', description: 'A staff role; never super-admin — there is exactly one super administrator'),
                     new OA\Property(property: 'status', type: 'string', enum: ['active', 'inactive']),
                 ],
             ),
@@ -470,7 +465,7 @@ class AdministratorController extends Controller
                     new OA\Property(property: 'first_name', type: 'string', example: 'Jane'),
                     new OA\Property(property: 'last_name', type: 'string', example: 'Doe'),
                     new OA\Property(property: 'email', type: 'string', format: 'email', example: 'jane.doe@skillserve.test'),
-                    new OA\Property(property: 'role', type: 'string', example: 'admin'),
+                    new OA\Property(property: 'role', type: 'string', example: 'admin', description: 'A staff role; never super-admin — there is exactly one super administrator'),
                     new OA\Property(property: 'status', type: 'string', enum: ['active', 'inactive']),
                 ],
             ),
@@ -565,10 +560,6 @@ class AdministratorController extends Controller
     public function update(UpdateAdministratorRequest $request, User $administrator): JsonResponse
     {
         $this->authorize('update', $administrator);
-
-        if ($request->validated('role') === SystemRole::SUPER_ADMIN) {
-            $this->authorize('assignSuperAdmin', User::class);
-        }
 
         $administrator = $this->administratorService->update(
             $administrator,

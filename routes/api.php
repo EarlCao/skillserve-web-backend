@@ -40,7 +40,15 @@ Route::get('/health', function () {
     // upload, so it counts as degraded like the database.
     $uploads = storage_path('app');
     if (is_dir($uploads) && is_writable($uploads)) {
-        $checks['services']['storage'] = ['status' => 'up'];
+        // A persistent disk is its own mount, so it sits on a different
+        // device from the folder above it. Without one, every upload (profile
+        // photos, portfolio, ID documents) is lost on the next restart or
+        // deploy — say so, in plain words, rather than report "up" alone.
+        $persistent = @stat($uploads)['dev'] !== @stat(dirname($uploads))['dev'];
+        $checks['services']['storage'] = ['status' => 'up', 'persistent' => $persistent];
+        if (! $persistent && app()->environment('production')) {
+            $checks['services']['storage']['warning'] = 'Uploads are not on a persistent disk: they are lost when the server restarts or redeploys. Attach a Render disk at /var/www/html/storage/app (DEPLOYMENT.md → Uploaded files).';
+        }
     } else {
         $checks['services']['storage'] = ['status' => 'down', 'error' => 'storage/app is not writable.'];
         $checks['status'] = 'degraded';

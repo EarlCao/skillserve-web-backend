@@ -21,7 +21,9 @@ class StoreAdministratorRequest extends BaseFormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'string', 'min:8', 'max:255', 'confirmed'],
-            'role' => ['required', 'string', Rule::exists('roles', 'name')->whereNotIn('id', AccountRole::accountTypeIds())],
+            // Every new administrator is an "admin": SkillServe has exactly one
+            // super administrator. The field is optional and may only say so.
+            'role' => ['sometimes', 'nullable', 'string', Rule::in([AccountRole::Admin->roleName()])],
         ];
     }
 
@@ -32,7 +34,7 @@ class StoreAdministratorRequest extends BaseFormRequest
     {
         return [
             'email.unique' => 'An administrator with this email already exists.',
-            'role.exists' => 'The selected role does not exist.',
+            'role.in' => 'New administrators always get the admin role.',
         ];
     }
 }
