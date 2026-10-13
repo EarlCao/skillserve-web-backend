@@ -4,8 +4,10 @@ namespace App\Modules\ClientMarketplace\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\ClientMarketplace\Requests\CatalogIndexRequest;
+use App\Modules\ClientMarketplace\Requests\ServiceReviewIndexRequest;
 use App\Modules\ClientMarketplace\Resources\ClientCategoryResource;
 use App\Modules\ClientMarketplace\Resources\ClientProviderResource;
+use App\Modules\ClientMarketplace\Resources\ClientReviewResource;
 use App\Modules\ClientMarketplace\Resources\ClientServiceResource;
 use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Modules\Providers\Models\ProviderProfile;
@@ -83,6 +85,29 @@ class ClientCatalogController extends Controller
             ClientServiceResource::class,
             'Services retrieved.',
         );
+    }
+
+    #[OA\Get(
+        path: '/api/client/v1/services/{service}/reviews',
+        summary: 'A public service\'s published reviews',
+        description: 'Newest first. `meta.rating` carries the service\'s rating (`average`), how many published reviews it has (`total`) and how many gave each star (`breakdown`, "5" down to "1") — always for all reviews, even when `rating` narrows the list. Hidden or removed reviews never appear.',
+        tags: ['Client Marketplace'],
+        parameters: [
+            new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'rating', in: 'query', description: 'Only reviews with this many stars', schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 5)),
+            new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 50, default: 10)),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Reviews', content: new OA\JsonContent(ref: '#/components/schemas/ClientServiceReviewListEnvelope')),
+            new OA\Response(response: 404, description: 'Service not found or unavailable'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ],
+    )]
+    public function serviceReviews(ServiceReviewIndexRequest $request, Service $service): JsonResponse
+    {
+        [$reviews, $meta] = $this->catalogService->serviceReviews($service, $request->validated());
+
+        return $this->paginated($reviews, ClientReviewResource::class, 'Reviews retrieved.', $meta);
     }
 
     #[OA\Get(

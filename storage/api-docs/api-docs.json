@@ -7801,6 +7801,64 @@
                 }
             }
         },
+        "/api/client/v1/services/{service}/reviews": {
+            "get": {
+                "tags": [
+                    "Client Marketplace"
+                ],
+                "summary": "A public service's published reviews",
+                "description": "Newest first. `meta.rating` carries the service's rating (`average`), how many published reviews it has (`total`) and how many gave each star (`breakdown`, \"5\" down to \"1\") — always for all reviews, even when `rating` narrows the list. Hidden or removed reviews never appear.",
+                "operationId": "ba1f96e61d903e3dffc7afbb8e97553d",
+                "parameters": [
+                    {
+                        "name": "service",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "rating",
+                        "in": "query",
+                        "description": "Only reviews with this many stars",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 5,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "default": 10,
+                            "maximum": 50,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reviews",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientServiceReviewListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Service not found or unavailable"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
         "/api/client/v1/services/{service}": {
             "get": {
                 "tags": [
@@ -9566,7 +9624,7 @@
                 "tags": [
                     "Provider Services"
                 ],
-                "summary": "Add a work sample to the provider's own portfolio",
+                "summary": "Add a piece of work, with its photos, to the provider's own portfolio",
                 "operationId": "889af871637de0881f88cf506b95a759",
                 "requestBody": {
                     "required": true,
@@ -9574,8 +9632,7 @@
                         "multipart/form-data": {
                             "schema": {
                                 "required": [
-                                    "title",
-                                    "image"
+                                    "title"
                                 ],
                                 "properties": {
                                     "title": {
@@ -9588,8 +9645,16 @@
                                         "nullable": true,
                                         "maxLength": 2000
                                     },
+                                    "images[]": {
+                                        "description": "1 to 10 photos, the first is the cover; JPG, PNG or WebP, at most 5 MB each",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
+                                    },
                                     "image": {
-                                        "description": "JPG, PNG or WebP, at most 5 MB",
+                                        "description": "A single photo, in place of images[] (older app versions)",
                                         "type": "string",
                                         "format": "binary"
                                     }
@@ -9673,6 +9738,201 @@
                     },
                     "404": {
                         "description": "Item not found, or it belongs to another provider"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "patch": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Change a portfolio item's title or description",
+                "operationId": "13b2a87cd635488de71784a972546f1e",
+                "parameters": [
+                    {
+                        "name": "item",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "maxLength": 255
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 2000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Item updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPortfolioEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Item not found, or it belongs to another provider"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/portfolio/{item}/images": {
+            "post": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Add photos to a portfolio item",
+                "description": "Appended after the item's current photos. An item holds at most 10.",
+                "operationId": "03f4af7f46ea03d2e21f75246bd5ecb8",
+                "parameters": [
+                    {
+                        "name": "item",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "images[]"
+                                ],
+                                "properties": {
+                                    "images[]": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        }
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Photos added",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPortfolioEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Item not found, or it belongs to another provider"
+                    },
+                    "422": {
+                        "description": "Validation error, or the item would hold more than 10 photos"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/portfolio/{item}/images/{image}": {
+            "delete": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "Remove one photo from a portfolio item",
+                "description": "An item keeps at least one photo (422 for the last one — delete the item instead). Removing the cover makes the next photo the cover.",
+                "operationId": "753eb11fa526ba8215840204dfa94821",
+                "parameters": [
+                    {
+                        "name": "item",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "image",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Photo removed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientPortfolioEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Item or photo not found"
+                    },
+                    "422": {
+                        "description": "It is the item's only photo"
                     }
                 },
                 "security": [
@@ -10091,6 +10351,57 @@
                     },
                     "422": {
                         "description": "Missing or invalid amount"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/statistics": {
+            "get": {
+                "tags": [
+                    "Provider Services"
+                ],
+                "summary": "The signed-in provider's performance statistics",
+                "description": "Computed from the provider's own bookings and reviews at request time. `monthly` holds one entry per calendar month in the business timezone (Asia/Manila), oldest first and ending with the current month: bookings completed (by completion date), bookings received (by creation date) and earnings (completed total price less SkillServe's fee, as on the Earnings screen). `summary.average_rating` is the provider's rating — the average of their services' ratings; `rating_breakdown` counts published reviews per star. `completion_rate` is completed / (completed + cancelled) in percent, null before either happens.",
+                "operationId": "e6c5f901f0b4dbcb7434937a8ed279e9",
+                "parameters": [
+                    {
+                        "name": "months",
+                        "in": "query",
+                        "description": "Calendar months the chart covers, ending with this one (default 6)",
+                        "schema": {
+                            "type": "integer",
+                            "maximum": 12,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Statistics",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProviderStatisticsEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified-email provider account required"
+                    },
+                    "404": {
+                        "description": "Provider profile not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -22147,6 +22458,192 @@
                     }
                 ]
             },
+            "ProviderStatistics": {
+                "description": "The signed-in provider's performance, computed at request time.",
+                "properties": {
+                    "summary": {
+                        "properties": {
+                            "average_rating": {
+                                "type": "string",
+                                "example": "4.60"
+                            },
+                            "total_reviews": {
+                                "type": "integer"
+                            },
+                            "total_bookings": {
+                                "type": "integer"
+                            },
+                            "completed_bookings": {
+                                "type": "integer"
+                            },
+                            "cancelled_bookings": {
+                                "type": "integer"
+                            },
+                            "pending_requests": {
+                                "type": "integer"
+                            },
+                            "active_bookings": {
+                                "description": "Confirmed or in progress",
+                                "type": "integer"
+                            },
+                            "completion_rate": {
+                                "type": "number",
+                                "format": "float",
+                                "example": 92.5,
+                                "nullable": true
+                            },
+                            "earnings_total": {
+                                "type": "string",
+                                "example": "12500.00"
+                            },
+                            "earnings_this_month": {
+                                "type": "string",
+                                "example": "3200.00"
+                            },
+                            "completed_this_month": {
+                                "type": "integer"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "status_breakdown": {
+                        "description": "Bookings per status",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        }
+                    },
+                    "monthly": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "month": {
+                                    "type": "string",
+                                    "example": "2026-10"
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "example": "Oct"
+                                },
+                                "year": {
+                                    "type": "integer",
+                                    "example": 2026
+                                },
+                                "completed": {
+                                    "type": "integer"
+                                },
+                                "received": {
+                                    "type": "integer"
+                                },
+                                "earnings": {
+                                    "type": "string",
+                                    "example": "3200.00"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "rating_breakdown": {
+                        "description": "Published reviews per star, \"5\" down to \"1\"",
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer"
+                        }
+                    },
+                    "top_services": {
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer"
+                                },
+                                "title": {
+                                    "type": "string"
+                                },
+                                "average_rating": {
+                                    "type": "string"
+                                },
+                                "completed": {
+                                    "type": "integer"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "PHP"
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "example": "Asia/Manila"
+                    },
+                    "generated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "ClientServiceReviewListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/ClientReview"
+                                }
+                            },
+                            "meta": {
+                                "properties": {
+                                    "pagination": {
+                                        "$ref": "#/components/schemas/Pagination"
+                                    },
+                                    "rating": {
+                                        "properties": {
+                                            "average": {
+                                                "type": "string",
+                                                "example": "4.50"
+                                            },
+                                            "total": {
+                                                "type": "integer"
+                                            },
+                                            "breakdown": {
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProviderStatisticsEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/ProviderStatistics"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "ProviderProfileEnvelope": {
                 "allOf": [
                     {
@@ -23460,7 +23957,7 @@
                 ]
             },
             "ClientPortfolioItem": {
-                "description": "A work sample on a provider's public profile.",
+                "description": "A piece of work on a provider's public profile, with up to 10 photos.",
                 "properties": {
                     "portfolio_id": {
                         "type": "integer"
@@ -23476,11 +23973,31 @@
                         "nullable": true
                     },
                     "image": {
-                        "description": "Absolute image URL",
+                        "description": "The cover (first photo), absolute URL",
                         "type": "string",
                         "nullable": true
                     },
+                    "images": {
+                        "description": "Every photo, cover first",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "integer"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
                     "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
                         "type": "string",
                         "format": "date-time",
                         "nullable": true

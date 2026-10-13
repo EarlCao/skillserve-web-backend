@@ -9,6 +9,8 @@ use App\Modules\Providers\Models\ProviderProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -191,6 +193,134 @@ class ProviderAccountTest extends TestCase
             ->assertJsonValidationErrors(['title', 'image']);
 
         $this->assertDatabaseCount('provider_portfolio_items', 0);
+    }
+
+    public function test_a_portfolio_item_holds_several_photos_that_can_be_added_and_removed(): void
+    {
+        Storage::fake('public');
+        [$profile, $token] = $this->provider();
+
+        $item = $this->withToken($token)
+            ->post('/api/client/v1/provider/portfolio', [
+                'title' => 'Kitchen remodel',
+                'description' => 'Before, during and after.',
+                'images' => [$this->fakeImage('before.jpg'), $this->fakeImage('during.jpg'), $this->fakeImage('after.jpg')],
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(3, 'data.images')
+            ->json('data');
+
+        // The cover is the first photo, for app versions that show one.
+        $this->assertSame($item['images'][0]['url'], $item['image']);
+        $this->assertDatabaseCount('provider_portfolio_images', 3);
+        $this->assertCount(3, Storage::disk('public')->allFiles('portfolio'));
+
+        // The public profile carries every photo.
+        $this->getJson("/api/client/v1/providers/{$profile->id}")
+            ->assertOk()
+            ->assertJsonCount(3, 'data.portfolio.0.images');
+
+        $id = $item['portfolio_id'];
+        $this->withToken($token)
+            ->patchJson("/api/client/v1/provider/portfolio/{$id}", ['title' => 'Kitchen remodel, 2026'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Kitchen remodel, 2026')
+            ->assertJsonPath('data.description', 'Before, during and after.');
+
+        $after = $this->withToken($token)
+            ->post("/api/client/v1/provider/portfolio/{$id}/images", ['images' => [$this->fakeImage('detail.jpg')]], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(4, 'data.images')
+            ->json('data.images');
+
+        // Removing the cover promotes the next photo.
+        $updated = $this->withToken($token)
+            ->deleteJson("/api/client/v1/provider/portfolio/{$id}/images/{$after[0]['id']}")
+            ->assertOk()
+            ->assertJsonCount(3, 'data.images')
+            ->json('data');
+        $this->assertSame($after[1]['url'], $updated['image']);
+        $this->assertCount(3, Storage::disk('public')->allFiles('portfolio'));
+
+        // Deleting the item removes every file.
+        $this->withToken($token)->deleteJson("/api/client/v1/provider/portfolio/{$id}")->assertOk();
+        $this->assertDatabaseCount('provider_portfolio_images', 0);
+        $this->assertCount(0, Storage::disk('public')->allFiles('portfolio'));
+    }
+
+    public function test_an_item_keeps_at_least_one_photo_and_at_most_ten(): void
+    {
+        Storage::fake('public');
+        [, $token] = $this->provider();
+
+        $item = $this->withToken($token)
+            ->post('/api/client/v1/provider/portfolio', ['title' => 'One shot', 'image' => $this->fakeImage('one.jpg')], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->json('data');
+
+        $this->withToken($token)
+            ->deleteJson("/api/client/v1/provider/portfolio/{$item['portfolio_id']}/images/{$item['images'][0]['id']}")
+            ->assertUnprocessable();
+
+        $tooMany = array_map(fn (int $i) => $this->fakeImage("p{$i}.jpg"), range(1, 10));
+        $this->withToken($token)
+            ->post("/api/client/v1/provider/portfolio/{$item['portfolio_id']}/images", ['images' => $tooMany], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['images']);
+
+        $this->withToken($token)
+            ->post('/api/client/v1/provider/portfolio', [
+                'title' => 'Too big an album',
+                'images' => array_map(fn (int $i) => $this->fakeImage("q{$i}.jpg"), range(1, 11)),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['images']);
+
+        // Nothing was stored for the refused uploads.
+        $this->assertCount(1, Storage::disk('public')->allFiles('portfolio'));
+    }
+
+    public function test_another_providers_photos_cannot_be_changed(): void
+    {
+        Storage::fake('public');
+        [, $ownerToken] = $this->provider();
+        [, $otherToken] = $this->provider(['business_name' => 'Rival Services']);
+
+        $item = $this->withToken($ownerToken)
+            ->post('/api/client/v1/provider/portfolio', ['title' => 'Mine', 'images' => [$this->fakeImage('a.jpg'), $this->fakeImage('b.jpg')]], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->json('data');
+
+        Auth::forgetGuards();
+        $id = $item['portfolio_id'];
+        $this->withToken($otherToken)->patchJson("/api/client/v1/provider/portfolio/{$id}", ['title' => 'Stolen'])->assertNotFound();
+        $this->withToken($otherToken)
+            ->post("/api/client/v1/provider/portfolio/{$id}/images", ['images' => [$this->fakeImage('c.jpg')]], ['Accept' => 'application/json'])
+            ->assertNotFound();
+        $this->withToken($otherToken)->deleteJson("/api/client/v1/provider/portfolio/{$id}/images/{$item['images'][1]['id']}")->assertNotFound();
+
+        $this->assertDatabaseCount('provider_portfolio_images', 2);
+    }
+
+    public function test_the_migration_turns_each_existing_photo_into_photo_one(): void
+    {
+        [$profile] = $this->provider();
+        Schema::drop('provider_portfolio_images');
+        $old = DB::table('provider_portfolio_items')->insertGetId([
+            'provider_profile_id' => $profile->id,
+            'title' => 'Before albums',
+            'image_path' => 'portfolio/old.jpg',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        (require database_path('migrations/2026_10_13_000003_create_provider_portfolio_images_table.php'))->up();
+
+        $this->assertDatabaseHas('provider_portfolio_images', [
+            'provider_portfolio_item_id' => $old,
+            'path' => 'portfolio/old.jpg',
+            'position' => 0,
+        ]);
     }
 
     public function test_badges_list_what_is_earned_and_what_is_still_available(): void

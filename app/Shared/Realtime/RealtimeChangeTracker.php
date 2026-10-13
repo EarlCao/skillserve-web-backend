@@ -9,6 +9,7 @@ use App\Modules\DataManagement\Models\DataArchive;
 use App\Modules\Notifications\Models\Announcement;
 use App\Modules\ProviderRecognition\Models\ProviderBadge;
 use App\Modules\Providers\Models\ProviderAvailability;
+use App\Modules\Providers\Models\ProviderPortfolioImage;
 use App\Modules\Providers\Models\ProviderPortfolioItem;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Models\VerificationDocument;
@@ -80,6 +81,7 @@ class RealtimeChangeTracker
         ServiceSubcategory::class => 'categories',
         ProviderProfile::class => 'providers',
         ProviderPortfolioItem::class => 'providers',
+        ProviderPortfolioImage::class => 'providers',
         ProviderAvailability::class => 'providers',
         ProviderBadge::class => 'providers',
         Review::class => 'reviews',

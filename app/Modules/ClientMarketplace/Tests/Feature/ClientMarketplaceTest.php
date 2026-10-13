@@ -189,6 +189,54 @@ class ClientMarketplaceTest extends TestCase
         $this->getJson('/api/client/v1/providers?search=niño')->assertJsonPath('meta.pagination.total', 1);
     }
 
+    public function test_anyone_can_read_a_services_published_reviews_with_its_star_breakdown(): void
+    {
+        [$provider] = $this->provider();
+        $category = $this->category('Reviews '.Str::random(5));
+        $service = $this->service($provider, $category, ['average_rating' => 4.33]);
+        $otherService = $this->service($provider, $category);
+
+        foreach ([[5, 'Spotless work.'], [5, 'Very good.'], [3, 'Late but fine.'], [1, 'Hidden one.']] as $i => [$stars, $comment]) {
+            $booking = $this->booking($this->customer(), $service, ['status' => 'completed']);
+            Review::query()->create([
+                'booking_id' => $booking->id,
+                'reviewer_id' => $booking->client_id,
+                'provider_id' => $provider->id,
+                'service_id' => $service->id,
+                'rating' => $stars,
+                'comment' => $comment,
+                'status' => $i === 3 ? 'hidden' : 'active',
+            ]);
+        }
+        $elsewhere = $this->booking($this->customer(), $otherService, ['status' => 'completed']);
+        Review::query()->create([
+            'booking_id' => $elsewhere->id, 'reviewer_id' => $elsewhere->client_id, 'provider_id' => $provider->id,
+            'service_id' => $otherService->id, 'rating' => 2, 'comment' => 'Other service.', 'status' => 'active',
+        ]);
+
+        $this->getJson("/api/client/v1/services/{$service->id}/reviews")
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 3)
+            ->assertJsonPath('meta.rating.average', '4.33')
+            ->assertJsonPath('meta.rating.total', 3)
+            ->assertJsonPath('meta.rating.breakdown', ['5' => 2, '4' => 0, '3' => 1, '2' => 0, '1' => 0])
+            ->assertJsonMissing(['comment' => 'Hidden one.'])
+            ->assertJsonMissing(['comment' => 'Other service.']);
+
+        // Narrowed to one star rating; the breakdown still covers them all.
+        $this->getJson("/api/client/v1/services/{$service->id}/reviews?rating=3&per_page=5")
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('data.0.comment', 'Late but fine.')
+            ->assertJsonPath('meta.rating.total', 3);
+
+        $this->getJson("/api/client/v1/services/{$service->id}/reviews?rating=6")->assertUnprocessable();
+
+        // A listing the public cannot see has no public reviews.
+        $service->update(['is_hidden' => true]);
+        $this->getJson("/api/client/v1/services/{$service->id}/reviews")->assertNotFound();
+    }
+
     public function test_admin_tokens_cannot_use_client_bookings_and_clients_cannot_read_each_other(): void
     {
         $owner = $this->customer();

@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Services;
 
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use App\Modules\Settings\Services\SettingsService;
@@ -81,6 +82,45 @@ class ClientCatalogService extends BaseService
             ->firstOrFail();
     }
 
+    /**
+     * A public service's published reviews, newest first, with what the
+     * customer needs to weigh them: the service's rating, how many reviews it
+     * has, and how many gave each star. A service the public cannot see is
+     * reported as missing.
+     *
+     * @return array{0: LengthAwarePaginator, 1: array<string, mixed>}
+     */
+    public function serviceReviews(Service $service, array $filters): array
+    {
+        $service = $this->publicServicesQuery()->whereKey($service->id)->firstOrFail();
+
+        $published = fn () => Review::query()
+            ->where('service_id', $service->id)
+            ->where('status', 'active');
+
+        $counts = $published()
+            ->selectRaw('rating, COUNT(*) as total')
+            ->groupBy('rating')
+            ->pluck('total', 'rating');
+
+        $reviews = $published()
+            ->when($filters['rating'] ?? null, fn (Builder $query, $stars) => $query->where('rating', (int) $stars))
+            ->with(['reviewer:id,name'])
+            ->latest()
+            ->orderByDesc('id')
+            ->paginate(max(1, min(50, (int) ($filters['per_page'] ?? 10))));
+
+        return [$reviews, [
+            'rating' => [
+                'average' => number_format((float) $service->average_rating, 2, '.', ''),
+                'total' => (int) $counts->sum(),
+                'breakdown' => collect([5, 4, 3, 2, 1])
+                    ->mapWithKeys(fn (int $stars): array => [(string) $stars => (int) $counts->get($stars, 0)])
+                    ->all(),
+            ],
+        ]];
+    }
+
     public function providers(array $filters): LengthAwarePaginator
     {
         $query = $this->publicProvidersQuery();
@@ -143,7 +183,7 @@ class ClientCatalogService extends BaseService
             ->with([
                 // The public profile shows work samples and badges; both are
                 // eager-loaded here so the detail page is a single round trip.
-                'portfolioItems' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id'),
+                'portfolioItems' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id')->with('images'),
                 // The profile shows the provider's published weekly hours.
                 'availabilities',
                 'badges' => fn ($query) => $query->where('is_active', true)->orderBy('name'),

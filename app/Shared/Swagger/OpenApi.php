@@ -263,6 +263,62 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ProviderStatistics',
+    description: 'The signed-in provider\'s performance, computed at request time.',
+    properties: [
+        new OA\Property(property: 'summary', type: 'object', properties: [
+            new OA\Property(property: 'average_rating', type: 'string', example: '4.60'),
+            new OA\Property(property: 'total_reviews', type: 'integer'),
+            new OA\Property(property: 'total_bookings', type: 'integer'),
+            new OA\Property(property: 'completed_bookings', type: 'integer'),
+            new OA\Property(property: 'cancelled_bookings', type: 'integer'),
+            new OA\Property(property: 'pending_requests', type: 'integer'),
+            new OA\Property(property: 'active_bookings', type: 'integer', description: 'Confirmed or in progress'),
+            new OA\Property(property: 'completion_rate', type: 'number', format: 'float', nullable: true, example: 92.5),
+            new OA\Property(property: 'earnings_total', type: 'string', example: '12500.00'),
+            new OA\Property(property: 'earnings_this_month', type: 'string', example: '3200.00'),
+            new OA\Property(property: 'completed_this_month', type: 'integer'),
+        ]),
+        new OA\Property(property: 'status_breakdown', type: 'object', description: 'Bookings per status', additionalProperties: new OA\AdditionalProperties(type: 'integer')),
+        new OA\Property(property: 'monthly', type: 'array', items: new OA\Items(properties: [
+            new OA\Property(property: 'month', type: 'string', example: '2026-10'),
+            new OA\Property(property: 'label', type: 'string', example: 'Oct'),
+            new OA\Property(property: 'year', type: 'integer', example: 2026),
+            new OA\Property(property: 'completed', type: 'integer'),
+            new OA\Property(property: 'received', type: 'integer'),
+            new OA\Property(property: 'earnings', type: 'string', example: '3200.00'),
+        ], type: 'object')),
+        new OA\Property(property: 'rating_breakdown', type: 'object', description: 'Published reviews per star, "5" down to "1"', additionalProperties: new OA\AdditionalProperties(type: 'integer')),
+        new OA\Property(property: 'top_services', type: 'array', items: new OA\Items(properties: [
+            new OA\Property(property: 'id', type: 'integer'),
+            new OA\Property(property: 'title', type: 'string'),
+            new OA\Property(property: 'average_rating', type: 'string'),
+            new OA\Property(property: 'completed', type: 'integer'),
+        ], type: 'object')),
+        new OA\Property(property: 'currency', type: 'string', example: 'PHP'),
+        new OA\Property(property: 'timezone', type: 'string', example: 'Asia/Manila'),
+        new OA\Property(property: 'generated_at', type: 'string', format: 'date-time'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'ClientServiceReviewListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [
+        new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/ClientReview')),
+        new OA\Property(property: 'meta', type: 'object', properties: [
+            new OA\Property(property: 'pagination', ref: '#/components/schemas/Pagination'),
+            new OA\Property(property: 'rating', type: 'object', properties: [
+                new OA\Property(property: 'average', type: 'string', example: '4.50'),
+                new OA\Property(property: 'total', type: 'integer'),
+                new OA\Property(property: 'breakdown', type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'integer')),
+            ]),
+        ]),
+    ])],
+)]
+#[OA\Schema(
+    schema: 'ProviderStatisticsEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderStatistics')])],
+)]
+#[OA\Schema(
     schema: 'ProviderProfileEnvelope',
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/ProviderProfile')])],
 )]
@@ -620,14 +676,19 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Schema(
     schema: 'ClientPortfolioItem',
-    description: "A work sample on a provider's public profile.",
+    description: "A piece of work on a provider's public profile, with up to 10 photos.",
     properties: [
         new OA\Property(property: 'portfolio_id', type: 'integer'),
         new OA\Property(property: 'provider_id', type: 'integer'),
         new OA\Property(property: 'title', type: 'string'),
         new OA\Property(property: 'description', type: 'string', nullable: true),
-        new OA\Property(property: 'image', type: 'string', nullable: true, description: 'Absolute image URL'),
+        new OA\Property(property: 'image', type: 'string', nullable: true, description: 'The cover (first photo), absolute URL'),
+        new OA\Property(property: 'images', type: 'array', description: 'Every photo, cover first', items: new OA\Items(properties: [
+            new OA\Property(property: 'id', type: 'integer'),
+            new OA\Property(property: 'url', type: 'string'),
+        ], type: 'object')),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
     ],
 )]
 #[OA\Schema(

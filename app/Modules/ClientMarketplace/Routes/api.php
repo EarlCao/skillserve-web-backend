@@ -10,6 +10,7 @@ use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderCommissionController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
 use App\Modules\ClientMarketplace\Controllers\ProviderServiceController;
+use App\Modules\ClientMarketplace\Controllers\ProviderStatisticsController;
 use App\Modules\ClientMarketplace\Controllers\ProviderVerificationController;
 use App\Modules\ClientMarketplace\Middleware\EnsureClient;
 use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
@@ -21,6 +22,7 @@ Route::get('/categories', [ClientCatalogController::class, 'categories']);
 Route::get('/categories/{category}', [ClientCatalogController::class, 'category']);
 Route::get('/services', [ClientCatalogController::class, 'services']);
 Route::get('/services/{service}', [ClientCatalogController::class, 'service']);
+Route::get('/services/{service}/reviews', [ClientCatalogController::class, 'serviceReviews'])->whereNumber('service');
 Route::get('/providers', [ClientCatalogController::class, 'providers']);
 Route::get('/providers/{provider}', [ClientCatalogController::class, 'provider']);
 
@@ -56,13 +58,22 @@ Route::middleware(['auth:sanctum', EnsureProvider::class])->group(function (): v
 
     Route::get('/provider/portfolio', [ProviderProfileController::class, 'portfolio']);
     Route::post('/provider/portfolio', [ProviderProfileController::class, 'storePortfolioItem']);
+    Route::patch('/provider/portfolio/{item}', [ProviderProfileController::class, 'updatePortfolioItem'])
+        ->whereNumber('item');
     Route::delete('/provider/portfolio/{item}', [ProviderProfileController::class, 'destroyPortfolioItem'])
         ->whereNumber('item');
+    Route::post('/provider/portfolio/{item}/images', [ProviderProfileController::class, 'storePortfolioImages'])
+        ->whereNumber('item');
+    Route::delete('/provider/portfolio/{item}/images/{image}', [ProviderProfileController::class, 'destroyPortfolioImage'])
+        ->whereNumber(['item', 'image']);
 
     Route::get('/provider/availability', [ProviderProfileController::class, 'availability']);
     Route::put('/provider/availability', [ProviderProfileController::class, 'updateAvailability']);
 
     Route::get('/provider/badges', [ProviderProfileController::class, 'badges']);
+
+    // Performance computed live from the provider's bookings and reviews.
+    Route::get('/provider/statistics', [ProviderStatisticsController::class, 'show']);
 
     Route::get('/provider/verification', [ProviderVerificationController::class, 'show']);
     Route::post('/provider/verification', [ProviderVerificationController::class, 'store']);

@@ -3,7 +3,9 @@
 namespace App\Modules\ClientMarketplace\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\ClientMarketplace\Requests\StorePortfolioImagesRequest;
 use App\Modules\ClientMarketplace\Requests\StorePortfolioItemRequest;
+use App\Modules\ClientMarketplace\Requests\UpdatePortfolioItemRequest;
 use App\Modules\ClientMarketplace\Requests\UpdateProviderAvailabilityRequest;
 use App\Modules\ClientMarketplace\Requests\UpdateProviderProfileRequest;
 use App\Modules\ClientMarketplace\Resources\ClientBadgeResource;
@@ -198,17 +200,18 @@ class ProviderProfileController extends Controller
 
     #[OA\Post(
         path: '/api/client/v1/provider/portfolio',
-        summary: 'Add a work sample to the provider\'s own portfolio',
+        summary: 'Add a piece of work, with its photos, to the provider\'s own portfolio',
         tags: ['Provider Services'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
             mediaType: 'multipart/form-data',
             schema: new OA\Schema(
-                required: ['title', 'image'],
+                required: ['title'],
                 properties: [
                     new OA\Property(property: 'title', type: 'string', maxLength: 255, example: 'Bathroom repipe'),
                     new OA\Property(property: 'description', type: 'string', maxLength: 2000, nullable: true),
-                    new OA\Property(property: 'image', type: 'string', format: 'binary', description: 'JPG, PNG or WebP, at most 5 MB'),
+                    new OA\Property(property: 'images[]', type: 'array', description: '1 to 10 photos, the first is the cover; JPG, PNG or WebP, at most 5 MB each', items: new OA\Items(type: 'string', format: 'binary')),
+                    new OA\Property(property: 'image', type: 'string', format: 'binary', description: 'A single photo, in place of images[] (older app versions)'),
                 ],
             ),
         )),
@@ -224,12 +227,90 @@ class ProviderProfileController extends Controller
     {
         $item = $this->accounts->addPortfolioItem(
             $this->profileFor($request),
-            $request->file('image'),
+            $request->photos(),
             (string) $request->validated('title'),
             $request->validated('description'),
         );
 
         return $this->success(new ClientPortfolioItemResource($item), 'Portfolio item added.', status: 201);
+    }
+
+    #[OA\Patch(
+        path: '/api/client/v1/provider/portfolio/{item}',
+        summary: 'Change a portfolio item\'s title or description',
+        tags: ['Provider Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'item', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+            new OA\Property(property: 'title', type: 'string', maxLength: 255),
+            new OA\Property(property: 'description', type: 'string', maxLength: 2000, nullable: true),
+        ])),
+        responses: [
+            new OA\Response(response: 200, description: 'Item updated', content: new OA\JsonContent(ref: '#/components/schemas/ClientPortfolioEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, verified-email provider account required'),
+            new OA\Response(response: 404, description: 'Item not found, or it belongs to another provider'),
+            new OA\Response(response: 422, description: 'Validation error'),
+        ],
+    )]
+    public function updatePortfolioItem(UpdatePortfolioItemRequest $request, int $item): JsonResponse
+    {
+        $updated = $this->accounts->updatePortfolioItem($this->profileFor($request), $item, $request->validated());
+
+        return $this->success(new ClientPortfolioItemResource($updated), 'Portfolio item updated.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/provider/portfolio/{item}/images',
+        summary: 'Add photos to a portfolio item',
+        description: 'Appended after the item\'s current photos. An item holds at most 10.',
+        tags: ['Provider Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'item', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
+            mediaType: 'multipart/form-data',
+            schema: new OA\Schema(required: ['images[]'], properties: [
+                new OA\Property(property: 'images[]', type: 'array', items: new OA\Items(type: 'string', format: 'binary')),
+            ]),
+        )),
+        responses: [
+            new OA\Response(response: 200, description: 'Photos added', content: new OA\JsonContent(ref: '#/components/schemas/ClientPortfolioEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, verified-email provider account required'),
+            new OA\Response(response: 404, description: 'Item not found, or it belongs to another provider'),
+            new OA\Response(response: 422, description: 'Validation error, or the item would hold more than 10 photos'),
+        ],
+    )]
+    public function storePortfolioImages(StorePortfolioImagesRequest $request, int $item): JsonResponse
+    {
+        $updated = $this->accounts->addPortfolioImages($this->profileFor($request), $item, array_values($request->file('images')));
+
+        return $this->success(new ClientPortfolioItemResource($updated), 'Photos added.');
+    }
+
+    #[OA\Delete(
+        path: '/api/client/v1/provider/portfolio/{item}/images/{image}',
+        summary: 'Remove one photo from a portfolio item',
+        description: 'An item keeps at least one photo (422 for the last one — delete the item instead). Removing the cover makes the next photo the cover.',
+        tags: ['Provider Services'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'item', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'image', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Photo removed', content: new OA\JsonContent(ref: '#/components/schemas/ClientPortfolioEnvelope')),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Active, verified-email provider account required'),
+            new OA\Response(response: 404, description: 'Item or photo not found'),
+            new OA\Response(response: 422, description: 'It is the item\'s only photo'),
+        ],
+    )]
+    public function destroyPortfolioImage(Request $request, int $item, int $image): JsonResponse
+    {
+        $updated = $this->accounts->removePortfolioImage($this->profileFor($request), $item, $image);
+
+        return $this->success(new ClientPortfolioItemResource($updated), 'Photo removed.');
     }
 
     #[OA\Delete(

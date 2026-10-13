@@ -6,15 +6,21 @@ use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * One work sample on a provider's public profile.
+ * One piece of work on a provider's public profile: a title, a description
+ * and up to {@see MAX_IMAGES} photos. `image_path` is the cover — always the
+ * first photo — kept so older app versions that show one image still work.
  *
- * Only the storage path is kept; the URL is derived from the configured
- * disk at render time, the same way profile photos are handled.
+ * Only storage paths are kept; URLs are derived from the configured disk at
+ * render time, the same way profile photos are handled.
  */
 class ProviderPortfolioItem extends Model
 {
+    /** Photos one item may hold. */
+    public const MAX_IMAGES = 10;
+
     protected $fillable = [
         'provider_profile_id',
         'title',
@@ -28,6 +34,12 @@ class ProviderPortfolioItem extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(ProviderProfile::class, 'provider_profile_id');
+    }
+
+    /** The item's photos, cover first. */
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProviderPortfolioImage::class)->orderBy('position')->orderBy('id');
     }
 
     public function scopeNewestFirst(Builder $query): Builder
