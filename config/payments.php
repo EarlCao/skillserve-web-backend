@@ -49,7 +49,9 @@ return [
         // Never commit these. Set them in the Render environment and in a
         // local .env. `sk_test_` / `pk_test_` keys during development:
         // `sk_live_` moves real money.
-        'secret_key' => env('PAYMONGO_SECRET_KEY'),
+        // An empty variable (`PAYMONGO_SECRET_KEY=` as in .env.example) means
+        // "not set", the same as leaving it out.
+        'secret_key' => env('PAYMONGO_SECRET_KEY') ?: null,
 
         // No public key: intents are created server-side, so the publishable
         // key is only needed for in-browser card tokenisation, which
@@ -61,7 +63,7 @@ return [
         // is NOT the secret key — it is the only thing that distinguishes a
         // genuine webhook from a forged one, so a missing value makes the
         // endpoint refuse everything rather than trust it.
-        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET') ?: null,
 
         'base_url' => env('PAYMONGO_BASE_URL', 'https://api.paymongo.com/v1'),
 

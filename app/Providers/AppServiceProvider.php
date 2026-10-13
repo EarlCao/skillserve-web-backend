@@ -252,7 +252,7 @@ class AppServiceProvider extends ServiceProvider
         // IP, generous enough for a room of people on one Wi-Fi, and per email
         // address, which is what an attacker would target.
         RateLimiter::for('client-auth', function (Request $request) {
-            $limits = [Limit::perMinute((int) env('CLIENT_AUTH_RATE_LIMIT', 20))->by('ip:'.$request->ip())];
+            $limits = [Limit::perMinute((int) config('client-auth.rate_limit'))->by('ip:'.$request->ip())];
             $email = mb_strtolower(trim((string) $request->input('email')));
             if ($email !== '') {
                 // Above the OTP service's own 5-guess cap, so its clearer message wins.

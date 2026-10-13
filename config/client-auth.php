@@ -2,6 +2,9 @@
 
 return [
     'access_ability' => 'client:auth',
+    // Requests per minute one network may make to the public account
+    // endpoints (sign-up, OTP, password reset) — the `client-auth` limiter.
+    'rate_limit' => (int) env('CLIENT_AUTH_RATE_LIMIT', 20),
     // How the 6-digit sign-up and password-reset codes are emailed: `mail`
     // (generated here, sent through MAIL_MAILER) or `twilio` (Twilio Verify
     // generates, emails and checks them; see services.twilio).

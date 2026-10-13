@@ -27,18 +27,15 @@ class ClientAuthRateLimitTest extends TestCase
 
     public function test_one_network_is_limited_across_addresses(): void
     {
-        config(['app.env' => 'testing']);
-        putenv('CLIENT_AUTH_RATE_LIMIT=3');
+        // Through config, not putenv(): a CLIENT_AUTH_RATE_LIMIT in .env (CI
+        // copies .env.example) is read before putenv() and would win.
+        config(['client-auth.rate_limit' => 3]);
 
-        try {
-            foreach (range(1, 3) as $i) {
-                $this->postJson('/api/client/v1/auth/resend-otp', ['email' => "user{$i}@skillserve.test"]);
-            }
-
-            $this->postJson('/api/client/v1/auth/resend-otp', ['email' => 'user9@skillserve.test'])
-                ->assertStatus(429);
-        } finally {
-            putenv('CLIENT_AUTH_RATE_LIMIT');
+        foreach (range(1, 3) as $i) {
+            $this->postJson('/api/client/v1/auth/resend-otp', ['email' => "user{$i}@skillserve.test"]);
         }
+
+        $this->postJson('/api/client/v1/auth/resend-otp', ['email' => 'user9@skillserve.test'])
+            ->assertStatus(429);
     }
 }
