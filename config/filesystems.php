@@ -61,6 +61,16 @@ return [
 
         // Dispute evidence is private to the two parties and the administrators
         // reviewing the case, so it is never exposed through the public link.
+        // Photos sent in a booking's chat. Private: streamed only to the
+        // booking's two parties, and to moderators through a report.
+        'message_images' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/message-images'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'dispute_evidence' => [
             'driver' => 'local',
             'root' => storage_path('app/private/dispute-evidence'),

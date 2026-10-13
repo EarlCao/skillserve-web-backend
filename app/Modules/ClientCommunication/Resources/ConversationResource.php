@@ -28,7 +28,9 @@ class ConversationResource extends BaseResource
             'counterpart' => $isClient ? $this->providerSide() : $this->clientSide(),
             'last_message' => $this->whenLoaded('latestMessage', fn () => $this->latestMessage ? [
                 'id' => $this->latestMessage->id,
-                'content' => $this->latestMessage->content,
+                // "📷 Photo" for a photo sent without a caption.
+                'content' => $this->latestMessage->preview(),
+                'has_image' => $this->latestMessage->hasImage(),
                 'created_at' => $this->latestMessage->created_at?->toIso8601String(),
                 'read_at' => $this->latestMessage->read_at?->toIso8601String(),
                 // Lets the list show "You: …" without knowing the viewer's id.

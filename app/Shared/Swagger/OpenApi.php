@@ -531,6 +531,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'booking_id', type: 'integer'),
         new OA\Property(property: 'content', type: 'string'),
+        new OA\Property(property: 'image_url', type: 'string', nullable: true, description: 'A private photo: GET it with the bearer token (the two parties only)'),
         new OA\Property(property: 'sender', ref: '#/components/schemas/ClientPerson', nullable: true),
         new OA\Property(property: 'receiver', ref: '#/components/schemas/ClientPerson', nullable: true),
         new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
@@ -673,6 +674,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'message', type: 'string', nullable: true),
         new OA\Property(property: 'data', ref: '#/components/schemas/ClientNotificationData'),
         new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'archived_at', type: 'string', format: 'date-time', nullable: true, description: 'Set while the notification is in the archive'),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
     ],
 )]

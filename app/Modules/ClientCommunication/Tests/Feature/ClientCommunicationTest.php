@@ -4,6 +4,8 @@ namespace App\Modules\ClientCommunication\Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientCommunication\Events\ClientMessageCreated;
+use App\Modules\ClientCommunication\Events\ClientNotificationsChanged;
 use App\Modules\ClientCommunication\Notifications\SupportTicketResolvedNotification;
 use App\Modules\ClientCommunication\Notifications\SupportTicketResponseNotification;
 use App\Modules\Notifications\Models\Announcement;
@@ -14,8 +16,11 @@ use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
 use App\Modules\Support\Models\SupportTicket;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -216,6 +221,152 @@ class ClientCommunicationTest extends TestCase
         $this->withToken($clientToken)
             ->postJson("/api/client/v1/bookings/{$booking->id}/messages", ['content' => ''])
             ->assertUnprocessable();
+    }
+
+    public function test_a_photo_can_be_sent_in_a_booking_chat_and_only_its_two_parties_see_it(): void
+    {
+        Storage::fake('message_images');
+        Event::fake([ClientMessageCreated::class]);
+        $client = $this->customer();
+        [$provider, $providerUser] = $this->provider();
+        $booking = $this->booking($client, $provider);
+
+        // A photo with no caption.
+        $message = $this->withToken($this->clientToken($client))
+            ->post("/api/client/v1/bookings/{$booking->id}/messages", [
+                'image' => UploadedFile::fake()->image('leak.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.content', '')
+            ->json('data');
+
+        $this->assertNotNull($message['image_url']);
+        $this->assertStringEndsWith("/messages/{$message['id']}/image", $message['image_url']);
+        $this->assertCount(1, Storage::disk('message_images')->allFiles());
+        // Delivered live with its photo link.
+        Event::assertDispatched(ClientMessageCreated::class, fn ($event) => $event->message['image_url'] === $message['image_url']);
+
+        $imagePath = "/api/client/v1/bookings/{$booking->id}/messages/{$message['id']}/image";
+
+        // The other party can open it.
+        Auth::forgetGuards();
+        $this->withToken($providerUser->createToken('provider-test', ['client:auth'])->plainTextToken)
+            ->get($imagePath)
+            ->assertOk();
+
+        // The inbox says "Photo" for a photo without text.
+        $this->withToken($providerUser->createToken('provider-test-2', ['client:auth'])->plainTextToken)
+            ->getJson('/api/client/v1/conversations')
+            ->assertJsonPath('data.0.last_message.content', '📷 Photo')
+            ->assertJsonPath('data.0.last_message.has_image', true);
+
+        // A stranger cannot.
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))
+            ->get($imagePath, ['Accept' => 'application/json'])
+            ->assertForbidden();
+
+        // Neither text nor photo is refused; a non-image is refused.
+        Auth::forgetGuards();
+        $token = $this->clientToken($client);
+        $this->withToken($token)->postJson("/api/client/v1/bookings/{$booking->id}/messages", [])->assertUnprocessable();
+        $this->withToken($token)
+            ->post("/api/client/v1/bookings/{$booking->id}/messages", [
+                'image' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf'),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['image']);
+    }
+
+    public function test_a_moderator_can_see_a_reported_photo(): void
+    {
+        Storage::fake('message_images');
+        $client = $this->customer();
+        [$provider, $providerUser] = $this->provider();
+        $booking = $this->booking($client, $provider);
+
+        $messageId = $this->withToken($this->clientToken($client))
+            ->post("/api/client/v1/bookings/{$booking->id}/messages", [
+                'content' => 'Look at this',
+                'image' => UploadedFile::fake()->image('photo.jpg'),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->json('data.id');
+
+        Auth::forgetGuards();
+        $reportId = $this->withToken($providerUser->createToken('provider-test', ['client:auth'])->plainTextToken)
+            ->postJson('/api/client/v1/reports', ['message_id' => $messageId, 'reason' => 'inappropriate_content', 'description' => 'This photo is not appropriate.'])
+            ->assertCreated()
+            ->json('data.id');
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Permission::findOrCreate('view reports', 'web');
+        $moderator = User::factory()->create(['status' => 'active']);
+        $moderator->assignRole(Role::findOrCreate('moderator', 'web')->givePermissionTo('view reports'));
+
+        Auth::forgetGuards();
+        $token = $moderator->createToken('admin-test')->plainTextToken;
+        $this->withToken($token)->getJson("/api/reports/{$reportId}")->assertJsonPath('data.reportable.has_image', true);
+        $this->withToken($token)->get("/api/reports/{$reportId}/message-image")->assertOk();
+
+        // Without the permission, no photo.
+        Auth::forgetGuards();
+        $this->withToken($this->clientToken($this->customer()))->getJson("/api/reports/{$reportId}/message-image")->assertForbidden();
+    }
+
+    public function test_notifications_can_be_archived_restored_and_deleted_by_their_owner_only(): void
+    {
+        Event::fake([ClientNotificationsChanged::class]);
+        $client = $this->customer();
+        $other = $this->customer();
+        $announcement = Announcement::create([
+            'created_by' => $client->id,
+            'title' => 'Update',
+            'message' => 'Hello.',
+            'target' => 'selected',
+            'recipient_ids' => [$client->id],
+            'recipient_count' => 1,
+            'status' => 'sent',
+        ]);
+        foreach (range(1, 3) as $_) {
+            $client->notify(new AnnouncementNotification($announcement));
+        }
+        $other->notify(new AnnouncementNotification($announcement));
+        [$first, $second, $third] = $client->notifications()->pluck('id')->all();
+        $strangers = $other->notifications()->value('id');
+        $token = $this->clientToken($client);
+
+        // Archive two: they leave the feed and the unread count, and are read.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/notifications/archive', ['ids' => [$first, $second, $strangers]])
+            ->assertOk()
+            ->assertJsonPath('data.updated_count', 2);
+        $this->withToken($token)->getJson('/api/client/v1/notifications')->assertJsonPath('meta.pagination.total', 1);
+        $this->withToken($token)->getJson('/api/client/v1/notifications/unread-count')->assertJsonPath('data.unread_count', 1);
+        $this->withToken($token)
+            ->getJson('/api/client/v1/notifications?archived=1')
+            ->assertJsonPath('meta.pagination.total', 2)
+            ->assertJsonPath('data.0.archived_at', fn ($value) => $value !== null)
+            ->assertJsonPath('data.0.read_at', fn ($value) => $value !== null);
+        Event::assertDispatched(ClientNotificationsChanged::class, fn ($event) => $event->userId === $client->id);
+
+        // Restore one.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/notifications/unarchive', ['ids' => [$first]])
+            ->assertJsonPath('data.updated_count', 1);
+        $this->withToken($token)->getJson('/api/client/v1/notifications')->assertJsonPath('meta.pagination.total', 2);
+
+        // Delete: several, and one; another user's id is never deleted.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/notifications/delete', ['ids' => [$second, $strangers]])
+            ->assertJsonPath('data.updated_count', 1);
+        $this->withToken($token)->deleteJson("/api/client/v1/notifications/{$third}")->assertOk();
+        $this->withToken($token)->deleteJson("/api/client/v1/notifications/{$strangers}")->assertNotFound();
+
+        $this->assertSame(1, $client->notifications()->count());
+        $this->assertSame(1, $other->notifications()->count());
+
+        $this->withToken($token)->postJson('/api/client/v1/notifications/archive', ['ids' => ['not-a-uuid']])->assertUnprocessable();
     }
 
     private function customer(): User

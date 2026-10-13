@@ -91,7 +91,7 @@ class ClientReportResource extends BaseResource
             ],
             $target instanceof Message => [
                 'name' => $target->sender?->name,
-                'excerpt' => $target->content,
+                'excerpt' => $target->preview(),
             ],
             // A public listing: its title and who offers it.
             $target instanceof Service => [

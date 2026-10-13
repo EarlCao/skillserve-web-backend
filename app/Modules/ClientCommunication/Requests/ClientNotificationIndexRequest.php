@@ -11,6 +11,8 @@ class ClientNotificationIndexRequest extends BaseFormRequest
         return [
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'page' => ['sometimes', 'integer', 'min:1'],
+            // The archive instead of the feed.
+            'archived' => ['sometimes', 'boolean'],
         ];
     }
 }

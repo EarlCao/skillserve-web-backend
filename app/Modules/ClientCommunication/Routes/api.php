@@ -15,6 +15,10 @@ Route::prefix('notifications')->middleware(['auth:sanctum', EnsureMobileAccount:
     Route::get('/unread-count', [ClientNotificationController::class, 'unreadCount']);
     Route::patch('/{notification}/read', [ClientNotificationController::class, 'markRead']);
     Route::post('/read-all', [ClientNotificationController::class, 'readAll']);
+    Route::post('/archive', [ClientNotificationController::class, 'archive']);
+    Route::post('/unarchive', [ClientNotificationController::class, 'unarchive']);
+    Route::post('/delete', [ClientNotificationController::class, 'destroyMany']);
+    Route::delete('/{notification}', [ClientNotificationController::class, 'destroy'])->whereUuid('notification');
     Route::post('/background-token', [ClientNotificationController::class, 'backgroundToken']);
 });
 
@@ -53,4 +57,5 @@ Route::prefix('bookings/{booking}/messages')->middleware('auth:sanctum')->group(
     Route::get('/', [BookingMessageController::class, 'index']);
     Route::post('/', [BookingMessageController::class, 'store']);
     Route::post('/read', [BookingMessageController::class, 'markRead']);
+    Route::get('/{message}/image', [BookingMessageController::class, 'image'])->whereNumber('message');
 });

@@ -4,6 +4,7 @@ namespace App\Modules\ClientCommunication\Resources;
 
 use App\Shared\Resources\BaseResource;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 
 class ClientNotificationResource extends BaseResource
 {
@@ -22,6 +23,8 @@ class ClientNotificationResource extends BaseResource
                 'remittance_id',
             ]),
             'read_at' => $this->read_at?->toIso8601String(),
+            // Not cast by Laravel's notification model, so parsed here.
+            'archived_at' => $this->archived_at ? Carbon::parse($this->archived_at)->toIso8601String() : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

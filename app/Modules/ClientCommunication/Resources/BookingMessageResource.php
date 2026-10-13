@@ -12,6 +12,10 @@ class BookingMessageResource extends BaseResource
             'id' => $this->id,
             'booking_id' => $this->booking_id,
             'content' => $this->content,
+            // A private photo, readable by the two parties with their token.
+            'image_url' => $this->hasImage()
+                ? url("/api/client/v1/bookings/{$this->booking_id}/messages/{$this->id}/image")
+                : null,
             'sender' => $this->whenLoaded('sender', fn () => $this->person($this->sender)),
             'receiver' => $this->whenLoaded('receiver', fn () => $this->person($this->receiver)),
             'read_at' => $this->read_at?->toIso8601String(),

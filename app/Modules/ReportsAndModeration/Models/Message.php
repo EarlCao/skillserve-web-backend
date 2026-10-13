@@ -10,12 +10,28 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'sender_id', 'receiver_id', 'booking_id', 'content',
+    'sender_id', 'receiver_id', 'booking_id', 'content', 'image_path',
     'status', 'removed_by', 'removed_at', 'deleted_by', 'read_at', 'client_idempotency_key',
 ])]
 class Message extends Model
 {
     use SoftDeletes;
+
+    /** The photo's storage path never leaves the API; clients get a URL. */
+    protected $hidden = ['image_path'];
+
+    public function hasImage(): bool
+    {
+        return filled($this->image_path);
+    }
+
+    /** What a list or notification says about the message: its text, or "Photo". */
+    public function preview(): string
+    {
+        $text = trim((string) $this->content);
+
+        return $text !== '' ? $text : ($this->hasImage() ? '📷 Photo' : '');
+    }
 
     public function sender(): BelongsTo
     {

@@ -26,7 +26,7 @@ class BookingMessageNotification extends BaseNotification
     {
         // A preview only: the feed is not the place to reproduce a whole
         // conversation, and the thread is one tap away.
-        $preview = Str::limit($this->message->content, 120);
+        $preview = Str::limit($this->message->preview(), 120);
 
         return [
             'type' => 'booking_message',

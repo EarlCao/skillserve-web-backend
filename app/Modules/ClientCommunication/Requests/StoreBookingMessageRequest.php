@@ -16,7 +16,9 @@ class StoreBookingMessageRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'content' => ['required', 'string', 'min:1', 'max:5000'],
+            // Text, a photo, or both.
+            'content' => ['required_without:image', 'nullable', 'string', 'max:5000'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'idempotency_key' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
@@ -26,5 +28,14 @@ class StoreBookingMessageRequest extends BaseFormRequest
         $key = trim((string) $this->header('Idempotency-Key'));
 
         return $key === '' ? null : $key;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'content.required_without' => 'Write a message or attach a photo.',
+            'image.max' => 'The photo must be 5 MB or smaller.',
+            'image.mimes' => 'The photo must be a JPG, PNG or WebP file.',
+        ];
     }
 }

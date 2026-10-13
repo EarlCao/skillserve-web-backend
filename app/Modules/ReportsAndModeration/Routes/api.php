@@ -17,6 +17,7 @@ Route::prefix('reports')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [ReportController::class, 'index']);
     Route::get('/reasons', [ReportController::class, 'reasons']);
     Route::get('/{report}', [ReportController::class, 'show']);
+    Route::get('/{report}/message-image', [ReportController::class, 'messageImage']);
     Route::patch('/{report}/investigate', [ReportController::class, 'investigate']);
     Route::patch('/{report}/notes', [ReportController::class, 'addNote']);
     Route::patch('/{report}/resolve', [ReportController::class, 'resolve']);

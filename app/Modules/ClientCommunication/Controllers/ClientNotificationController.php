@@ -5,6 +5,7 @@ namespace App\Modules\ClientCommunication\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\ClientCommunication\Requests\BackgroundNotificationIndexRequest;
 use App\Modules\ClientCommunication\Requests\ClientNotificationIndexRequest;
+use App\Modules\ClientCommunication\Requests\NotificationIdsRequest;
 use App\Modules\ClientCommunication\Resources\ClientNotificationResource;
 use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
 use App\Modules\ClientCommunication\Services\ClientNotificationService;
@@ -78,6 +79,7 @@ class ClientNotificationController extends Controller
         parameters: [
             new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15)),
             new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
+            new OA\Parameter(name: 'archived', in: 'query', required: false, description: 'true lists the archive; otherwise the feed, which never includes archived notifications', schema: new OA\Schema(type: 'boolean')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Paginated notification inbox', content: new OA\JsonContent(ref: '#/components/schemas/ClientNotificationListEnvelope')),
@@ -141,5 +143,71 @@ class ClientNotificationController extends Controller
         return $this->success([
             'updated_count' => $this->notificationService->readAll($request->user()),
         ], 'Notifications marked as read.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/notifications/archive',
+        summary: 'Archive the given notifications',
+        description: 'Moves them out of the feed (and the unread count) into the archive, marking them read. Ids that are not the user\'s own are ignored. Other open sessions are told on the user\'s private channel (`client.notifications.changed`).',
+        tags: ['Client Notifications'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['ids'], properties: [new OA\Property(property: 'ids', type: 'array', minItems: 1, maxItems: 100, items: new OA\Items(type: 'string', format: 'uuid'))])),
+        responses: [new OA\Response(response: 200, description: 'How many were archived (updated_count)', content: new OA\JsonContent(ref: '#/components/schemas/ClientReadAllEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 422, description: 'Validation error')],
+    )]
+    public function archive(NotificationIdsRequest $request): JsonResponse
+    {
+        return $this->success([
+            'updated_count' => $this->notificationService->archive($request->user(), $request->validated('ids')),
+        ], 'Notifications archived.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/notifications/unarchive',
+        summary: 'Move archived notifications back to the feed',
+        tags: ['Client Notifications'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['ids'], properties: [new OA\Property(property: 'ids', type: 'array', minItems: 1, maxItems: 100, items: new OA\Items(type: 'string', format: 'uuid'))])),
+        responses: [new OA\Response(response: 200, description: 'How many were restored (updated_count)', content: new OA\JsonContent(ref: '#/components/schemas/ClientReadAllEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 422, description: 'Validation error')],
+    )]
+    public function unarchive(NotificationIdsRequest $request): JsonResponse
+    {
+        return $this->success([
+            'updated_count' => $this->notificationService->unarchive($request->user(), $request->validated('ids')),
+        ], 'Notifications restored.');
+    }
+
+    #[OA\Post(
+        path: '/api/client/v1/notifications/delete',
+        summary: 'Delete the given notifications for good',
+        description: 'Ids that are not the user\'s own are ignored, never deleted. Other open sessions are told (`client.notifications.changed`).',
+        tags: ['Client Notifications'],
+        security: [['bearerAuth' => []]],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['ids'], properties: [new OA\Property(property: 'ids', type: 'array', minItems: 1, maxItems: 100, items: new OA\Items(type: 'string', format: 'uuid'))])),
+        responses: [new OA\Response(response: 200, description: 'How many were deleted (updated_count)', content: new OA\JsonContent(ref: '#/components/schemas/ClientReadAllEnvelope')), new OA\Response(response: 403, description: 'Active, verified customer or provider account required'), new OA\Response(response: 422, description: 'Validation error')],
+    )]
+    public function destroyMany(NotificationIdsRequest $request): JsonResponse
+    {
+        return $this->success([
+            'updated_count' => $this->notificationService->delete($request->user(), $request->validated('ids')),
+        ], 'Notifications deleted.');
+    }
+
+    #[OA\Delete(
+        path: '/api/client/v1/notifications/{notification}',
+        summary: 'Delete one notification',
+        tags: ['Client Notifications'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'notification', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid'))],
+        responses: [
+            new OA\Response(response: 200, description: 'Deleted', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
+            new OA\Response(response: 403, description: 'Active, verified customer or provider account required'),
+            new OA\Response(response: 404, description: 'Notification not found'),
+        ],
+    )]
+    public function destroy(Request $request, string $notification): JsonResponse
+    {
+        abort_unless($this->notificationService->delete($request->user(), [$notification]) > 0, 404);
+
+        return $this->success(null, 'Notification deleted.');
     }
 }

@@ -123,7 +123,9 @@ class ReportResource extends BaseResource
             ],
             Message::class => [
                 'id' => $target->id,
-                'content' => $target->content,
+                'content' => $target->preview(),
+                // A reported photo, for moderators: GET /api/reports/{id}/message-image.
+                'has_image' => $target->hasImage(),
                 'status' => $target->status,
                 'sender' => $target->relationLoaded('sender') && $target->sender ? [
                     'id' => $target->sender->id,

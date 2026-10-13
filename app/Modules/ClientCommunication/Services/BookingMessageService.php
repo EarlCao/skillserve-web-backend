@@ -10,9 +10,13 @@ use App\Modules\ClientCommunication\Policies\BookingMessagePolicy;
 use App\Modules\ClientCommunication\Resources\BookingMessageResource;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Shared\Exceptions\ApiException;
+use App\Shared\Helpers\StoredFile;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BookingMessageService extends BaseService
 {
@@ -62,9 +66,10 @@ class BookingMessageService extends BaseService
             ->update(['read_at' => now()]);
     }
 
-    public function create(User $user, Booking $booking, string $content, ?string $idempotencyKey): Message
+    public function create(User $user, Booking $booking, ?string $content, ?string $idempotencyKey, ?UploadedFile $image = null): Message
     {
         $this->authorizeParticipant($user, $booking);
+        $content = trim((string) $content);
 
         $receiverId = $booking->client_id === $user->id
             ? $booking->provider()->value('user_id')
@@ -74,8 +79,12 @@ class BookingMessageService extends BaseService
             throw new ApiException('The booking provider is not available for messaging.', 422);
         }
 
+        // Stored before the transaction (no file I/O inside it) and removed
+        // again if the message is not written.
+        $imagePath = $image?->store((string) $booking->id, 'message_images');
+
         try {
-            $message = $this->transaction(function () use ($booking, $user, $receiverId, $content, $idempotencyKey): Message {
+            $message = $this->transaction(function () use ($booking, $user, $receiverId, $content, $idempotencyKey, $imagePath): Message {
                 if ($idempotencyKey) {
                     $existing = Message::query()
                         ->where('booking_id', $booking->id)
@@ -95,16 +104,26 @@ class BookingMessageService extends BaseService
                     'booking_id' => $booking->id,
                     'sender_id' => $user->id,
                     'receiver_id' => $receiverId,
-                    'content' => trim($content),
+                    'content' => $content,
+                    'image_path' => $imagePath,
                     'status' => 'active',
                     'client_idempotency_key' => $idempotencyKey,
                 ])->load(['sender:id,name', 'receiver:id,name']);
             });
 
+            // A replayed request returns the first message; this upload is spare.
+            if ($imagePath && $message->image_path !== $imagePath) {
+                Storage::disk('message_images')->delete($imagePath);
+            }
+
             $this->deliver($message);
 
             return $message;
         } catch (QueryException $exception) {
+            if ($imagePath) {
+                Storage::disk('message_images')->delete($imagePath);
+            }
+
             if (! $idempotencyKey) {
                 throw $exception;
             }
@@ -152,6 +171,30 @@ class BookingMessageService extends BaseService
             $message,
             $message->sender?->name ?? 'Someone',
         ));
+    }
+
+    /**
+     * The photo of a message in [booking], for one of its two parties. A
+     * message from another booking, removed by a moderator or without a photo
+     * is reported as missing.
+     */
+    public function image(User $user, Booking $booking, Message $message): StreamedResponse
+    {
+        $this->authorizeParticipant($user, $booking);
+        abort_unless((int) $message->booking_id === (int) $booking->id && $message->isActive() && $message->hasImage(), 404);
+
+        return self::streamImage($message);
+    }
+
+    /** Streams a message's photo from private storage. */
+    public static function streamImage(Message $message): StreamedResponse
+    {
+        $disk = Storage::disk('message_images');
+        StoredFile::ensureExists($disk, $message->image_path, 'This photo is no longer stored on the server.');
+
+        return $disk->response($message->image_path, basename($message->image_path), [
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
     }
 
     private function assertSameIdempotentRequest(Message $message, int $receiverId, string $content): void

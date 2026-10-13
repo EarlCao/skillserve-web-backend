@@ -6142,6 +6142,7 @@
                     "Booking Messages"
                 ],
                 "summary": "Send a message to the other booking participant",
+                "description": "Text, a photo, or both. Send JSON for text only, or multipart/form-data with `image` (JPG, PNG or WebP, at most 5 MB) and an optional `content` caption. The photo is private: the message carries an `image_url` to GET .../messages/{message}/image, readable by the two parties only.",
                 "operationId": "21698d769b6eb79218d4ae16187e21ec",
                 "parameters": [
                     {
@@ -6165,6 +6166,23 @@
                 "requestBody": {
                     "required": true,
                     "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "content": {
+                                        "description": "Optional caption",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
                         "application/json": {
                             "schema": {
                                 "required": [
@@ -6216,6 +6234,53 @@
                     },
                     "422": {
                         "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/messages/{message}/image": {
+            "get": {
+                "tags": [
+                    "Booking Messages"
+                ],
+                "summary": "The photo of a chat message",
+                "description": "Streamed from private storage to the booking's two parties only.",
+                "operationId": "af4f0faf7691acde2a98168c12b3b099",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "message",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Booking participant access required"
+                    },
+                    "404": {
+                        "description": "No such photo in this booking's chat"
                     }
                 },
                 "security": [
@@ -6389,6 +6454,15 @@
                             "type": "integer",
                             "minimum": 1
                         }
+                    },
+                    {
+                        "name": "archived",
+                        "in": "query",
+                        "description": "true lists the archive; otherwise the feed, which never includes archived notifications",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ],
                 "responses": {
@@ -6511,6 +6585,219 @@
                     },
                     "403": {
                         "description": "Active, verified customer or provider account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/archive": {
+            "post": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Archive the given notifications",
+                "description": "Moves them out of the feed (and the unread count) into the archive, marking them read. Ids that are not the user's own are ignored. Other open sessions are told on the user's private channel (`client.notifications.changed`).",
+                "operationId": "0f34d07e658d757261a2a58c03e3c57f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ids"
+                                ],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "maxItems": 100,
+                                        "minItems": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "How many were archived (updated_count)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReadAllEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified customer or provider account required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/unarchive": {
+            "post": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Move archived notifications back to the feed",
+                "operationId": "99c7a28bd592b21abc828231df800eef",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ids"
+                                ],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "maxItems": 100,
+                                        "minItems": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "How many were restored (updated_count)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReadAllEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified customer or provider account required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/delete": {
+            "post": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Delete the given notifications for good",
+                "description": "Ids that are not the user's own are ignored, never deleted. Other open sessions are told (`client.notifications.changed`).",
+                "operationId": "c52feb2f8d57237a6c8e027afc96a5e3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "ids"
+                                ],
+                                "properties": {
+                                    "ids": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "maxItems": 100,
+                                        "minItems": 1
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "How many were deleted (updated_count)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReadAllEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified customer or provider account required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/notifications/{notification}": {
+            "delete": {
+                "tags": [
+                    "Client Notifications"
+                ],
+                "summary": "Delete one notification",
+                "operationId": "0ae1d9b64dcc2946b486495a73c720c5",
+                "parameters": [
+                    {
+                        "name": "notification",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Active, verified customer or provider account required"
+                    },
+                    "404": {
+                        "description": "Notification not found"
                     }
                 },
                 "security": [
@@ -15852,6 +16139,45 @@
                 ]
             }
         },
+        "/api/reports/{report}/message-image": {
+            "get": {
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "The photo of a reported chat message",
+                "description": "Streamed from private storage so a moderator can see what was reported. Only for a report about a message that carries a photo.",
+                "operationId": "2d6c7670d3e883ffe380b34bec2fcb1f",
+                "parameters": [
+                    {
+                        "name": "report",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "The report is not about a message with a photo"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/reports/{report}/investigate": {
             "patch": {
                 "tags": [
@@ -23471,6 +23797,11 @@
                     "content": {
                         "type": "string"
                     },
+                    "image_url": {
+                        "description": "A private photo: GET it with the bearer token (the two parties only)",
+                        "type": "string",
+                        "nullable": true
+                    },
                     "sender": {
                         "oneOf": [
                             {
@@ -23968,6 +24299,12 @@
                         "$ref": "#/components/schemas/ClientNotificationData"
                     },
                     "read_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "archived_at": {
+                        "description": "Set while the notification is in the archive",
                         "type": "string",
                         "format": "date-time",
                         "nullable": true

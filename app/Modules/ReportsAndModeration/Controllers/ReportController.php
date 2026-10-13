@@ -3,6 +3,8 @@
 namespace App\Modules\ReportsAndModeration\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\ClientCommunication\Services\BookingMessageService;
+use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\ReportsAndModeration\Requests\AddInvestigationNoteRequest;
 use App\Modules\ReportsAndModeration\Requests\InvestigateReportRequest;
@@ -15,6 +17,7 @@ use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Reports', description: 'Reports and moderation (view, investigate, notes, resolve, reject, take action)')]
 class ReportController extends Controller
@@ -106,6 +109,30 @@ class ReportController extends Controller
         $report = $this->reportService->show($report);
 
         return $this->success(new ReportResource($report), 'Report retrieved.');
+    }
+
+    #[OA\Get(
+        path: '/api/reports/{report}/message-image',
+        summary: 'The photo of a reported chat message',
+        description: 'Streamed from private storage so a moderator can see what was reported. Only for a report about a message that carries a photo.',
+        tags: ['Reports'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'report', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [
+            new OA\Response(response: 200, description: 'The image file'),
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 403, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'The report is not about a message with a photo'),
+        ],
+    )]
+    public function messageImage(Report $report): StreamedResponse
+    {
+        $this->authorize('view', $report);
+
+        $message = $report->reportable;
+        abort_unless($message instanceof Message && $message->hasImage(), 404);
+
+        return BookingMessageService::streamImage($message);
     }
 
     /**
