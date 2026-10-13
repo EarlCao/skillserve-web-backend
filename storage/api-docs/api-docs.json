@@ -12706,7 +12706,7 @@
                     "Identity Verification"
                 ],
                 "summary": "Submit a Philippine National ID for review",
-                "description": "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nA National ID can back only one active SkillServe account: submitting one already linked to another live account returns 422 without revealing which account holds it. An ID becomes available again only once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download.",
+                "description": "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nA National ID can back only one active SkillServe account: submitting one already linked to another live account returns 422 without revealing which account holds it. An ID becomes available again only once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download. A photo of the front or back must be at least 800 × 500 pixels (either orientation), or that file gets a 422 asking for a retake.",
                 "operationId": "6c2b588d452c204e71a4770e35310989",
                 "requestBody": {
                     "required": true,

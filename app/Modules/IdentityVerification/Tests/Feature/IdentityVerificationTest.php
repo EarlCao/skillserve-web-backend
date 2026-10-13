@@ -305,6 +305,46 @@ class IdentityVerificationTest extends TestCase
             ->assertJsonValidationErrors('documents.0.file');
     }
 
+    public function test_a_photo_of_the_card_too_small_to_read_is_refused(): void
+    {
+        [, $token] = $this->account();
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/identity-verification', [
+                ...$this->payload(),
+                'documents' => [
+                    ['type' => 'id_front', 'file' => $this->jpeg('front.jpg', 640, 404)],
+                    ['type' => 'id_back', 'file' => $this->jpeg('back.jpg', 1280, 808)],
+                ],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('documents.0.file')
+            ->assertJsonMissingValidationErrors('documents.1.file');
+
+        // Portrait is as good as landscape.
+        $this->withToken($token)
+            ->postJson('/api/client/v1/identity-verification', [
+                ...$this->payload(),
+                'documents' => [
+                    ['type' => 'id_front', 'file' => $this->jpeg('front.jpg', 808, 1280)],
+                    ['type' => 'id_back', 'file' => $this->jpeg('back.jpg', 1280, 808)],
+                ],
+            ])
+            ->assertStatus(201);
+    }
+
+    /**
+     * A JPEG header declaring [width] × [height] — enough for getimagesize and
+     * the type check, without needing GD to draw a real image.
+     */
+    private function jpeg(string $name, int $width, int $height): UploadedFile
+    {
+        $startOfFrame = "\xFF\xC0\x00\x11\x08".pack('n', $height).pack('n', $width)
+            ."\x03\x01\x22\x00\x02\x11\x01\x03\x11\x01";
+
+        return UploadedFile::fake()->createWithContent($name, "\xFF\xD8".$startOfFrame."\xFF\xD9");
+    }
+
     public function test_a_failed_submission_leaves_no_files_behind(): void
     {
         [, $firstToken] = $this->account();
