@@ -51,7 +51,7 @@ class BookingDisputeService extends BaseService
 
             if (! in_array($booking->status, self::DISPUTABLE_STATUSES, true)) {
                 throw new ApiException(
-                    'Only a job in progress or completed can be disputed.',
+                    'Only a booking in progress or completed can be disputed.',
                     422,
                     errors: ['status' => ['This booking is '.$booking->status.' and cannot be disputed.']],
                 );

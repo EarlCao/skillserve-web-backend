@@ -48,7 +48,7 @@ class ProviderBookingService extends BaseService
         'decline' => ['Only a pending booking can be declined.', 'declined'],
         'cancel' => ['Only an accepted booking that has not started can be cancelled.', 'cancelled'],
         'start' => ['Only a confirmed booking can be started.', 'started'],
-        'complete' => ['Only a job in progress can be completed.', 'completed'],
+        'complete' => ['Only a service in progress can be completed.', 'completed'],
     ];
 
     public function index(User $providerUser, array $filters): LengthAwarePaginator

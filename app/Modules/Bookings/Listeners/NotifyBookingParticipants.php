@@ -43,11 +43,11 @@ class NotifyBookingParticipants
                 "Your provider accepted your booking for {$name}.",
             ),
             'active' => new BookingStatusNotification(
-                $booking, 'active', 'Job started',
-                "Work has started on your booking for {$name}.",
+                $booking, 'active', 'Service started',
+                "Your provider has started the service for {$name}.",
             ),
             'completed' => new BookingStatusNotification(
-                $booking, 'completed', 'Job completed',
+                $booking, 'completed', 'Service completed',
                 "Your booking for {$name} is marked as completed. You can now leave a review.",
             ),
             'cancelled' => new BookingStatusNotification(

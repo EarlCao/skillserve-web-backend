@@ -135,7 +135,7 @@ class ProviderBookingController extends Controller
 
     #[OA\Patch(
         path: '/api/client/v1/provider/bookings/{booking}/cancel',
-        summary: 'Cancel an accepted booking before the job starts',
+        summary: 'Cancel an accepted booking before the service starts',
         description: 'Only a confirmed booking can be cancelled this way; use decline for a pending request. The customer is notified with the reason.',
         tags: ['Provider Bookings'],
         security: [['bearerAuth' => []]],
@@ -165,7 +165,7 @@ class ProviderBookingController extends Controller
 
     #[OA\Patch(
         path: '/api/client/v1/provider/bookings/{booking}/start',
-        summary: 'Start a confirmed job',
+        summary: 'Start the service on a confirmed booking',
         tags: ['Provider Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
@@ -183,13 +183,13 @@ class ProviderBookingController extends Controller
 
         return $this->success(
             new ProviderBookingResource($this->bookingService->start($request->user(), $booking)),
-            'Job started.',
+            'Service started.',
         );
     }
 
     #[OA\Patch(
         path: '/api/client/v1/provider/bookings/{booking}/complete',
-        summary: 'Mark a job in progress as completed',
+        summary: 'Mark a service in progress as completed',
         tags: ['Provider Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
@@ -207,13 +207,13 @@ class ProviderBookingController extends Controller
 
         return $this->success(
             new ProviderBookingResource($this->bookingService->complete($request->user(), $booking)),
-            'Job completed.',
+            'Service completed.',
         );
     }
 
     #[OA\Patch(
         path: '/api/client/v1/provider/bookings/{booking}/payment-received',
-        summary: 'Confirm the customer paid for a completed job',
+        summary: 'Confirm the customer paid for a completed booking',
         description: 'Records an off-platform payment (cash, GCash, …); nothing is charged. Only a completed, unpaid booking. The customer is notified.',
         tags: ['Provider Bookings'],
         security: [['bearerAuth' => []]],

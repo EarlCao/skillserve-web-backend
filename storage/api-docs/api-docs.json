@@ -8711,7 +8711,7 @@
                 "tags": [
                     "Provider Bookings"
                 ],
-                "summary": "Cancel an accepted booking before the job starts",
+                "summary": "Cancel an accepted booking before the service starts",
                 "description": "Only a confirmed booking can be cancelled this way; use decline for a pending request. The customer is notified with the reason.",
                 "operationId": "8d4f43bdd4883ca33b61744cb4a94797",
                 "parameters": [
@@ -8782,7 +8782,7 @@
                 "tags": [
                     "Provider Bookings"
                 ],
-                "summary": "Start a confirmed job",
+                "summary": "Start the service on a confirmed booking",
                 "operationId": "5b51d750e397538f6e385bb74692edd5",
                 "parameters": [
                     {
@@ -8830,7 +8830,7 @@
                 "tags": [
                     "Provider Bookings"
                 ],
-                "summary": "Mark a job in progress as completed",
+                "summary": "Mark a service in progress as completed",
                 "operationId": "aa42dd62fbfbdaedbd0a2788aee93283",
                 "parameters": [
                     {
@@ -8878,7 +8878,7 @@
                 "tags": [
                     "Provider Bookings"
                 ],
-                "summary": "Confirm the customer paid for a completed job",
+                "summary": "Confirm the customer paid for a completed booking",
                 "description": "Records an off-platform payment (cash, GCash, …); nothing is charged. Only a completed, unpaid booking. The customer is notified.",
                 "operationId": "b0d2ef701a60c7b2aa6750594b124dbc",
                 "parameters": [
@@ -22956,8 +22956,13 @@
                         "description": "Their user id",
                         "type": "integer"
                     },
+                    "provider_id": {
+                        "description": "Present only when the other party is the provider (the customer's view): their provider profile id, for GET /api/client/v1/providers/{provider}",
+                        "type": "integer",
+                        "nullable": true
+                    },
                     "name": {
-                        "description": "A provider's business name, or a customer's name",
+                        "description": "A provider's display name (business name, else account name), or a customer's name",
                         "type": "string"
                     },
                     "profile_picture": {
