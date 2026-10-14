@@ -9,7 +9,6 @@ use App\Modules\ClientAuthentication\Requests\ChangeClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\ClientLoginRequest;
 use App\Modules\ClientAuthentication\Requests\CompleteClientRegistrationRequest;
 use App\Modules\ClientAuthentication\Requests\CompleteGoogleRegistrationRequest;
-use App\Modules\ClientAuthentication\Requests\DeleteClientAccountRequest;
 use App\Modules\ClientAuthentication\Requests\ForgotClientPasswordRequest;
 use App\Modules\ClientAuthentication\Requests\GoogleClientAuthRequest;
 use App\Modules\ClientAuthentication\Requests\RefreshClientTokenRequest;
@@ -561,33 +560,21 @@ class ClientAuthController extends Controller
 
     #[OA\Delete(
         path: '/api/client/v1/auth/me',
-        summary: 'Delete the signed-in account',
-        description: 'Confirmed with the account password. Refused while the account still has open bookings, so the other party is never left mid-job. The account is soft-deleted and every device is signed out; an administrator can restore it from Data Management. There is no separate "pending deletion" state.',
+        summary: 'Account deletion is not available',
+        description: 'Customers and providers can no longer delete their own account: an account that owes another user money (a refund, a booking) must stay visible to SkillServe. Always answers **410** with a message telling the user to contact support; kept so older app builds show that message instead of an error.',
         tags: ['Client Authentication'],
         security: [['bearerAuth' => []]],
-        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(
-            required: ['password'],
-            properties: [
-                new OA\Property(property: 'password', type: 'string', description: 'The account\'s current password'),
-                new OA\Property(property: 'reason', type: 'string', nullable: true, maxLength: 1000),
-            ],
-        )),
         responses: [
-            new OA\Response(response: 200, description: 'Account deleted and sessions revoked'),
+            new OA\Response(response: 410, description: 'Account deletion is not available'),
             new OA\Response(response: 401, description: 'Unauthenticated'),
-            new OA\Response(response: 403, description: 'Active mobile account required'),
-            new OA\Response(response: 422, description: 'Wrong password, or open bookings remain'),
         ],
     )]
-    public function deleteAccount(DeleteClientAccountRequest $request): JsonResponse
+    public function deleteAccount(): JsonResponse
     {
-        $this->accountDataService->delete(
-            $request->user(),
-            $request->validated('password'),
-            $request->validated('reason'),
+        return $this->error(
+            'Deleting your account is no longer available in the app. Contact SkillServe support if you need help with your account.',
+            410,
         );
-
-        return $this->success(null, 'Your account has been deleted.');
     }
 
     #[OA\Get(

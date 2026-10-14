@@ -20,6 +20,8 @@ Route::prefix('bookings')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/{booking}', [BookingController::class, 'show']);
     Route::get('/{booking}/history', [BookingController::class, 'history']);
     Route::get('/{booking}/payment-proofs/{proof}/image', [BookingController::class, 'paymentProofImage'])->whereNumber(['booking', 'proof']);
+    Route::get('/{booking}/refund/proof', [BookingController::class, 'refundProof'])->whereNumber('booking');
+    Route::patch('/{booking}/refund/resolve', [BookingController::class, 'resolveRefund'])->whereNumber('booking');
     Route::patch('/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::patch('/{booking}/mark-paid', [BookingController::class, 'markPaid']);
     Route::patch('/{booking}/refund', [BookingController::class, 'refund']);

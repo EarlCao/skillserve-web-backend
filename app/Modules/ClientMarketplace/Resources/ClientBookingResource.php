@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\Bookings\Resources\PaymentProofPresenter;
+use App\Modules\Bookings\Resources\RefundPresenter;
 use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\Locations\Services\PhAddressService;
@@ -97,6 +98,8 @@ class ClientBookingResource extends BaseResource
                             .'Message them to arrange payment.',
                     ],
             ),
+            // What the provider owes back after a cancellation, when anything was paid.
+            'refund' => $this->whenLoaded('refund', fn () => RefundPresenter::present($this->refund, "/api/client/v1/bookings/{$this->id}")),
             // GCash payment proofs the customer sent, newest first.
             'payment_proofs' => $this->whenLoaded('paymentProofs', fn () => PaymentProofPresenter::list(
                 $this->paymentProofs,

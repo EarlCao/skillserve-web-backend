@@ -8,6 +8,7 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Models\BookingRefund;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
@@ -60,7 +61,11 @@ class BookingService extends BaseService
             $query->where('status', $status);
         }
 
-        if ($paymentStatus = trim((string) ($filters['payment_status'] ?? ''))) {
+        // `refund_owed`: cancelled bookings whose payment is not back with the
+        // customer yet — the queue administrators settle.
+        if (($filters['payment_status'] ?? null) === 'refund_owed') {
+            $query->whereHas('refund', fn ($refund) => $refund->whereIn('status', BookingRefund::OPEN));
+        } elseif ($paymentStatus = trim((string) ($filters['payment_status'] ?? ''))) {
             $query->where('payment_status', $paymentStatus);
         }
 
@@ -112,6 +117,7 @@ class BookingService extends BaseService
             'cancelledByUser:id,name',
             'paymentRecordedBy:id,name',
             'paymentProofs',
+            'refund',
         ]);
     }
 
@@ -173,7 +179,8 @@ class BookingService extends BaseService
 
             event(new BookingCancelled(booking: $booking, actor: $actor, reason: $reason));
 
-            return $booking;
+            // Cancelling may have opened a refund of what was paid.
+            return $booking->load('refund');
         });
     }
 

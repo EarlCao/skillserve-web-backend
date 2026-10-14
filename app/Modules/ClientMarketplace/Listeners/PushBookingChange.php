@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Listeners;
 
 use App\Modules\Bookings\Events\BookingPaymentRecorded;
+use App\Modules\Bookings\Events\BookingRefundChanged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Events\PaymentProofReviewed;
 use App\Modules\Bookings\Events\PaymentProofSubmitted;
@@ -19,11 +20,13 @@ use Throwable;
  */
 class PushBookingChange
 {
-    public function handle(BookingStatusChanged|BookingPaymentRecorded|PaymentProofSubmitted|PaymentProofReviewed $event): void
+    public function handle(BookingStatusChanged|BookingPaymentRecorded|PaymentProofSubmitted|PaymentProofReviewed|BookingRefundChanged $event): void
     {
-        $booking = $event instanceof PaymentProofSubmitted || $event instanceof PaymentProofReviewed
-            ? $event->proof->booking
-            : $event->booking;
+        $booking = match (true) {
+            $event instanceof PaymentProofSubmitted, $event instanceof PaymentProofReviewed => $event->proof->booking,
+            $event instanceof BookingRefundChanged => $event->refund->booking,
+            default => $event->booking,
+        };
 
         if (! $booking instanceof Booking) {
             return;

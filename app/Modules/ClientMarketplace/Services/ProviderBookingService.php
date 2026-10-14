@@ -174,6 +174,8 @@ class ProviderBookingService extends BaseService
 
             if ($rules['to'] === 'cancelled') {
                 event(new BookingCancelled(booking: $booking, actor: $providerUser, reason: $reason));
+                // Cancelling may have opened a refund of what was paid.
+                $booking->load('refund');
             }
 
             return $booking;
@@ -196,6 +198,7 @@ class ProviderBookingService extends BaseService
             'client:id,name,phone,profile_photo_path',
             'review:id,booking_id,reviewer_id,provider_id,service_id,rating,comment,status,created_at,updated_at',
             'paymentProofs',
+            'refund',
         ];
     }
 

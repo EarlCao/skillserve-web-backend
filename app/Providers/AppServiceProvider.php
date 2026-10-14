@@ -26,6 +26,7 @@ use App\Modules\Bookings\Events\BookingCancelled;
 use App\Modules\Bookings\Events\BookingDisputeEvidenceAdded;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingPaymentRecorded;
+use App\Modules\Bookings\Events\BookingRefundChanged;
 use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Events\PaymentProofReviewed;
@@ -36,6 +37,8 @@ use App\Modules\Bookings\Listeners\NotifyDisputeParties;
 use App\Modules\Bookings\Listeners\NotifyPaymentParticipants;
 use App\Modules\Bookings\Listeners\NotifyPaymentProof;
 use App\Modules\Bookings\Listeners\NotifyProviderOfReschedule;
+use App\Modules\Bookings\Listeners\NotifyRefundParties;
+use App\Modules\Bookings\Listeners\OpenRefundOnCancellation;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
@@ -393,9 +396,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(BookingRescheduled::class, NotifyProviderOfReschedule::class);
         Event::listen(BookingPaymentRecorded::class, NotifyPaymentParticipants::class);
         Event::listen([PaymentProofSubmitted::class, PaymentProofReviewed::class], NotifyPaymentProof::class);
+        // A cancelled booking with money paid on it: the provider must return it.
+        Event::listen(BookingCancelled::class, OpenRefundOnCancellation::class);
+        Event::listen(BookingRefundChanged::class, NotifyRefundParties::class);
         // Open booking screens reload at once, whatever the notification settings.
         Event::listen(
-            [BookingStatusChanged::class, BookingPaymentRecorded::class, PaymentProofSubmitted::class, PaymentProofReviewed::class],
+            [BookingStatusChanged::class, BookingPaymentRecorded::class, PaymentProofSubmitted::class, PaymentProofReviewed::class, BookingRefundChanged::class],
             PushBookingChange::class,
         );
         Event::listen(BookingDisputeManaged::class, NotifyDisputeParties::class);
@@ -484,6 +490,7 @@ class AppServiceProvider extends ServiceProvider
             ServiceCreated::class, ServiceUpdated::class, ReportSubmitted::class,
             BookingStatusChanged::class, BookingDisputeEvidenceAdded::class,
             SupportTicketCreated::class, SupportTicketResponseAdded::class, CommissionRemittanceFlagged::class,
+            BookingRefundChanged::class,
         ], NotifyAdministrators::class);
         Gate::define('view dashboard', [DashboardPolicy::class, 'viewAny']);
 

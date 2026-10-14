@@ -9,9 +9,7 @@ use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Support\Models\SupportTicket;
-use App\Shared\Exceptions\ApiException;
 use App\Shared\Services\BaseService;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * What an account holder may do with their own data: take a copy of it, and
@@ -20,8 +18,6 @@ use Illuminate\Support\Facades\Hash;
 class AccountDataService extends BaseService
 {
     /** Statuses that mean a job is still live and owes someone something. */
-    private const OPEN_BOOKING_STATUSES = ['pending', 'confirmed', 'active', 'disputed'];
-
     public function __construct(private readonly ClientPreferenceService $preferenceService) {}
 
     /**
@@ -116,70 +112,6 @@ class AccountDataService extends BaseService
                     'created_at' => $ticket->created_at?->toIso8601String(),
                 ])->values()->all(),
         ];
-    }
-
-    /**
-     * Close the account: verify the password, refuse while the account still
-     * owes someone a job, then soft-delete and sign every device out.
-     *
-     * Soft deletion is deliberate — it is what lets an administrator restore an
-     * account through Data Management if the person changes their mind. There is
-     * no separate "pending deletion" state: an account is active or deleted.
-     */
-    public function delete(User $user, string $password, ?string $reason): void
-    {
-        if (! Hash::check($password, $user->password)) {
-            throw new ApiException(
-                'That password is incorrect.',
-                422,
-                errors: ['password' => ['That password is incorrect.']],
-            );
-        }
-
-        $this->assertNothingOutstanding($user);
-
-        $this->transaction(function () use ($user, $reason): void {
-            $user->update(['deleted_by' => $user->id]);
-            $user->tokens()->delete();
-            $user->delete();
-
-            // The reason goes to the users audit trail, where administrators
-            // already look when restoring an account — not onto a column that
-            // means something else.
-            activity('users')
-                ->performedOn($user)
-                ->causedBy($user)
-                ->withProperties(['reason' => $reason, 'self_service' => true])
-                ->log('user_self_deleted');
-        });
-    }
-
-    /**
-     * An account in the middle of a job cannot vanish: the other party is owed
-     * either the work or a cancellation first.
-     */
-    private function assertNothingOutstanding(User $user): void
-    {
-        $providerProfileId = $user->providerProfile?->id;
-
-        $open = Booking::query()
-            ->whereIn('status', self::OPEN_BOOKING_STATUSES)
-            ->where(function ($query) use ($user, $providerProfileId): void {
-                $query->where('client_id', $user->id);
-
-                if ($providerProfileId) {
-                    $query->orWhere('provider_id', $providerProfileId);
-                }
-            })
-            ->count();
-
-        if ($open > 0) {
-            throw new ApiException(
-                'You still have '.$open.' open '.($open === 1 ? 'booking' : 'bookings').'. Complete or cancel '.($open === 1 ? 'it' : 'them').' before deleting your account.',
-                422,
-                errors: ['account' => ['Open bookings must be settled before the account can be deleted.']],
-            );
-        }
     }
 
     /**

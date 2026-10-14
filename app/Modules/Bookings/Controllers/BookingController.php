@@ -10,9 +10,11 @@ use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ManageDisputeRequest;
 use App\Modules\Bookings\Requests\MarkBookingPaidRequest;
 use App\Modules\Bookings\Requests\RefundBookingRequest;
+use App\Modules\Bookings\Requests\ResolveRefundRequest;
 use App\Modules\Bookings\Resources\BookingResource;
 use App\Modules\Bookings\Services\BookingPaymentProofService;
 use App\Modules\Bookings\Services\BookingPaymentService;
+use App\Modules\Bookings\Services\BookingRefundService;
 use App\Modules\Bookings\Services\BookingService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -41,7 +43,7 @@ class BookingController extends Controller
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Search by booking ID, client, provider, or service', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'status', in: 'query', description: 'Filter by status', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'disputed'])),
-            new OA\Parameter(name: 'payment_status', in: 'query', description: 'Filter by payment status', required: false, schema: new OA\Schema(type: 'string', enum: ['unpaid', 'partially_paid', 'paid', 'refunded', 'partially_refunded'])),
+            new OA\Parameter(name: 'payment_status', in: 'query', description: 'Filter by payment status; `refund_owed` lists cancelled bookings whose payment has not been returned yet', required: false, schema: new OA\Schema(type: 'string', enum: ['unpaid', 'partially_paid', 'paid', 'refunded', 'partially_refunded', 'refund_owed'])),
             new OA\Parameter(name: 'provider_id', in: 'query', description: 'Filter by provider profile ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'client_id', in: 'query', description: 'Filter by client user ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'service_id', in: 'query', description: 'Filter by service ID', required: false, schema: new OA\Schema(type: 'integer')),
@@ -137,6 +139,42 @@ class BookingController extends Controller
         $booking = $this->bookingService->show($booking);
 
         return $this->success(new BookingResource($booking));
+    }
+
+    #[OA\Get(
+        path: '/api/bookings/{booking}/refund/proof',
+        summary: 'The provider\'s proof of returning a cancelled booking\'s payment',
+        tags: ['Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [new OA\Response(response: 200, description: 'The image file'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'No proof yet')],
+    )]
+    public function refundProof(Booking $booking, BookingRefundService $refunds): StreamedResponse
+    {
+        $this->authorize('view', $booking);
+
+        return $refunds->proof($booking);
+    }
+
+    #[OA\Patch(
+        path: '/api/bookings/{booking}/refund/resolve',
+        summary: 'Settle a refund the customer and provider could not',
+        description: '`returned` records it as refunded on the booking (as if the customer confirmed); `not_returned` keeps the provider blocked from new work — the basis for suspending or banning them. Both parties are told, with the note.',
+        tags: ['Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['resolution', 'note'], properties: [
+            new OA\Property(property: 'resolution', type: 'string', enum: ['returned', 'not_returned']),
+            new OA\Property(property: 'note', type: 'string', minLength: 3, maxLength: 1000),
+        ])),
+        responses: [new OA\Response(response: 200, description: 'Resolved', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'No refund on this booking'), new OA\Response(response: 409, description: 'Already confirmed by the customer'), new OA\Response(response: 422, description: 'Validation error')],
+    )]
+    public function resolveRefund(ResolveRefundRequest $request, Booking $booking, BookingRefundService $refunds): JsonResponse
+    {
+        $this->authorize('managePayments', $booking);
+        $refunds->resolve($request->user(), $booking, $request->validated('resolution'), $request->validated('note'));
+
+        return $this->success(new BookingResource($this->bookingService->show($booking->fresh())), 'Refund case resolved.');
     }
 
     #[OA\Get(

@@ -3,6 +3,7 @@
 namespace App\Modules\Commissions\Services;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\BookingRefund;
 use App\Modules\IdentityVerification\Services\IdentityGate;
 use App\Modules\Settings\Services\SettingsService;
 use App\Shared\Exceptions\ApiException;
@@ -99,7 +100,7 @@ class TransactionEligibility
      * (null when that trigger is off or nothing is owed), so the app can warn
      * a provider before they are stopped.
      *
-     * @return array{eligible: bool, reason: string|null, identity_status: string, identity_required: bool, outstanding_total: string, outstanding_count: int, block_threshold: string, block_deadline: string|null}
+     * @return array{eligible: bool, reason: string|null, identity_status: string, identity_required: bool, outstanding_total: string, outstanding_count: int, block_threshold: string, block_deadline: string|null, refunds_overdue: int}
      */
     public function forProvider(User $user): array
     {
@@ -115,6 +116,7 @@ class TransactionEligibility
                 'outstanding_count' => 0,
                 'block_threshold' => $this->money($this->blockThreshold()),
                 'block_deadline' => null,
+                'refunds_overdue' => 0,
             ];
         }
 
@@ -126,12 +128,20 @@ class TransactionEligibility
             || ($deadline !== null && ! now()->isBefore($deadline))
         );
         $identity = $this->identityState($user);
+        // A customer's money not given back after a cancellation: overdue,
+        // reported as not received, or found not returned by SkillServe.
+        $refundsOwed = BookingRefund::query()
+            ->blocking()
+            ->whereHas('booking', fn ($booking) => $booking->where('provider_id', $profileId))
+            ->count();
 
         // Identity is reported first: it is the more fundamental block, and
         // the app should send the provider to the ID screen rather than to a
-        // settlement screen they cannot act on.
+        // settlement screen they cannot act on. A customer's money comes
+        // before SkillServe's own commission.
         $reason = match (true) {
             ! $identity['eligible'] => $identity['reason'],
+            $refundsOwed > 0 => 'refund_overdue',
             $owes => 'outstanding_commission',
             default => null,
         };
@@ -145,6 +155,7 @@ class TransactionEligibility
             'outstanding_count' => $outstanding['count'],
             'block_threshold' => $this->money($threshold),
             'block_deadline' => $deadline?->toIso8601String(),
+            'refunds_overdue' => $refundsOwed,
         ];
     }
 
@@ -181,6 +192,14 @@ class TransactionEligibility
         $this->assertIdentityVerified($user);
 
         $state = $this->forProvider($user);
+
+        if ($state['reason'] === 'refund_overdue') {
+            throw new ApiException(
+                'Return the payment you owe a customer before taking on new work.',
+                403,
+                errors: ['refund' => ['A cancelled booking\'s payment has not been returned to the customer.']],
+            );
+        }
 
         if ($state['eligible'] || $state['reason'] !== 'outstanding_commission') {
             return;

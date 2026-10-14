@@ -3096,7 +3096,7 @@
                     {
                         "name": "payment_status",
                         "in": "query",
-                        "description": "Filter by payment status",
+                        "description": "Filter by payment status; `refund_owed` lists cancelled bookings whose payment has not been returned yet",
                         "required": false,
                         "schema": {
                             "type": "string",
@@ -3105,7 +3105,8 @@
                                 "partially_paid",
                                 "paid",
                                 "refunded",
-                                "partially_refunded"
+                                "partially_refunded",
+                                "refund_owed"
                             ]
                         }
                     },
@@ -3317,6 +3318,118 @@
                     },
                     "404": {
                         "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{booking}/refund/proof": {
+            "get": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "The provider's proof of returning a cancelled booking's payment",
+                "operationId": "558b524bfe1491010097b98f9d7b6106",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "No proof yet"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{booking}/refund/resolve": {
+            "patch": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "Settle a refund the customer and provider could not",
+                "description": "`returned` records it as refunded on the booking (as if the customer confirmed); `not_returned` keeps the provider blocked from new work — the basis for suspending or banning them. Both parties are told, with the note.",
+                "operationId": "72c7d2a94aca4eee54122f927074f060",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "resolution",
+                                    "note"
+                                ],
+                                "properties": {
+                                    "resolution": {
+                                        "type": "string",
+                                        "enum": [
+                                            "returned",
+                                            "not_returned"
+                                        ]
+                                    },
+                                    "note": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Resolved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "No refund on this booking"
+                    },
+                    "409": {
+                        "description": "Already confirmed by the customer"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -5334,45 +5447,15 @@
                 "tags": [
                     "Client Authentication"
                 ],
-                "summary": "Delete the signed-in account",
-                "description": "Confirmed with the account password. Refused while the account still has open bookings, so the other party is never left mid-job. The account is soft-deleted and every device is signed out; an administrator can restore it from Data Management. There is no separate \"pending deletion\" state.",
+                "summary": "Account deletion is not available",
+                "description": "Customers and providers can no longer delete their own account: an account that owes another user money (a refund, a booking) must stay visible to SkillServe. Always answers **410** with a message telling the user to contact support; kept so older app builds show that message instead of an error.",
                 "operationId": "40600885410e53f3faa51a2e194fb098",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "password"
-                                ],
-                                "properties": {
-                                    "password": {
-                                        "description": "The account's current password",
-                                        "type": "string"
-                                    },
-                                    "reason": {
-                                        "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 1000
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
                 "responses": {
-                    "200": {
-                        "description": "Account deleted and sessions revoked"
+                    "410": {
+                        "description": "Account deletion is not available"
                     },
                     "401": {
                         "description": "Unauthenticated"
-                    },
-                    "403": {
-                        "description": "Active mobile account required"
-                    },
-                    "422": {
-                        "description": "Wrong password, or open bookings remain"
                     }
                 },
                 "security": [
@@ -8094,6 +8177,264 @@
                     },
                     "422": {
                         "description": "No open dispute, the evidence limit is reached, or the image is invalid"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/refund": {
+            "post": {
+                "tags": [
+                    "Booking Refunds"
+                ],
+                "summary": "Mark the customer's payment as returned, with proof",
+                "description": "Multipart: `image` (required screenshot of the GCash transfer) and optional `reference`. Allowed while the refund is `due` or after the customer reported it `not_received` (a new proof). Returns the booking.",
+                "operationId": "ba4ae3f9dbbfe511a51cc8505fdbc379",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "image"
+                                ],
+                                "properties": {
+                                    "reference": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Marked as returned; the customer is asked to confirm",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the provider's booking"
+                    },
+                    "404": {
+                        "description": "Nothing to return on this booking"
+                    },
+                    "409": {
+                        "description": "Not waiting to be returned"
+                    },
+                    "422": {
+                        "description": "Screenshot missing or invalid"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/refund/confirm": {
+            "patch": {
+                "tags": [
+                    "Booking Refunds"
+                ],
+                "summary": "Confirm the returned payment reached you",
+                "operationId": "15297300cc992403afde4dba10b5346e",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Confirmed; recorded as refunded on the booking",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the customer's booking"
+                    },
+                    "404": {
+                        "description": "Nothing to return on this booking"
+                    },
+                    "409": {
+                        "description": "The provider has not marked it returned"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/refund/not-received": {
+            "patch": {
+                "tags": [
+                    "Booking Refunds"
+                ],
+                "summary": "Report that the returned payment did not arrive",
+                "description": "SkillServe's team is alerted and the provider cannot take new bookings until it is settled.",
+                "operationId": "390879ef72ae4a38aded760296933164",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "note"
+                                ],
+                                "properties": {
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Nothing arrived in my GCash; the reference does not exist.",
+                                        "maxLength": 1000,
+                                        "minLength": 10
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Reported",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the customer's booking"
+                    },
+                    "404": {
+                        "description": "Nothing to return on this booking"
+                    },
+                    "409": {
+                        "description": "The provider has not marked it returned"
+                    },
+                    "422": {
+                        "description": "Explain what happened (at least 10 characters)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/refund/proof": {
+            "get": {
+                "tags": [
+                    "Booking Refunds"
+                ],
+                "summary": "The provider's proof of returning the payment",
+                "operationId": "f2e2f0cdf7a2725be4a2c59553c09397",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Not the customer's booking"
+                    },
+                    "404": {
+                        "description": "No proof yet"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/refund/proof": {
+            "get": {
+                "tags": [
+                    "Booking Refunds"
+                ],
+                "summary": "Your proof of returning the customer's payment",
+                "operationId": "cc1237e8136ad008edc835e6d417b6c8",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Not the provider's booking"
+                    },
+                    "404": {
+                        "description": "No proof yet"
                     }
                 },
                 "security": [
@@ -14002,7 +14343,7 @@
                     "Transaction Eligibility"
                 ],
                 "summary": "Whether this account may transact, and what is blocking it",
-                "description": "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `outstanding_commission` or `no_provider_profile`. Providers additionally receive their outstanding commission total, `block_threshold` (the unpaid total at which the commission block starts; `0.00` means any debt) and `block_deadline` (when the oldest unpaid commission starts blocking by age, or null when that trigger is off or nothing is owed).\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
+                "description": "Returns the same decision the protected endpoints enforce, so the app can show the right prompt rather than a bare 403.\n\n`reason` is null when eligible, otherwise one of `identity_unverified`, `identity_pending`, `identity_rejected`, `refund_overdue` (a cancelled booking's payment not returned to the customer in time, reported as not received, or found not returned), `outstanding_commission` or `no_provider_profile`. Providers additionally receive `refunds_overdue` (how many such refunds), their outstanding commission total, `block_threshold` (the unpaid total at which the commission block starts; `0.00` means any debt) and `block_deadline` (when the oldest unpaid commission starts blocking by age, or null when that trigger is off or nothing is owed).\n\n`identity_required` reflects System Settings → Identity: accounts created before the grandfathering date are not required to verify and report `false`.\n\nThis endpoint is advisory. The backend remains authoritative: the mobile app and the admin web both inherit these rules from the API rather than implementing them separately.",
                 "operationId": "383df0b86c2a6529a7b7192ee5565b85",
                 "responses": {
                     "200": {
@@ -26922,6 +27263,10 @@
         {
             "name": "Booking Disputes",
             "description": "Disputes raised by a booking's customer or provider"
+        },
+        {
+            "name": "Booking Refunds",
+            "description": "A cancelled booking's payment (a downpayment or all of it) goes back to the customer: the provider returns it with proof by the deadline, the customer confirms it or reports it missing, and SkillServe settles the rest. A provider with an overdue or disputed refund cannot take new bookings."
         },
         {
             "name": "Client Bookings",

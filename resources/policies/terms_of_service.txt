@@ -30,7 +30,9 @@ You can report a person, a review, a message, a service or a provider, and raise
 SkillServe may warn, suspend or ban an account, hide a service, or remove content that breaks these terms or the Community Guidelines, including fraud, harassment, unsafe conduct, fake reviews or repeated no-shows.
 
 10. Closing your account
-You can delete your account in Profile; you will be asked for your password, and it cannot be done while a booking or commission is still outstanding. A deleted account can be restored for 30 days. After that it is removed permanently, together with your profile photo and the photos you sent as proof, once no booking or conversation still depends on it. Some records (such as completed bookings and moderation decisions) are kept as long as the law or a dispute requires.
+Accounts cannot be deleted from the app, so that money owed between users — a booking, a payment to return — can always be traced. Contact SkillServe support if you need help with your account. Some records (such as completed bookings and moderation decisions) are kept as long as the law or a dispute requires.
+
+If a booking you were paid for (in full or as a downpayment) is cancelled, you must return that payment to the customer within the time SkillServe sets and upload proof. A provider who does not may be blocked from new bookings, suspended or banned. A customer who cancels late may let the provider keep the late-cancellation fee shown before cancelling.
 
 11. Liability
 SkillServe works to keep the marketplace safe but cannot guarantee the quality, timing or safety of a provider's work or a customer's conduct. To the extent the law allows, SkillServe is not liable for losses arising from a service agreed between a customer and a provider.

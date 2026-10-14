@@ -70,111 +70,22 @@ class AccountDataTest extends TestCase
         $this->assertCount(1, $bookings);
     }
 
-    public function test_an_account_is_deleted_after_confirming_the_password(): void
+    public function test_customers_and_providers_cannot_delete_their_own_account(): void
     {
+        // An account that may owe someone money (a refund, a job) stays
+        // visible to SkillServe; older apps get a message, not an error.
         $client = $this->customer();
+        [, $providerUser] = $this->provider();
 
-        $this->withToken($this->clientToken($client))
-            ->deleteJson('/api/client/v1/auth/me', [
-                'password' => 'SkillServe#2026',
-                'reason' => 'No longer need the app.',
-            ])
-            ->assertOk();
-
-        // Soft-deleted, so an administrator can still restore it.
-        $this->assertSoftDeleted('users', ['id' => $client->id]);
-        $this->assertSame(0, $client->tokens()->count());
-        $this->assertSame($client->id, (int) User::withTrashed()->find($client->id)->deleted_by);
-
-        // The reason lands in the audit trail administrators restore from.
-        $this->assertDatabaseHas('activity_log', [
-            'log_name' => 'users',
-            'description' => 'user_self_deleted',
-            'subject_id' => $client->id,
-            'causer_id' => $client->id,
-        ]);
-    }
-
-    public function test_the_wrong_password_does_not_delete_the_account(): void
-    {
-        $client = $this->customer();
-
-        $this->withToken($this->clientToken($client))
-            ->deleteJson('/api/client/v1/auth/me', ['password' => 'not-my-password'])
-            ->assertStatus(422)
-            ->assertJsonPath('errors.password.0', 'That password is incorrect.');
-
-        $this->assertDatabaseHas('users', ['id' => $client->id, 'deleted_at' => null]);
-        $this->assertSame(1, $client->tokens()->count());
-    }
-
-    public function test_the_password_is_required(): void
-    {
-        $client = $this->customer();
-
-        $this->withToken($this->clientToken($client))
-            ->deleteJson('/api/client/v1/auth/me', [])
-            ->assertStatus(422);
-
-        $this->assertDatabaseHas('users', ['id' => $client->id, 'deleted_at' => null]);
-    }
-
-    public function test_an_account_with_an_open_booking_cannot_be_deleted(): void
-    {
-        $client = $this->customer();
-        [$provider] = $this->provider();
-        $token = $this->clientToken($client);
-
-        foreach (['pending', 'confirmed', 'active', 'disputed'] as $status) {
-            $booking = $this->booking($client, $provider, ['status' => $status]);
-
+        foreach ([$client, $providerUser] as $user) {
             Auth::forgetGuards();
-            $this->withToken($token)
+            $this->withToken($user->createToken('app', ['client:auth'])->plainTextToken)
                 ->deleteJson('/api/client/v1/auth/me', ['password' => 'SkillServe#2026'])
-                ->assertStatus(422)
-                ->assertJsonPath('errors.account.0',
-                    'Open bookings must be settled before the account can be deleted.');
+                ->assertStatus(410)
+                ->assertJsonPath('success', false);
 
-            $this->assertDatabaseHas('users', ['id' => $client->id, 'deleted_at' => null]);
-            $booking->forceDelete();
+            $this->assertDatabaseHas('users', ['id' => $user->id, 'deleted_at' => null]);
         }
-
-        // With everything settled the account can go.
-        $this->booking($client, $provider, ['status' => 'completed']);
-        Auth::forgetGuards();
-        $this->withToken($token)
-            ->deleteJson('/api/client/v1/auth/me', ['password' => 'SkillServe#2026'])
-            ->assertOk();
-
-        $this->assertSoftDeleted('users', ['id' => $client->id]);
-    }
-
-    public function test_a_provider_with_an_open_job_cannot_delete_their_account_either(): void
-    {
-        $client = $this->customer();
-        [$provider, $providerUser] = $this->provider();
-        $this->booking($client, $provider, ['status' => 'active']);
-
-        $this->withToken($providerUser->createToken('provider', ['client:auth'])->plainTextToken)
-            ->deleteJson('/api/client/v1/auth/me', ['password' => 'SkillServe#2026'])
-            ->assertStatus(422);
-
-        $this->assertDatabaseHas('users', ['id' => $providerUser->id, 'deleted_at' => null]);
-    }
-
-    public function test_a_deleted_account_can_no_longer_use_its_token(): void
-    {
-        $client = $this->customer();
-        $token = $this->clientToken($client);
-
-        $this->withToken($token)
-            ->deleteJson('/api/client/v1/auth/me', ['password' => 'SkillServe#2026'])
-            ->assertOk();
-
-        Auth::forgetGuards();
-        $this->withToken($token)
-            ->getJson('/api/client/v1/auth/me')
-            ->assertUnauthorized();
     }
 
     public function test_the_endpoints_need_a_signed_in_mobile_account(): void

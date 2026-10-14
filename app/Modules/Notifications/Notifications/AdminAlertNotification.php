@@ -27,9 +27,11 @@ class AdminAlertNotification extends BaseNotification
 
     public const COMMISSION_PAYMENT = 'commission_payment';
 
+    public const REFUND = 'refund';
+
     public const KINDS = [
         self::PROVIDER_VERIFICATION, self::IDENTITY_VERIFICATION, self::SERVICE_REVIEW,
-        self::REPORT, self::DISPUTE, self::SUPPORT_TICKET, self::COMMISSION_PAYMENT,
+        self::REPORT, self::DISPUTE, self::SUPPORT_TICKET, self::COMMISSION_PAYMENT, self::REFUND,
     ];
 
     /**

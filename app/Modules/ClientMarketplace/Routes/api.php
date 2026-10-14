@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\ClientMarketplace\Controllers\BookingDisputeController;
+use App\Modules\ClientMarketplace\Controllers\BookingRefundController;
 use App\Modules\ClientMarketplace\Controllers\ClientBookingController;
 use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientPaymentController;
@@ -44,6 +45,11 @@ Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): voi
             ->whereNumber('booking')->middleware('throttle:10,1');
         Route::get('/{booking}/payment-proofs/{proof}/image', [PaymentProofController::class, 'customerImage'])
             ->whereNumber(['booking', 'proof']);
+
+        // A cancelled booking's payment coming back to the customer.
+        Route::patch('/{booking}/refund/confirm', [BookingRefundController::class, 'confirm'])->whereNumber('booking');
+        Route::patch('/{booking}/refund/not-received', [BookingRefundController::class, 'notReceived'])->whereNumber('booking');
+        Route::get('/{booking}/refund/proof', [BookingRefundController::class, 'customerProof'])->whereNumber('booking');
     });
 
     Route::get('/favorites', [FavoriteProviderController::class, 'index']);
@@ -124,6 +130,8 @@ Route::prefix('provider/bookings')->middleware(['auth:sanctum', EnsureProvider::
     Route::patch('/{booking}/payment-proofs/{proof}/confirm', [PaymentProofController::class, 'confirm'])->whereNumber(['booking', 'proof']);
     Route::patch('/{booking}/payment-proofs/{proof}/reject', [PaymentProofController::class, 'reject'])->whereNumber(['booking', 'proof']);
     Route::get('/{booking}/payment-proofs/{proof}/image', [PaymentProofController::class, 'providerImage'])->whereNumber(['booking', 'proof']);
+    Route::post('/{booking}/refund', [BookingRefundController::class, 'markSent'])->whereNumber('booking')->middleware('throttle:10,1');
+    Route::get('/{booking}/refund/proof', [BookingRefundController::class, 'providerProof'])->whereNumber('booking');
 });
 
 /* What a price means for the provider, before they publish it. Outside the

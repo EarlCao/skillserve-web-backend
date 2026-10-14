@@ -20,6 +20,8 @@ class BookingResource extends BaseResource
             'payment_status' => $this->payment_status,
             'amount_paid' => $this->amount_paid,
             'balance_due' => number_format($this->resource->balanceDue(), 2, '.', ''),
+            // What the provider owes back after a cancellation, for the admin to settle.
+            'refund' => $this->whenLoaded('refund', fn () => RefundPresenter::present($this->refund, "/bookings/{$this->id}", absolute: false)),
             // The customer's GCash proofs; screenshots open through the admin API.
             'payment_proofs' => $this->whenLoaded('paymentProofs', fn () => PaymentProofPresenter::list(
                 $this->paymentProofs,

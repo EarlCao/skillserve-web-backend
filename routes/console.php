@@ -24,3 +24,8 @@ Schedule::command('identity:purge-documents')->daily();
 // Receipts attached to GCash commission payments are deleted once System
 // Settings → Commission payments says their retention has passed.
 Schedule::command('commissions:purge-receipts')->daily();
+
+// A payment not returned after a cancellation, past its deadline, alerts
+// administrators and the provider once (the provider block itself reads the
+// deadline directly, so it does not wait for this).
+Schedule::command('bookings:escalate-overdue-refunds')->everyFifteenMinutes();

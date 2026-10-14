@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Resources;
 
 use App\Modules\Bookings\Resources\PaymentProofPresenter;
+use App\Modules\Bookings\Resources\RefundPresenter;
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Modules\Commissions\Services\CommissionLedger;
@@ -28,6 +29,8 @@ class ProviderBookingResource extends BaseResource
             // What has been confirmed so far (downpayments add up) and what is left.
             'amount_paid' => $this->amount_paid,
             'balance_due' => number_format($this->resource->balanceDue(), 2, '.', ''),
+            // What the provider owes back after a cancellation, and where it stands.
+            'refund' => $this->whenLoaded('refund', fn () => RefundPresenter::present($this->refund, "/api/client/v1/provider/bookings/{$this->id}")),
             // GCash payment proofs from the customer to confirm or reject.
             'payment_proofs' => $this->whenLoaded('paymentProofs', fn () => PaymentProofPresenter::list(
                 $this->paymentProofs,

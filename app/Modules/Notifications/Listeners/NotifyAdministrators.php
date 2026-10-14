@@ -4,6 +4,7 @@ namespace App\Modules\Notifications\Listeners;
 
 use App\Models\User;
 use App\Modules\Bookings\Events\BookingDisputeEvidenceAdded;
+use App\Modules\Bookings\Events\BookingRefundChanged;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Commissions\Events\CommissionRemittanceFlagged;
@@ -44,6 +45,7 @@ class NotifyAdministrators
             $event instanceof SupportTicketCreated => $this->ticketCreated($event),
             $event instanceof SupportTicketResponseAdded => $this->ticketReply($event),
             $event instanceof CommissionRemittanceFlagged => $this->paymentFlagged($event),
+            $event instanceof BookingRefundChanged => $this->refund($event),
             default => null,
         };
     }
@@ -190,6 +192,28 @@ class NotifyAdministrators
             '/admin/commissions?tab=payments',
             ['remittance_id' => $remittance->id],
         ), 'view commissions');
+    }
+
+    /** A payment owed back after a cancellation that the parties have not settled. */
+    private function refund(BookingRefundChanged $event): void
+    {
+        if (! in_array($event->action, ['overdue', 'not_received'], true)) {
+            return;
+        }
+
+        $refund = $event->refund->loadMissing('booking.service:id,title');
+        $booking = $refund->booking;
+        $amount = $booking->currency.' '.number_format((float) $refund->amount, 2);
+
+        $this->alerts->send(new Alert(
+            Alert::REFUND,
+            $event->action === 'overdue' ? 'Refund overdue: '.$booking->booking_number : 'Refund not received: '.$booking->booking_number,
+            $event->action === 'overdue'
+                ? "The provider has not returned {$amount} after the booking was cancelled. They are blocked from new work until it is settled."
+                : "The customer says the {$amount} the provider marked as returned did not arrive: ".Str::limit((string) $refund->customer_note, 120),
+            '/admin/bookings?search='.urlencode($booking->booking_number),
+            ['booking_id' => $booking->id],
+        ), 'viewAny', Booking::class, $event->actor);
     }
 
     private function bookingLabel(Booking $booking): string

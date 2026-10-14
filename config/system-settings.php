@@ -53,6 +53,9 @@ return [
             'cancellation_window_hours' => ['label' => 'Cancellation window (hours)', 'type' => 'number', 'default' => 24, 'rules' => ['integer', 'min:0', 'max:720']],
             'client_cancellation_fee_percent' => ['label' => 'Client cancellation fee (%)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:100']],
             'provider_cancellation_fee_percent' => ['label' => 'Provider cancellation fee (%)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:100']],
+            // A cancelled booking's payment goes back to the customer within
+            // this many days; past it the provider cannot take new work.
+            'downpayment_refund_days' => ['label' => 'Days to return a payment after cancellation', 'type' => 'number', 'default' => 3, 'rules' => ['integer', 'min:1', 'max:30']],
         ],
         'notifications' => [
             'email_notifications_enabled' => ['label' => 'Email notifications', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],

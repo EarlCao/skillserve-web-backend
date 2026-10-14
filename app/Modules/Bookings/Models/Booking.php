@@ -157,6 +157,12 @@ class Booking extends Model
         return max(0, round((float) $this->total_price - (float) $this->amount_paid, 2));
     }
 
+    /** What the provider owes back after a cancellation, when anything was paid. */
+    public function refund(): HasOne
+    {
+        return $this->hasOne(BookingRefund::class);
+    }
+
     /** Proofs of GCash payments, newest first. */
     public function paymentProofs(): HasMany
     {
