@@ -20,7 +20,7 @@ To create and secure your account; to verify that you are who you say you are an
 We do not sell personal data.
 
 4. How long we keep it
-- National ID photos are deleted automatically after a set period once your verification is decided (90 days unless SkillServe sets otherwise). The protected card-number code is kept so an ID cannot back a second account.
+- Photos of a National ID that was not accepted are deleted automatically after a set period (90 days unless SkillServe sets otherwise). Photos of a verified National ID are kept while your account exists, so SkillServe can act on fraud or scam reports. The protected card-number code is kept so an ID cannot back a second account.
 - Commission receipt screenshots are deleted after a set period (180 days unless SkillServe sets otherwise).
 - Accounts cannot be deleted from the app, so payments owed between users can always be traced; contact SkillServe support for help with your account. Booking, payment and moderation records may be kept longer where the law or an open dispute requires.
 

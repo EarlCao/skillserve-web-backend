@@ -107,6 +107,8 @@ class ProviderService extends BaseService
             ->whereKey($profile->id)
             ->with([
                 'user:id,name,email,phone,address,birthday,created_at',
+                // Their National ID, for the profile's identity section.
+                'user.identityVerification.documents',
                 'verifiedBy:id,name',
                 'suspendedBy:id,name',
                 'latestVerificationRequest' => function ($query) {

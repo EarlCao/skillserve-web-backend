@@ -236,8 +236,12 @@ class IdentityVerificationService extends BaseService
                 'reviewed_at' => now(),
                 'reviewed_by' => $actor->id,
                 'rejection_reason' => $status === IdentityVerification::REJECTED ? $reason : null,
-                // The images are only needed while under review or dispute.
-                'documents_purge_after' => now()->addDays(max(1, $retentionDays)),
+                // A verified ID's photos are kept while the account exists —
+                // the evidence if the person later scams someone. A rejected
+                // ID's photos are only needed for a while, then purged.
+                'documents_purge_after' => $status === IdentityVerification::VERIFIED
+                    ? null
+                    : now()->addDays(max(1, $retentionDays)),
             ]);
 
             $this->recordEvent(

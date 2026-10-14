@@ -164,8 +164,9 @@ class IdentityVerificationReviewTest extends TestCase
         $this->assertSame(IdentityVerification::VERIFIED, $record->status);
         $this->assertSame($actor->id, $record->reviewed_by);
         $this->assertNotNull($record->reviewed_at);
-        // The images are only needed while under review or dispute.
-        $this->assertTrue($record->documents_purge_after->between(now()->addDays(29), now()->addDays(31)));
+        // A verified ID keeps its photos while the account exists.
+        $this->assertNull($record->documents_purge_after);
+        $this->assertCount(1, $record->documents()->get());
     }
 
     public function test_rejecting_requires_a_reason_and_tells_the_holder(): void

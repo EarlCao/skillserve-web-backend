@@ -49,7 +49,7 @@ return [
             // intended configuration.
             'identity_verification_enforced_from' => ['label' => 'Require it for accounts created from', 'type' => 'date', 'default' => '', 'rules' => ['nullable', 'date']],
 
-            'identity_document_retention_days' => ['label' => 'Keep National ID images for (days)', 'type' => 'number', 'default' => 90, 'rules' => ['integer', 'min:1', 'max:3650']],
+            'identity_document_retention_days' => ['label' => 'Keep rejected National ID images for (days)', 'type' => 'number', 'default' => 90, 'rules' => ['integer', 'min:1', 'max:3650']],
         ],
         'booking' => [
             'booking_enabled' => ['label' => 'Enable bookings', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],

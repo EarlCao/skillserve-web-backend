@@ -2,6 +2,7 @@
 
 namespace App\Modules\Providers\Resources;
 
+use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Shared\Resources\BaseResource;
 use Illuminate\Http\Request;
 
@@ -26,6 +27,13 @@ class ProviderResource extends BaseResource
                 'phone' => $this->user->phone,
                 'created_at' => $this->user->created_at?->toIso8601String(),
             ],
+            // The provider's National ID, for administrators allowed to review
+            // IDs: the photos open through the identity verification download.
+            'identity' => $this->when(
+                $request->user()?->can('viewAny', IdentityVerification::class)
+                    && $this->user->relationLoaded('identityVerification'),
+                fn () => $this->identity($this->user->identityVerification),
+            ),
             'business_name' => $this->business_name,
             'bio' => $this->bio,
             'specialization' => $this->specialization,
@@ -64,6 +72,30 @@ class ProviderResource extends BaseResource
             'latest_verification_request' => new VerificationRequestResource($this->whenLoaded('latestVerificationRequest')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /** @return array<string, mixed>|null */
+    private function identity(?IdentityVerification $record): ?array
+    {
+        if ($record === null) {
+            return null;
+        }
+
+        return [
+            'id' => $record->id,
+            'status' => $record->status,
+            'full_name' => $record->full_name,
+            'id_number_last4' => $record->id_number_last4,
+            'submitted_at' => $record->submitted_at?->toIso8601String(),
+            'reviewed_at' => $record->reviewed_at?->toIso8601String(),
+            'documents' => $record->relationLoaded('documents')
+                ? $record->documents->map(fn ($document): array => [
+                    'id' => $document->id,
+                    'document_type' => $document->document_type,
+                    'download_path' => "/identity-verifications/{$record->id}/documents/{$document->id}/download",
+                ])->values()->all()
+                : [],
         ];
     }
 }

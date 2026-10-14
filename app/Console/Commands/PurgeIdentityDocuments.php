@@ -26,6 +26,9 @@ class PurgeIdentityDocuments extends Command
         IdentityVerification::query()
             ->whereNotNull('documents_purge_after')
             ->where('documents_purge_after', '<=', now())
+            // Verified IDs keep their photos while the account exists, even
+            // when an older decision gave them a purge date.
+            ->where('status', '!=', IdentityVerification::VERIFIED)
             ->whereHas('documents')
             ->chunkById(100, function ($records) use ($verification, &$purged): void {
                 foreach ($records as $record) {

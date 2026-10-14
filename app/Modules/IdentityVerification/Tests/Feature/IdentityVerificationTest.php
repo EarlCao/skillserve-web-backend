@@ -432,7 +432,7 @@ class IdentityVerificationTest extends TestCase
             ->assertStatus(201);
     }
 
-    public function test_retention_purges_the_images_but_keeps_the_decision(): void
+    public function test_retention_purges_a_rejected_ids_images_but_keeps_the_decision(): void
     {
         [$user, $token] = $this->account();
 
@@ -444,7 +444,7 @@ class IdentityVerificationTest extends TestCase
         $paths = $record->documents->pluck('file_path')->all();
 
         $record->update([
-            'status' => IdentityVerification::VERIFIED,
+            'status' => IdentityVerification::REJECTED,
             'documents_purge_after' => now()->subDay(),
         ]);
 
@@ -456,8 +456,30 @@ class IdentityVerificationTest extends TestCase
 
         $record->refresh();
 
-        $this->assertSame(IdentityVerification::VERIFIED, $record->status);
+        $this->assertSame(IdentityVerification::REJECTED, $record->status);
         $this->assertCount(0, $record->documents()->get());
         $this->assertSame(1, $record->events()->count());
+    }
+
+    public function test_a_verified_ids_images_are_never_purged(): void
+    {
+        [$user, $token] = $this->account();
+
+        $this->withToken($token)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+
+        $record = IdentityVerification::query()->where('user_id', $user->id)->firstOrFail();
+        $paths = $record->documents->pluck('file_path')->all();
+
+        // Even a purge date set by an earlier decision is ignored.
+        $record->update(['status' => IdentityVerification::VERIFIED, 'documents_purge_after' => now()->subDay()]);
+
+        $this->artisan('identity:purge-documents')->assertExitCode(0);
+
+        foreach ($paths as $path) {
+            Storage::disk('identity')->assertExists($path);
+        }
+        $this->assertCount(count($paths), $record->documents()->get());
     }
 }
