@@ -35,6 +35,37 @@ class SettingsService
     }
 
     /**
+     * What System Settings shows: every setting except those another admin
+     * page owns (`managed_by`, e.g. the commission rules on the Commission
+     * page).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function forSystemSettings(): array
+    {
+        return collect($this->all())
+            ->map(fn (array $fields, string $group): array => array_filter(
+                $fields,
+                fn (string $name): bool => ! isset(config("system-settings.groups.{$group}.{$name}")['managed_by']),
+                ARRAY_FILTER_USE_KEY,
+            ))
+            ->all();
+    }
+
+    /**
+     * The settings an admin page owns, as "name" => value within [group].
+     *
+     * @return array<string, mixed>
+     */
+    public function managedBy(string $owner, string $group): array
+    {
+        return collect(config("system-settings.groups.{$group}"))
+            ->filter(fn (array $definition): bool => ($definition['managed_by'] ?? null) === $owner)
+            ->map(fn (array $definition, string $name): mixed => $this->value($group, $name))
+            ->all();
+    }
+
+    /**
      * Settings the admin can see but not change, as "group.name" keys —
      * values that come from server configuration.
      *
@@ -51,9 +82,14 @@ class SettingsService
             ->all();
     }
 
-    public function update(array $values, User $actor): array
+    /**
+     * Saves [values]. System Settings ([owner] null) may not change a setting
+     * another page owns; that page passes its own name as [owner] and may
+     * change only its own.
+     */
+    public function update(array $values, User $actor, ?string $owner = null): array
     {
-        DB::transaction(function () use ($values, $actor): void {
+        DB::transaction(function () use ($values, $actor, $owner): void {
             foreach ($values as $group => $fields) {
                 if (! array_key_exists($group, config('system-settings.groups'))) {
                     continue;
@@ -63,6 +99,15 @@ class SettingsService
                     if (! array_key_exists($name, config("system-settings.groups.{$group}"))) {
                         throw ValidationException::withMessages([
                             "{$group}.{$name}" => ['This setting is not supported.'],
+                        ]);
+                    }
+
+                    $managedBy = config("system-settings.groups.{$group}.{$name}")['managed_by'] ?? null;
+                    if ($managedBy !== $owner) {
+                        throw ValidationException::withMessages([
+                            "{$group}.{$name}" => [$managedBy === 'commissions'
+                                ? 'Change this on the Commission page.'
+                                : 'This setting cannot be changed here.'],
                         ]);
                     }
 
@@ -97,8 +142,8 @@ class SettingsService
 
             activity('system_settings')
                 ->causedBy($actor)
-                ->withProperties(['groups' => array_keys($values)])
-                ->log('System settings updated');
+                ->withProperties(['groups' => array_keys($values), 'page' => $owner ?? 'system_settings'])
+                ->log($owner === 'commissions' ? 'Commission rules updated' : 'System settings updated');
         });
 
         return $this->all();

@@ -51,7 +51,7 @@ class SettingsController extends Controller
         abort_unless(request()->user()->can('view settings') || request()->user()->can('manage settings'), 403);
 
         return $this->success(
-            $this->settingsService->all(),
+            $this->settingsService->forSystemSettings(),
             'System settings retrieved.',
             meta: ['read_only' => $this->settingsService->readOnly()],
         );
@@ -79,7 +79,6 @@ class SettingsController extends Controller
                         new OA\Property(property: 'provider_registration_enabled', type: 'boolean'),
                         new OA\Property(property: 'service_approval_required', type: 'boolean'),
                         new OA\Property(property: 'featured_services_enabled', type: 'boolean'),
-                        new OA\Property(property: 'commission_rate', type: 'number', minimum: 0, maximum: 100),
                     ]),
                     new OA\Property(property: 'booking', type: 'object', additionalProperties: false, properties: [
                         new OA\Property(property: 'booking_enabled', type: 'boolean'),
@@ -116,8 +115,10 @@ class SettingsController extends Controller
     {
         abort_unless($request->user()->can('manage settings'), 403);
 
+        $this->settingsService->update($request->validated(), $request->user());
+
         return $this->success(
-            $this->settingsService->update($request->validated(), $request->user()),
+            $this->settingsService->forSystemSettings(),
             'System settings updated.',
             meta: ['read_only' => $this->settingsService->readOnly()],
         );

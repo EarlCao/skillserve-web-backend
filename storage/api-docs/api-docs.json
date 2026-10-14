@@ -12731,6 +12731,101 @@
                 ]
             }
         },
+        "/api/commission-settings": {
+            "get": {
+                "tags": [
+                    "Commission Settings"
+                ],
+                "summary": "Read the commission rules",
+                "operationId": "f73e91079bc2130f823b51f812a4cf2b",
+                "responses": {
+                    "200": {
+                        "description": "commission_rate (fallback %, when no tier matches), commission_block_min_amount (₱, 0 = any debt), commission_block_after_days (0 = off)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "view commissions required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Commission Settings"
+                ],
+                "summary": "Change the commission rules",
+                "operationId": "7f5e333cd2d0f917dec67eab85f473f9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "commission_rate": {
+                                        "description": "Fallback % when no commission tier matches a booking",
+                                        "type": "number",
+                                        "maximum": 100,
+                                        "minimum": 0
+                                    },
+                                    "commission_block_min_amount": {
+                                        "description": "Block once unpaid commission reaches this (₱); 0 = any amount",
+                                        "type": "number",
+                                        "maximum": 1000000,
+                                        "minimum": 0
+                                    },
+                                    "commission_block_after_days": {
+                                        "description": "Also block once the oldest unpaid commission is this many days old; 0 = off",
+                                        "type": "integer",
+                                        "maximum": 365,
+                                        "minimum": 0
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Saved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "manage commissions required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/commission-tiers": {
             "get": {
                 "tags": [
@@ -21411,11 +21506,6 @@
                                             },
                                             "featured_services_enabled": {
                                                 "type": "boolean"
-                                            },
-                                            "commission_rate": {
-                                                "type": "number",
-                                                "maximum": 100,
-                                                "minimum": 0
                                             }
                                         },
                                         "type": "object",
@@ -27319,6 +27409,10 @@
         {
             "name": "Commission Remittances",
             "description": "Confirm or reject the GCash commission payments providers submit"
+        },
+        {
+            "name": "Commission Settings",
+            "description": "The commission rules edited on the Commission page: the fallback rate and when unpaid commission blocks a provider. Stored with the marketplace settings but no longer shown in System Settings."
         },
         {
             "name": "Commission Tiers",

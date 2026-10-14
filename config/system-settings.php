@@ -15,12 +15,15 @@ return [
             'provider_registration_enabled' => ['label' => 'Allow provider registration', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'service_approval_required' => ['label' => 'Require service approval', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
             'featured_services_enabled' => ['label' => 'Enable featured services', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
-            'commission_rate' => ['label' => 'Platform commission rate (%)', 'type' => 'number', 'default' => 10, 'rules' => ['numeric', 'min:0', 'max:100']],
+            // Commission rules. Stored with the marketplace settings, but
+            // edited on the admin Commission page (`managed_by`), never in
+            // System Settings — CommissionSettingsController.
+            'commission_rate' => ['label' => 'Platform commission rate (%)', 'type' => 'number', 'default' => 10, 'rules' => ['numeric', 'min:0', 'max:100'], 'managed_by' => 'commissions'],
             // When unremitted commission stops a provider taking new work
             // (TransactionEligibility). Either trigger blocks. The defaults
             // block on any debt at once, which is the original behaviour.
-            'commission_block_min_amount' => ['label' => 'Block providers once unpaid commission reaches (₱, 0 = any amount)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:1000000']],
-            'commission_block_after_days' => ['label' => 'Also block when a commission stays unpaid for (days, 0 = off)', 'type' => 'number', 'default' => 0, 'rules' => ['integer', 'min:0', 'max:365']],
+            'commission_block_min_amount' => ['label' => 'Block providers once unpaid commission reaches (₱, 0 = any amount)', 'type' => 'number', 'default' => 0, 'rules' => ['numeric', 'min:0', 'max:1000000'], 'managed_by' => 'commissions'],
+            'commission_block_after_days' => ['label' => 'Also block when a commission stays unpaid for (days, 0 = off)', 'type' => 'number', 'default' => 0, 'rules' => ['integer', 'min:0', 'max:365'], 'managed_by' => 'commissions'],
         ],
         // How the admin web looks, for every administrator (and on the sign-in
         // page). Empty primary_color keeps the built-in SkillServe green.

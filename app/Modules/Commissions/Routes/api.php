@@ -2,6 +2,7 @@
 
 use App\Modules\Commissions\Controllers\CommissionController;
 use App\Modules\Commissions\Controllers\CommissionRemittanceController;
+use App\Modules\Commissions\Controllers\CommissionSettingsController;
 use App\Modules\Commissions\Controllers\CommissionTierController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,13 @@ use Illuminate\Support\Facades\Route;
 | "view commissions" / "settle commissions" gates backed by CommissionPolicy.
 |
 */
+
+// The commission rules (fallback rate, when unpaid commission blocks a
+// provider), edited on the Commission page rather than System Settings.
+Route::middleware('auth:sanctum')->group(function (): void {
+    Route::get('/commission-settings', [CommissionSettingsController::class, 'show']);
+    Route::put('/commission-settings', [CommissionSettingsController::class, 'update']);
+});
 
 Route::prefix('commission-tiers')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [CommissionTierController::class, 'index']);

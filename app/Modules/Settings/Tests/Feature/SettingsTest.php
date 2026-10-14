@@ -102,6 +102,23 @@ class SettingsTest extends TestCase
         $this->flushHeaders()->getJson('/api/appearance')->assertJsonPath('data.primary_color', '');
     }
 
+    public function test_the_commission_rules_are_not_part_of_system_settings(): void
+    {
+        $token = $this->adminToken();
+
+        $marketplace = $this->withToken($token)->getJson('/api/settings')->assertOk()->json('data.marketplace');
+        $this->assertArrayHasKey('service_approval_required', $marketplace);
+        $this->assertArrayNotHasKey('commission_rate', $marketplace);
+        $this->assertArrayNotHasKey('commission_block_min_amount', $marketplace);
+        $this->assertArrayNotHasKey('commission_block_after_days', $marketplace);
+
+        // They are changed on the Commission page only.
+        $this->withToken($token)
+            ->putJson('/api/settings', ['marketplace' => ['commission_rate' => 15]])
+            ->assertUnprocessable()
+            ->assertJsonPath('errors', ['marketplace.commission_rate' => ['Change this on the Commission page.']]);
+    }
+
     private function adminToken(): string
     {
         Permission::findOrCreate('manage settings');
