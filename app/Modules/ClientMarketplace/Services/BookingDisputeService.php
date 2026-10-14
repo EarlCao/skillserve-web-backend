@@ -3,6 +3,7 @@
 namespace App\Modules\ClientMarketplace\Services;
 
 use App\Models\User;
+use App\Modules\Bookings\Events\BookingDisputeEvidenceAdded;
 use App\Modules\Bookings\Events\BookingStatusChanged;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Services\DisputeService;
@@ -137,6 +138,8 @@ class BookingDisputeService extends BaseService
                 ];
 
                 $booking->update(['dispute_evidence' => [...$evidence, $item]]);
+
+                event(new BookingDisputeEvidenceAdded($booking, $actor));
 
                 return $item;
             });

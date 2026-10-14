@@ -26,9 +26,10 @@ class SupportTicketResponseNotification extends BaseNotification
     {
         return [
             'type' => 'support_ticket_response',
-            'title' => 'New support ticket response',
-            'message' => $this->message->body,
-            'body' => $this->message->body,
+            'title' => 'Customer Support replied',
+            // A reply can be photos alone.
+            'message' => $this->message->body !== '' ? $this->message->body : '📷 Photo',
+            'body' => $this->message->body !== '' ? $this->message->body : '📷 Photo',
             'ticket_id' => $this->ticket->id,
             'ticket_number' => $this->ticket->ticket_number,
         ];

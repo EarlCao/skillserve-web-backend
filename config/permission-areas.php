@@ -35,7 +35,7 @@ return [
         'view' => ['view notifications'], 'control' => ['send announcements', 'target notifications', 'schedule announcements']],
     ['key' => 'recognition', 'label' => 'Provider recognition', 'description' => 'Badges, featured and top-rated providers.',
         'view' => ['view provider recognition', 'view top rated providers'], 'control' => ['manage provider badges', 'assign provider badges', 'manage featured providers']],
-    ['key' => 'support', 'label' => 'Support tickets', 'description' => 'Assign, answer and resolve support tickets.',
+    ['key' => 'support', 'label' => 'Customer Support', 'description' => 'Chat with users who asked for help, assign and resolve their requests.',
         'view' => ['view support'], 'control' => ['manage support', 'assign support tickets', 'respond to support tickets', 'resolve support tickets']],
     ['key' => 'audit', 'label' => 'Audit & security', 'description' => 'Audit logs, sign-in activity and security events.',
         'view' => ['view audit logs', 'view login activity'], 'control' => ['monitor security events']],

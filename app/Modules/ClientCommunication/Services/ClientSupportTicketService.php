@@ -5,6 +5,7 @@ namespace App\Modules\ClientCommunication\Services;
 use App\Models\User;
 use App\Modules\ClientCommunication\Actions\CreateSupportTicketAction;
 use App\Modules\Support\Actions\AddSupportTicketResponseAction;
+use App\Modules\Support\Events\SupportTicketCreated;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
 use App\Modules\Support\Models\SupportTicket;
 use App\Modules\Support\Models\SupportTicketAttachment;
@@ -50,6 +51,7 @@ class ClientSupportTicketService extends BaseService
             return $this->transaction(function () use ($client, $data, $stored): SupportTicket {
                 $ticket = $this->createAction->handle($client, $data);
                 $this->attach($ticket, null, $client, $stored);
+                event(new SupportTicketCreated($ticket, $client));
 
                 return $ticket->load($this->relations(true));
             });

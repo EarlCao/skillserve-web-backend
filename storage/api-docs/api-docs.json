@@ -13525,6 +13525,186 @@
                 }
             }
         },
+        "/api/inbox": {
+            "get": {
+                "tags": [
+                    "Admin Inbox"
+                ],
+                "summary": "List the signed-in administrator's alerts, newest first",
+                "operationId": "3c14a30064aff7143df3a8d13ba2776d",
+                "parameters": [
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "default": "all",
+                            "enum": [
+                                "all",
+                                "unread"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 15,
+                            "maximum": 100,
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated alerts",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminAlertListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Administrators only"
+                    },
+                    "422": {
+                        "description": "Invalid filter or pagination"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inbox/unread-count": {
+            "get": {
+                "tags": [
+                    "Admin Inbox"
+                ],
+                "summary": "Count the signed-in administrator's unread alerts",
+                "operationId": "86946a29745e9c44e36a67845a333a8a",
+                "responses": {
+                    "200": {
+                        "description": "Unread count",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientUnreadCountEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Administrators only"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inbox/{alert}/read": {
+            "patch": {
+                "tags": [
+                    "Admin Inbox"
+                ],
+                "summary": "Mark one of the administrator's own alerts as read",
+                "operationId": "b3bfd5d917e25f9d0bf4a71db5fedc40",
+                "parameters": [
+                    {
+                        "name": "alert",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Alert marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminAlertEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Administrators only"
+                    },
+                    "404": {
+                        "description": "No such alert for this administrator"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/inbox/read-all": {
+            "post": {
+                "tags": [
+                    "Admin Inbox"
+                ],
+                "summary": "Mark all of the administrator's alerts as read",
+                "operationId": "a8b731312101fd5d2df3cd72248b7523",
+                "responses": {
+                    "200": {
+                        "description": "Alerts marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ClientReadAllEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Administrators only"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/notifications": {
             "get": {
                 "tags": [
@@ -20666,7 +20846,8 @@
                 "tags": [
                     "Support"
                 ],
-                "summary": "Add a support ticket response",
+                "summary": "Reply in a Customer Support conversation",
+                "description": "Text, photos, or both. Send JSON for text only, or multipart/form-data with `images[]` (up to 5 JPG, PNG or WebP, at most 5 MB each) and an optional `body`. The requester is notified and sees the reply in the app at once.",
                 "operationId": "312a4cd35bdab441f7a0e7e1a2a17d68",
                 "parameters": [
                     {
@@ -20681,6 +20862,27 @@
                 "requestBody": {
                     "required": true,
                     "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "body": {
+                                        "description": "Required without images",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    },
+                                    "images[]": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "binary"
+                                        },
+                                        "maxItems": 5
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
                         "application/json": {
                             "schema": {
                                 "required": [
@@ -25605,6 +25807,90 @@
                     }
                 ]
             },
+            "AdminAlert": {
+                "description": "An admin Inbox alert: something in the app waiting for an administrator.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "provider_verification",
+                            "identity_verification",
+                            "service_review",
+                            "report",
+                            "dispute",
+                            "support_ticket",
+                            "commission_payment"
+                        ]
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "New provider verification request"
+                    },
+                    "message": {
+                        "type": "string",
+                        "example": "Juan Aircon Services submitted 2 documents for review."
+                    },
+                    "link": {
+                        "description": "The admin web page that handles it",
+                        "type": "string",
+                        "example": "/admin/providers/4"
+                    },
+                    "subject": {
+                        "description": "Ids of what it is about: provider_id, identity_verification_id, service_id, report_id, booking_id, ticket_id or remittance_id",
+                        "type": "object"
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "AdminAlertEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/AdminAlert"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "AdminAlertListEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/AdminAlert"
+                                }
+                            },
+                            "meta": {
+                                "$ref": "#/components/schemas/PaginationMeta"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
             "Administrator": {
                 "properties": {
                     "id": {
@@ -25999,6 +26285,10 @@
         {
             "name": "Locations",
             "description": "Philippine regions, provinces, cities/municipalities and barangays (PSA PSGC) for address pickers"
+        },
+        {
+            "name": "Admin Inbox",
+            "description": "Alerts for administrators: verification requests, services to approve, reports, disputes, support requests and commission payments to check. Each administrator receives only the alerts their permissions cover."
         },
         {
             "name": "Notifications",

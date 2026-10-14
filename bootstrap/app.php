@@ -35,6 +35,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend([HandleCors::class]);
 
+        // Render terminates HTTPS at its proxy and forwards plain HTTP, so
+        // without this every link the API builds with url() — chat photos,
+        // report and support attachments — comes out as http://, which the
+        // mobile app (Android) refuses to load. Only the scheme is taken
+        // from the proxy: the client IP keeps coming from the connection,
+        // so rate limits and sign-in activity cannot be spoofed through
+        // X-Forwarded-For.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_PROTO);
+
         $middleware->throttleApi('api');
 
         $middleware->alias([

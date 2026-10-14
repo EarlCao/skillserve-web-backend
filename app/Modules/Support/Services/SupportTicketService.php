@@ -10,8 +10,11 @@ use App\Modules\Support\Events\SupportTicketAssigned;
 use App\Modules\Support\Events\SupportTicketResolved;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
 use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use App\Shared\Helpers\PageSize;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Services\BaseService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 class SupportTicketService extends BaseService
@@ -94,15 +97,38 @@ class SupportTicketService extends BaseService
         });
     }
 
-    public function addResponse(SupportTicket $ticket, User $actor, string $body): SupportTicket
+    /**
+     * A staff reply: text, [images], or both. The photos are stored before
+     * the transaction and removed again if the reply is refused.
+     *
+     * @param  array<int, UploadedFile>  $images
+     */
+    public function addResponse(SupportTicket $ticket, User $actor, ?string $body, array $images = []): SupportTicket
     {
-        return $this->transaction(function () use ($ticket, $actor, $body): SupportTicket {
-            $message = $this->responseAction->handle($ticket, $actor, $body);
-            $ticket = $ticket->fresh($this->relations());
-            event(new SupportTicketResponseAdded($ticket, $message, $actor));
+        $stored = PrivateImages::store($images, SupportTicketAttachment::DISK, (string) $actor->id);
 
-            return $ticket;
-        });
+        try {
+            return $this->transaction(function () use ($ticket, $actor, $body, $stored): SupportTicket {
+                $message = $this->responseAction->handle($ticket, $actor, (string) $body);
+
+                foreach ($stored as $photo) {
+                    $ticket->attachments()->create([
+                        ...$photo,
+                        'support_ticket_message_id' => $message->id,
+                        'uploaded_by' => $actor->id,
+                    ]);
+                }
+
+                $ticket = $ticket->fresh($this->relations());
+                event(new SupportTicketResponseAdded($ticket, $message, $actor));
+
+                return $ticket;
+            });
+        } catch (\Throwable $exception) {
+            PrivateImages::delete(SupportTicketAttachment::DISK, $stored);
+
+            throw $exception;
+        }
     }
 
     public function resolve(SupportTicket $ticket, User $actor, string $resolutionNote): SupportTicket

@@ -23,6 +23,7 @@ use App\Modules\Authentication\Events\AdministratorLoginFailed;
 use App\Modules\Authentication\Events\PasswordChanged;
 use App\Modules\Authentication\Listeners\LogAuthenticationActivity;
 use App\Modules\Bookings\Events\BookingCancelled;
+use App\Modules\Bookings\Events\BookingDisputeEvidenceAdded;
 use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingPaymentRecorded;
 use App\Modules\Bookings\Events\BookingRescheduled;
@@ -38,6 +39,7 @@ use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
+use App\Modules\Commissions\Events\CommissionRemittanceFlagged;
 use App\Modules\Commissions\Events\CommissionRemittanceRejected;
 use App\Modules\Commissions\Events\CommissionRemittanceSubmitted;
 use App\Modules\Commissions\Events\CommissionSettled;
@@ -64,7 +66,10 @@ use App\Modules\IdentityVerification\Listeners\NotifyHolderOfIdentityDecision;
 use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Policies\IdentityVerificationPolicy;
 use App\Modules\Locations\Services\PhAddressService;
+use App\Modules\Notifications\Listeners\BroadcastAdminNotification;
+use App\Modules\Notifications\Listeners\NotifyAdministrators;
 use App\Modules\Notifications\Models\Announcement;
+use App\Modules\Notifications\Policies\AdminInboxPolicy;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
 use App\Modules\ProviderRecognition\Listeners\LogProviderRecognitionActivity;
@@ -86,6 +91,7 @@ use App\Modules\ReportsAndModeration\Events\ReportInvestigated;
 use App\Modules\ReportsAndModeration\Events\ReportNoteAdded;
 use App\Modules\ReportsAndModeration\Events\ReportRejected;
 use App\Modules\ReportsAndModeration\Events\ReportResolved;
+use App\Modules\ReportsAndModeration\Events\ReportSubmitted;
 use App\Modules\ReportsAndModeration\Listeners\LogReportActivity;
 use App\Modules\ReportsAndModeration\Listeners\NotifyReporterOfOutcome;
 use App\Modules\ReportsAndModeration\Models\Report;
@@ -120,6 +126,7 @@ use App\Modules\Services\Models\Service;
 use App\Modules\Services\Policies\ServicePolicy;
 use App\Modules\Settings\Services\SettingsService;
 use App\Modules\Support\Events\SupportTicketAssigned;
+use App\Modules\Support\Events\SupportTicketCreated;
 use App\Modules\Support\Events\SupportTicketResolved;
 use App\Modules\Support\Events\SupportTicketResponseAdded;
 use App\Modules\Support\Listeners\LogSupportTicketActivity;
@@ -286,6 +293,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(AdministratorLoginFailed::class, LogAuthenticationActivity::class);
         Event::listen(PasswordChanged::class, LogAuthenticationActivity::class);
         Event::listen(NotificationSent::class, BroadcastClientNotification::class);
+        Event::listen(NotificationSent::class, BroadcastAdminNotification::class);
 
         // Administrator Management module events.
         Event::listen(AdministratorCreated::class, LogAdministratorActivity::class);
@@ -456,6 +464,17 @@ class AppServiceProvider extends ServiceProvider
 
         // Notifications and Announcements module policies.
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
+
+        // Admin Inbox: what users do in the app that waits for an
+        // administrator. Each alert reaches only the administrators allowed
+        // to open the page that handles it.
+        Gate::define('use admin inbox', [AdminInboxPolicy::class, 'use']);
+        Event::listen([
+            ProviderVerificationSubmitted::class, IdentityVerificationSubmitted::class,
+            ServiceCreated::class, ServiceUpdated::class, ReportSubmitted::class,
+            BookingStatusChanged::class, BookingDisputeEvidenceAdded::class,
+            SupportTicketCreated::class, SupportTicketResponseAdded::class, CommissionRemittanceFlagged::class,
+        ], NotifyAdministrators::class);
         Gate::define('view dashboard', [DashboardPolicy::class, 'viewAny']);
 
         // Reports and Analytics module gates (read-only aggregates).

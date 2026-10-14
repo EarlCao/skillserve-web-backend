@@ -278,6 +278,25 @@ class ClientCommunicationTest extends TestCase
             ->assertJsonValidationErrors(['image']);
     }
 
+    public function test_photo_links_keep_https_behind_the_hosting_proxy(): void
+    {
+        // Render serves the API over HTTPS but forwards it as plain HTTP; an
+        // http:// link is one the phone will not load.
+        Storage::fake('message_images');
+        $client = $this->customer();
+        [$provider] = $this->provider();
+        $booking = $this->booking($client, $provider);
+
+        $imageUrl = $this->withToken($this->clientToken($client))
+            ->post("/api/client/v1/bookings/{$booking->id}/messages", [
+                'image' => UploadedFile::fake()->image('leak.jpg', 800, 600),
+            ], ['Accept' => 'application/json', 'X-Forwarded-Proto' => 'https'])
+            ->assertCreated()
+            ->json('data.image_url');
+
+        $this->assertStringStartsWith('https://', $imageUrl);
+    }
+
     public function test_a_moderator_can_see_a_reported_photo(): void
     {
         Storage::fake('message_images');

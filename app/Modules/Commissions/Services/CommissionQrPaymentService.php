@@ -4,6 +4,7 @@ namespace App\Modules\Commissions\Services;
 
 use App\Models\User;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
+use App\Modules\Commissions\Events\CommissionRemittanceFlagged;
 use App\Modules\Commissions\Events\CommissionRemittanceSubmitted;
 use App\Modules\Commissions\Models\CommissionRemittance;
 use App\Modules\Payments\Exceptions\GatewayRequestFailed;
@@ -209,6 +210,7 @@ class CommissionQrPaymentService extends BaseService
                         number_format($expected / 100, 2),
                     ),
                 ]);
+                event(new CommissionRemittanceFlagged($remittance));
 
                 return null;
             }
@@ -219,6 +221,7 @@ class CommissionQrPaymentService extends BaseService
                     'external_payment_id' => $paymentId,
                     'failure_reason' => 'PayMongo reported this payment as paid after it had been rejected. Check it in the PayMongo dashboard.',
                 ]);
+                event(new CommissionRemittanceFlagged($remittance));
 
                 return null;
             }

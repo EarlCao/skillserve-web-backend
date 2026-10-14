@@ -25,7 +25,7 @@ class SupportTicketResolvedNotification extends BaseNotification
     {
         return [
             'type' => 'support_ticket_resolved',
-            'title' => 'Support ticket resolved',
+            'title' => 'Customer Support resolved your request',
             'message' => $this->resolutionNote,
             'body' => $this->resolutionNote,
             'ticket_id' => $this->ticket->id,

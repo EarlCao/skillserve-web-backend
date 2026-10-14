@@ -4,7 +4,11 @@ namespace App\Modules\Support\Tests\Feature;
 
 use App\Models\User;
 use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -125,6 +129,38 @@ class SupportTicketManagementTest extends TestCase
 
         $this->assertDatabaseHas('support_ticket_messages', ['support_ticket_id' => $ticket->id, 'body' => 'We are reviewing this now.']);
         $this->assertDatabaseHas('activity_log', ['description' => 'support_ticket_response_added', 'subject_id' => $ticket->id]);
+    }
+
+    public function test_staff_can_reply_with_photos_and_the_requester_sees_them_in_the_app(): void
+    {
+        Storage::fake(SupportTicketAttachment::DISK);
+        [, $token] = $this->actingSupport(['respond to support tickets']);
+        $ticket = $this->createTicket();
+
+        // Photos alone are a reply.
+        $this->withToken($token)
+            ->post("/api/support/tickets/{$ticket->id}/responses", [
+                'images' => [UploadedFile::fake()->image('steps.png', 600, 400)],
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.messages.0.attachments');
+        $this->assertCount(1, Storage::disk(SupportTicketAttachment::DISK)->allFiles());
+
+        // The requester reads it in the app, photo included.
+        $requester = User::query()->findOrFail($ticket->requester_id);
+        $requester->forceFill(['user_type' => 'customer'])->save();
+        Auth::forgetGuards();
+        $this->withToken($requester->createToken('client', ['client:auth'])->plainTextToken)
+            ->getJson("/api/client/v1/support/tickets/{$ticket->id}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.messages.0.attachments');
+
+        // Neither text nor photo is refused.
+        Auth::forgetGuards();
+        $this->withToken($token)
+            ->postJson("/api/support/tickets/{$ticket->id}/responses", [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['body']);
     }
 
     public function test_resolve_requires_a_note_and_prevents_later_responses(): void

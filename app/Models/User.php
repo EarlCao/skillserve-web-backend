@@ -98,6 +98,15 @@ class User extends Authenticatable implements CanResetPasswordContract
     }
 
     /**
+     * Staff accounts (any role other than customer and provider) — the
+     * counterpart of {@see isAdministrator()}.
+     */
+    public function scopeAdministrators(Builder $query): Builder
+    {
+        return $query->whereNotNull('role_id')->whereNotIn('role_id', AccountRole::accountTypeIds());
+    }
+
+    /**
      * Assign role_id's staff role, or clear staff roles for mobile accounts.
      */
     public function syncStaffRoleFromRoleId(): void

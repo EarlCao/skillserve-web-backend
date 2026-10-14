@@ -134,18 +134,25 @@ class SupportTicketController extends Controller
 
     #[OA\Post(
         path: '/api/support/tickets/{ticket}/responses',
-        summary: 'Add a support ticket response',
+        summary: 'Reply in a Customer Support conversation',
+        description: 'Text, photos, or both. Send JSON for text only, or multipart/form-data with `images[]` (up to 5 JPG, PNG or WebP, at most 5 MB each) and an optional `body`. The requester is notified and sees the reply in the app at once.',
         tags: ['Support'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'ticket', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
-        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['body'], properties: [new OA\Property(property: 'body', type: 'string', maxLength: 5000)], example: ['body' => 'We have reviewed your request.'])),
+        requestBody: new OA\RequestBody(required: true, content: [
+            new OA\JsonContent(required: ['body'], properties: [new OA\Property(property: 'body', type: 'string', maxLength: 5000)], example: ['body' => 'We have reviewed your request.']),
+            new OA\MediaType(mediaType: 'multipart/form-data', schema: new OA\Schema(properties: [
+                new OA\Property(property: 'body', type: 'string', maxLength: 5000, nullable: true, description: 'Required without images'),
+                new OA\Property(property: 'images[]', type: 'array', items: new OA\Items(type: 'string', format: 'binary'), maxItems: 5),
+            ])),
+        ]),
         responses: [new OA\Response(response: 200, description: 'Response added', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 422, description: 'Resolved ticket or validation error')],
     )]
     public function respond(StoreSupportTicketResponseRequest $request, SupportTicket $ticket): JsonResponse
     {
         $this->authorize('respond', $ticket);
 
-        return $this->success(new SupportTicketResource($this->supportService->addResponse($ticket, $request->user(), $request->validated('body'))), 'Support ticket response added.');
+        return $this->success(new SupportTicketResource($this->supportService->addResponse($ticket, $request->user(), $request->validated('body'), $request->file('images', []))), 'Support ticket response added.');
     }
 
     #[OA\Patch(

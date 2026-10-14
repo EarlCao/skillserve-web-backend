@@ -950,6 +950,28 @@ use OpenApi\Attributes as OA;
     allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'object', properties: [new OA\Property(property: 'updated_count', type: 'integer')])])],
 )]
 #[OA\Schema(
+    schema: 'AdminAlert',
+    description: 'An admin Inbox alert: something in the app waiting for an administrator.',
+    properties: [
+        new OA\Property(property: 'id', type: 'string', format: 'uuid'),
+        new OA\Property(property: 'kind', type: 'string', enum: ['provider_verification', 'identity_verification', 'service_review', 'report', 'dispute', 'support_ticket', 'commission_payment']),
+        new OA\Property(property: 'title', type: 'string', example: 'New provider verification request'),
+        new OA\Property(property: 'message', type: 'string', example: 'Juan Aircon Services submitted 2 documents for review.'),
+        new OA\Property(property: 'link', type: 'string', example: '/admin/providers/4', description: 'The admin web page that handles it'),
+        new OA\Property(property: 'subject', type: 'object', description: 'Ids of what it is about: provider_id, identity_verification_id, service_id, report_id, booking_id, ticket_id or remittance_id'),
+        new OA\Property(property: 'read_at', type: 'string', format: 'date-time', nullable: true),
+        new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+    ],
+)]
+#[OA\Schema(
+    schema: 'AdminAlertEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/AdminAlert')])],
+)]
+#[OA\Schema(
+    schema: 'AdminAlertListEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', type: 'array', items: new OA\Items(ref: '#/components/schemas/AdminAlert')), new OA\Property(property: 'meta', ref: '#/components/schemas/PaginationMeta')])],
+)]
+#[OA\Schema(
     schema: 'Administrator',
     properties: [
         new OA\Property(property: 'id', type: 'integer', example: 2),

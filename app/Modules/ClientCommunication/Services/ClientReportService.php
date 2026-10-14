@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientMarketplace\Services\ClientCatalogService;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\ReportsAndModeration\Events\ReportSubmitted;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\ReportsAndModeration\Models\ReportAttachment;
@@ -112,6 +113,8 @@ class ClientReportService extends BaseService
                 foreach ($stored as $photo) {
                     $report->attachments()->create([...$photo, 'uploaded_by' => $reporter->id]);
                 }
+
+                event(new ReportSubmitted($report, $reporter));
 
                 return $report->load('attachments');
             });
