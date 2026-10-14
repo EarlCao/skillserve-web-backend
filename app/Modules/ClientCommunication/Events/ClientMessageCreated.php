@@ -3,7 +3,7 @@
 namespace App\Modules\ClientCommunication\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -15,16 +15,15 @@ use Illuminate\Queue\SerializesModels;
  * "Message notifications" setting: muting the banner must not stop a
  * conversation the user is looking at from updating. The companion
  * BookingMessageNotification carries the muteable alert.
+ *
+ * Broadcast immediately rather than through the queue, so an open chat moves
+ * as soon as the message is stored. Delivery is best-effort (the app also
+ * refetches the thread), so BookingMessageService logs a failed push instead
+ * of failing the send.
  */
-class ClientMessageCreated implements ShouldBroadcast
+class ClientMessageCreated implements ShouldBroadcastNow
 {
     use Dispatchable, SerializesModels;
-
-    /**
-     * Realtime delivery is best-effort (the message is already stored and the
-     * app refetches the thread), so an unreachable WebSocket is not retried.
-     */
-    public int $tries = 1;
 
     /**
      * @param  array<string, mixed>  $message

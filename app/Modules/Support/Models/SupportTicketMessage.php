@@ -16,6 +16,13 @@ class SupportTicketMessage extends Model
         return $this->belongsTo(SupportTicket::class, 'support_ticket_id');
     }
 
+    protected static function booted(): void
+    {
+        // The database would drop the reply's photo rows on its own (cascade),
+        // leaving their files behind; delete them through the model instead.
+        static::deleting(fn (SupportTicketMessage $message) => $message->attachments()->get()->each->delete());
+    }
+
     /** Photos sent with this reply. */
     public function attachments(): HasMany
     {

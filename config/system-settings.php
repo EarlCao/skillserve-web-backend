@@ -60,9 +60,11 @@ return [
             'announcement_notifications_enabled' => ['label' => 'Announcement notifications', 'type' => 'boolean', 'default' => true, 'rules' => ['boolean']],
         ],
         'policies' => [
-            'terms_of_service' => ['label' => 'Terms of service', 'type' => 'textarea', 'default' => '', 'rules' => ['nullable', 'string', 'max:50000']],
-            'privacy_policy' => ['label' => 'Privacy policy', 'type' => 'textarea', 'default' => '', 'rules' => ['nullable', 'string', 'max:50000']],
-            'community_guidelines' => ['label' => 'Community guidelines', 'type' => 'textarea', 'default' => '', 'rules' => ['nullable', 'string', 'max:50000']],
+            // Defaults are SkillServe's starting policies (resources/policies);
+            // administrators edit and republish them in System Settings.
+            'terms_of_service' => ['label' => 'Terms of service', 'type' => 'textarea', 'default' => (string) @file_get_contents(resource_path('policies/terms_of_service.txt')), 'rules' => ['nullable', 'string', 'max:50000']],
+            'privacy_policy' => ['label' => 'Privacy policy', 'type' => 'textarea', 'default' => (string) @file_get_contents(resource_path('policies/privacy_policy.txt')), 'rules' => ['nullable', 'string', 'max:50000']],
+            'community_guidelines' => ['label' => 'Community guidelines', 'type' => 'textarea', 'default' => (string) @file_get_contents(resource_path('policies/community_guidelines.txt')), 'rules' => ['nullable', 'string', 'max:50000']],
         ],
         'system' => [
             'maintenance_mode' => ['label' => 'Maintenance mode', 'type' => 'boolean', 'default' => false, 'rules' => ['boolean']],

@@ -4,6 +4,7 @@ namespace App\Shared\Helpers;
 
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -71,6 +72,22 @@ final class PrivateImages
     {
         if ($stored !== []) {
             Storage::disk($disk)->delete(array_column($stored, 'path'));
+        }
+    }
+
+    /**
+     * Deletes files whose rows are being removed for good — once the
+     * surrounding transaction commits (at once outside one), so a rolled-back
+     * delete never loses a file its row still points at.
+     *
+     * @param  string|array<int, string|null>|null  $paths
+     */
+    public static function deleteAfterCommit(string $disk, string|array|null $paths): void
+    {
+        $paths = array_values(array_filter((array) $paths, fn ($path): bool => is_string($path) && $path !== ''));
+
+        if ($paths !== []) {
+            DB::afterCommit(fn () => Storage::disk($disk)->delete($paths));
         }
     }
 

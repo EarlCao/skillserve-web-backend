@@ -10,13 +10,16 @@ use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Services\IdentityVerificationService;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
 use App\Modules\Reviews\Actions\RecalculateRatingAggregatesAction;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use App\Modules\Services\Models\Service;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
+use App\Shared\Helpers\PrivateImages;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -268,6 +271,13 @@ class DataManagementService extends BaseService
             // tokens) or outlive (Sanctum tokens, role pivot rows) the account.
             ClientRefreshToken::query()->where('user_id', $model->getKey())->delete();
             $model->tokens()->delete();
+
+            // The person's own uploads go with them: photos they sent as proof
+            // (the reports and tickets themselves stay, as the moderation and
+            // support record) and their profile photo.
+            ReportAttachment::query()->where('uploaded_by', $model->getKey())->get()->each->delete();
+            SupportTicketAttachment::query()->where('uploaded_by', $model->getKey())->get()->each->delete();
+            PrivateImages::deleteAfterCommit((string) config('client-auth.profile_photo_disk', 'public'), $model->profile_photo_path);
             DB::table(config('permission.table_names.model_has_roles'))
                 ->where(config('permission.column_names.model_morph_key'), $model->getKey())
                 ->where('model_type', $model->getMorphClass())

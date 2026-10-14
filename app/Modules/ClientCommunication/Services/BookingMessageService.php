@@ -15,8 +15,10 @@ use App\Shared\Services\BaseService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 class BookingMessageService extends BaseService
 {
@@ -158,11 +160,16 @@ class BookingMessageService extends BaseService
             return;
         }
 
-        event(new ClientMessageCreated(
-            receiverId: (int) $message->receiver_id,
-            bookingId: (int) $message->booking_id,
-            message: (new BookingMessageResource($message))->resolve(),
-        ));
+        try {
+            event(new ClientMessageCreated(
+                receiverId: (int) $message->receiver_id,
+                bookingId: (int) $message->booking_id,
+                message: (new BookingMessageResource($message))->resolve(),
+            ));
+        } catch (Throwable $exception) {
+            // The message is stored; the other side sees it on its next fetch.
+            Log::warning('A chat message could not be pushed live.', ['message_id' => $message->id, 'error' => $exception->getMessage()]);
+        }
 
         // Load the whole account rather than use the eager-loaded relation:
         // messages load their parties as id+name only, which would hide

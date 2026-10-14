@@ -44,6 +44,12 @@ class SupportTicket extends Model
         return $this->hasMany(SupportTicketMessage::class)->orderBy('created_at');
     }
 
+    protected static function booted(): void
+    {
+        // As for reports: delete the photos through the model so their files go too.
+        static::forceDeleting(fn (SupportTicket $ticket) => $ticket->attachments()->get()->each->delete());
+    }
+
     /** Every photo on the ticket: its own and its replies'. */
     public function attachments(): HasMany
     {

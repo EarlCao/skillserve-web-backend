@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Modules\ClientCommunication\Events\ClientNotificationCreated;
 use App\Modules\Settings\Services\SettingsService;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class BroadcastClientNotification
 {
@@ -21,12 +23,17 @@ class BroadcastClientNotification
             return;
         }
 
-        event(new ClientNotificationCreated(
-            $event->notifiable->id,
-            [
-                'type' => $event->notification::class,
-                'data' => $event->notification->toArray($event->notifiable),
-            ],
-        ));
+        try {
+            event(new ClientNotificationCreated(
+                $event->notifiable->id,
+                [
+                    'type' => $event->notification::class,
+                    'data' => $event->notification->toArray($event->notifiable),
+                ],
+            ));
+        } catch (Throwable $exception) {
+            // Stored already; the app picks it up on its next check.
+            Log::warning('A notification could not be pushed live.', ['user_id' => $event->notifiable->id, 'error' => $exception->getMessage()]);
+        }
     }
 }

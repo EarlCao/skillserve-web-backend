@@ -3,6 +3,7 @@
 namespace App\Modules\Administrators\Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
@@ -220,28 +221,47 @@ class RoleManagementTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_permission_matrix_groups_permissions_by_module(): void
+    public function test_permission_matrix_has_one_area_per_admin_section_with_view_and_full_control(): void
     {
+        $this->seed(RolePermissionSeeder::class);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
         [, $token] = $this->actingAdministrator();
 
-        Permission::findOrCreate('manage administrators');
-        Permission::findOrCreate('view reports');
-        Permission::findOrCreate('manage providers');
+        $response = $this->withToken($token)->getJson('/api/permissions')->assertOk()
+            ->assertJsonStructure(['data' => [['key', 'module', 'description', 'view_permissions', 'permissions' => [['id', 'name', 'module', 'guard_name']]]]]);
 
-        $response = $this->withToken($token)
-            ->getJson('/api/permissions')
-            ->assertOk();
+        $areas = collect($response->json('data'))->keyBy('key');
 
-        $modules = collect($response->json('data'))->keyBy('module');
+        // Every seeded permission sits in an area; nothing falls through to "Other".
+        $this->assertFalse($areas->has('other'), 'Unplaced permissions: '.json_encode($areas->get('other')));
 
-        $this->assertContains('manage administrators', collect($modules->get('Administrators')['permissions'])->pluck('name')->all());
-        $this->assertContains('manage providers', collect($modules->get('Providers')['permissions'])->pluck('name')->all());
-        $this->assertContains('view reports', collect($modules->get('Reports')['permissions'])->pluck('name')->all());
-        $this->assertNotNull($modules->get('Support'));
+        foreach ($areas as $key => $area) {
+            $all = collect($area['permissions'])->pluck('name');
+            // Each area has a read-only level and something more for full control.
+            $this->assertNotEmpty($area['view_permissions'], "{$key} has no view level");
+            $this->assertGreaterThan(count($area['view_permissions']), $all->count(), "{$key} has no full-control level");
+            $this->assertEmpty(array_diff($area['view_permissions'], $all->all()), "{$key} view is not part of full control");
+        }
 
-        $response
-            ->assertJsonStructure([
-                'data' => [['module', 'permissions' => [['id', 'name', 'module', 'guard_name']]]],
-            ]);
+        // Former single-level sections now have both levels.
+        $this->assertSame(['view settings'], $areas['settings']['view_permissions']);
+        $this->assertContains('manage settings', collect($areas['settings']['permissions'])->pluck('name'));
+        $this->assertContains('monitor security events', collect($areas['audit']['permissions'])->pluck('name'));
+        $this->assertSame(['view identity verifications'], $areas['identity']['view_permissions']);
+    }
+
+    public function test_view_settings_and_view_data_are_read_only(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $role = Role::findOrCreate('settings-reader', 'web')->syncPermissions(['view settings', 'view data']);
+        $reader = User::factory()->create(['status' => 'active']);
+        $reader->assignRole($role);
+        $token = $reader->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->getJson('/api/settings')->assertOk();
+        $this->withToken($token)->putJson('/api/settings', ['general' => ['platform_name' => 'X']])->assertForbidden();
+        $this->withToken($token)->getJson('/api/data-management/deleted')->assertOk();
+        $this->withToken($token)->getJson('/api/data-management/archives')->assertOk();
+        $this->withToken($token)->getJson('/api/data-management/export?type=users')->assertForbidden();
     }
 }

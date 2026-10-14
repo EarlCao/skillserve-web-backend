@@ -16,12 +16,14 @@ use App\Modules\Providers\Models\VerificationDocument;
 use App\Modules\Providers\Models\VerificationRequest;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Models\ReportAttachment;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\ServiceCategories\Models\ServiceSubcategory;
 use App\Modules\Services\Models\Service;
 use App\Modules\Settings\Models\Setting;
 use App\Modules\Support\Models\SupportTicket;
+use App\Modules\Support\Models\SupportTicketAttachment;
 use App\Modules\Support\Models\SupportTicketMessage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -58,8 +60,10 @@ class RealtimeChangeTracker
         Message::class => 'messages',
         Review::class => 'reviews',
         Report::class => 'reports',
+        ReportAttachment::class => 'reports',
         SupportTicket::class => 'support-tickets',
         SupportTicketMessage::class => 'support-tickets',
+        SupportTicketAttachment::class => 'support-tickets',
         Announcement::class => 'notifications',
         Setting::class => 'settings',
         DataArchive::class => 'data-management',

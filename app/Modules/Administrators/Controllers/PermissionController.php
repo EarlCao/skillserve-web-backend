@@ -27,7 +27,8 @@ class PermissionController extends Controller
      */
     #[OA\Get(
         path: '/api/permissions',
-        summary: 'List permissions grouped by module',
+        summary: 'List permissions grouped by admin area',
+        description: 'One group per area of the admin web (config/permission-areas.php). `view_permissions` is the read-only level; `permissions` is everything full control grants, view first. Permissions in no area are listed under key `other`.',
         tags: ['Permissions'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -41,15 +42,13 @@ class PermissionController extends Controller
                         'message' => 'Request successful.',
                         'data' => [
                             [
-                                'module' => 'Administrators',
+                                'key' => 'settings',
+                                'module' => 'System settings',
+                                'description' => 'Platform rules, policies and appearance.',
+                                'view_permissions' => ['view settings'],
                                 'permissions' => [
-                                    ['id' => 1, 'name' => 'manage administrators', 'module' => 'Administrators', 'guard_name' => 'web'],
-                                ],
-                            ],
-                            [
-                                'module' => 'Reports',
-                                'permissions' => [
-                                    ['id' => 5, 'name' => 'view reports', 'module' => 'Reports', 'guard_name' => 'web'],
+                                    ['id' => 90, 'name' => 'view settings', 'module' => 'Settings', 'guard_name' => 'web'],
+                                    ['id' => 91, 'name' => 'manage settings', 'module' => 'Settings', 'guard_name' => 'web'],
                                 ],
                             ],
                         ],

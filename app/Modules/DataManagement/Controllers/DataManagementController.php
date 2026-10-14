@@ -43,7 +43,7 @@ class DataManagementController extends Controller
     )]
     public function archives(IndexDataRequest $request): JsonResponse
     {
-        abort_unless($request->user()->can('manage data') || $request->user()->can('restore archived records'), 403);
+        abort_unless($request->user()->canAny(['view data', 'manage data', 'restore archived records']), 403);
 
         return $this->paginated($this->dataService->archives($request->only(['resource_type', 'per_page', 'page'])), null, 'Archived records retrieved.');
     }
@@ -86,7 +86,7 @@ class DataManagementController extends Controller
     #[OA\Get(path: '/api/data-management/deleted', summary: 'List deleted records', description: 'Returns a database-paginated union of soft-deleted records; records are not loaded into an in-memory capped collection. Each row includes can_permanently_delete, blocked_by (related records preventing deletion, or null) and purge_at (when it is purged automatically; null while blocked).', tags: ['Data Management'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'resource_type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['users', 'services', 'bookings', 'reviews', 'reports', 'messages', 'service_categories', 'service_subcategories'])), new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)), new OA\Parameter(name: 'per_page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 15))], responses: [new OA\Response(response: 200, description: 'Paginated deleted records', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized')])]
     public function deleted(IndexDataRequest $request): JsonResponse
     {
-        abort_unless($request->user()->can('manage deleted records'), 403);
+        abort_unless($request->user()->canAny(['view data', 'manage data', 'manage deleted records', 'restore deleted records']), 403);
 
         return $this->paginated($this->dataService->deleted($request->only(['resource_type', 'per_page', 'page'])), null, 'Deleted records retrieved.');
     }

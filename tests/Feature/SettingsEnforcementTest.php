@@ -157,6 +157,15 @@ class SettingsEnforcementTest extends TestCase
             ->assertJsonPath('data.provider_registration_enabled', true);
     }
 
+    public function test_starting_policies_are_published_until_administrators_write_their_own(): void
+    {
+        $policies = $this->getJson('/api/client/v1/platform')->assertOk()->json('data.policies');
+
+        $this->assertStringStartsWith('SkillServe Terms of Service', $policies['terms_of_service']);
+        $this->assertStringContainsString('Data Privacy Act of 2012', $policies['privacy_policy']);
+        $this->assertStringStartsWith('SkillServe Community Guidelines', $policies['community_guidelines']);
+    }
+
     public function test_push_off_keeps_the_feed_but_stops_background_delivery(): void
     {
         $client = $this->customer();

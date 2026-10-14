@@ -2,6 +2,7 @@
 
 namespace App\Modules\ReportsAndModeration\Models;
 
+use App\Shared\Helpers\PrivateImages;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,12 @@ class ReportAttachment extends Model
 
     /** How many photos one report may carry. */
     public const MAX_PER_REPORT = 5;
+
+    protected static function booted(): void
+    {
+        // The photo goes with its row.
+        static::deleted(fn (self $attachment) => PrivateImages::deleteAfterCommit($attachment::DISK, $attachment->path));
+    }
 
     public function report(): BelongsTo
     {

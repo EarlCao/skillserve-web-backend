@@ -59,6 +59,13 @@ class Report extends Model
         return $this->morphTo();
     }
 
+    protected static function booted(): void
+    {
+        // The database would drop the attachment rows on its own (cascade),
+        // leaving their files behind; delete them through the model instead.
+        static::forceDeleting(fn (Report $report) => $report->attachments()->get()->each->delete());
+    }
+
     /** Photos the reporter sent as proof. */
     public function attachments(): HasMany
     {

@@ -9,6 +9,7 @@ use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\Reviews\Models\Review;
 use App\Modules\Services\Models\Service;
+use App\Shared\Helpers\PrivateImages;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -157,6 +158,15 @@ class Booking extends Model
             'refunded' => 'already_refunded',
             default => 'payment_unchanged_refund_not_processed',
         };
+    }
+
+    protected static function booted(): void
+    {
+        // A booking removed for good takes its dispute photos with it.
+        static::forceDeleted(fn (Booking $booking) => PrivateImages::deleteAfterCommit(
+            'dispute_evidence',
+            array_column($booking->dispute_evidence ?? [], 'path'),
+        ));
     }
 
     protected function casts(): array

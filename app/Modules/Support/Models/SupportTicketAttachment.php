@@ -2,6 +2,7 @@
 
 namespace App\Modules\Support\Models;
 
+use App\Shared\Helpers\PrivateImages;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,12 @@ class SupportTicketAttachment extends Model
 
     /** How many photos the ticket, or one reply, may carry. */
     public const MAX_PER_POST = 5;
+
+    protected static function booted(): void
+    {
+        // The photo goes with its row.
+        static::deleted(fn (self $attachment) => PrivateImages::deleteAfterCommit($attachment::DISK, $attachment->path));
+    }
 
     protected function casts(): array
     {

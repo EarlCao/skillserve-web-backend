@@ -3,19 +3,21 @@
 namespace App\Modules\ClientCommunication\Events;
 
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ClientNotificationCreated implements ShouldBroadcast
+/**
+ * A stored notification, pushed to the account's phone at once.
+ *
+ * Broadcast immediately rather than through the queue, so it does not wait
+ * for the worker's next poll. Delivery is best-effort: the notification is
+ * already stored and the app also polls, so the dispatcher logs a failed push
+ * instead of failing (BroadcastClientNotification).
+ */
+class ClientNotificationCreated implements ShouldBroadcastNow
 {
     use Dispatchable, SerializesModels;
-
-    /**
-     * Realtime delivery is best-effort (the notification is already stored and
-     * the app also polls), so an unreachable WebSocket server is not retried.
-     */
-    public int $tries = 1;
 
     /**
      * @param  array<string, mixed>  $data

@@ -48,7 +48,7 @@ class SettingsController extends Controller
     #[OA\Get(path: '/api/settings', summary: 'Get system settings', description: 'meta.read_only lists "group.name" settings shown for information only (for example general.timezone, which follows the server APP_TIMEZONE).', tags: ['System Settings'], security: [['bearerAuth' => []]], responses: [new OA\Response(response: 200, description: 'Grouped system settings', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized')])]
     public function index(): JsonResponse
     {
-        abort_unless(request()->user()->can('manage settings'), 403);
+        abort_unless(request()->user()->can('view settings') || request()->user()->can('manage settings'), 403);
 
         return $this->success(
             $this->settingsService->all(),

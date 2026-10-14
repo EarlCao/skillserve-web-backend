@@ -4,6 +4,7 @@ namespace App\Modules\ReportsAndModeration\Models;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Shared\Helpers\PrivateImages;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,12 @@ class Message extends Model
 
     /** The photo's storage path never leaves the API; clients get a URL. */
     protected $hidden = ['image_path'];
+
+    protected static function booted(): void
+    {
+        // A message removed for good takes its photo with it.
+        static::forceDeleted(fn (Message $message) => PrivateImages::deleteAfterCommit('message_images', $message->image_path));
+    }
 
     public function hasImage(): bool
     {
