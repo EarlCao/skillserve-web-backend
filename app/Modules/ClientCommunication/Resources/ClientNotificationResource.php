@@ -20,7 +20,7 @@ class ClientNotificationResource extends BaseResource
             'data' => Arr::only($data, [
                 'type', 'title', 'message', 'body', 'announcement_id', 'booking_id', 'ticket_id',
                 'ticket_number', 'action', 'service_id', 'service_title', 'reason', 'report_id', 'review_id',
-                'remittance_id',
+                'remittance_id', 'inquiry_id',
             ]),
             'read_at' => $this->read_at?->toIso8601String(),
             // Not cast by Laravel's notification model, so parsed here.

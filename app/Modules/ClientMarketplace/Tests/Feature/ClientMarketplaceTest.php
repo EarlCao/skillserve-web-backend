@@ -390,7 +390,34 @@ class ClientMarketplaceTest extends TestCase
         $this->assertDatabaseCount('bookings', 1);
     }
 
-    public function test_booking_creation_rejects_an_overlapping_provider_window(): void
+    public function test_a_provider_on_a_job_shows_it_and_a_customer_mid_job_can_book_another(): void
+    {
+        $customer = $this->customer();
+        [$busy] = $this->provider();
+        [$free] = $this->provider();
+        $busyService = $this->service($busy, $this->category('Busy '.Str::random(5)));
+        $freeService = $this->service($free, $this->category('Free '.Str::random(5)));
+        // The customer's own job with the busy provider is under way.
+        $this->booking($customer, $busyService, ['status' => 'active']);
+
+        $providers = collect($this->getJson('/api/client/v1/providers?per_page=50')->assertOk()->json('data'))->keyBy('id');
+        $this->assertTrue($providers[$busy->id]['on_job_now']);
+        $this->assertFalse($providers[$free->id]['on_job_now']);
+        $this->getJson("/api/client/v1/providers/{$busy->id}")->assertJsonPath('data.on_job_now', true);
+
+        // Neither the customer's job in progress nor the provider's stops a new booking.
+        $token = $this->clientToken($customer);
+        foreach ([$freeService, $busyService] as $service) {
+            $this->withToken($token)
+                ->postJson('/api/client/v1/bookings', [
+                    'service_id' => $service->id,
+                    'scheduled_date' => now()->addDays(2)->toISOString(),
+                ])
+                ->assertCreated();
+        }
+    }
+
+    public function test_a_provider_with_work_at_that_time_can_still_be_booked(): void
     {
         $firstClient = $this->customer();
         $secondClient = $this->customer();
@@ -412,10 +439,10 @@ class ClientMarketplaceTest extends TestCase
                 'service_id' => $service->id,
                 'scheduled_date' => $start->copy()->addHour()->toISOString(),
             ])
-            ->assertStatus(409)
-            ->assertJsonPath('errors.scheduled_date.0', 'The requested time overlaps another booking for this provider.');
+            ->assertCreated();
 
-        $this->assertDatabaseCount('bookings', 1);
+        // Both wait for the provider, who accepts or declines each one.
+        $this->assertDatabaseCount('bookings', 2);
     }
 
     public function test_client_booking_payment_method_is_enum_and_cancellation_does_not_claim_a_refund(): void

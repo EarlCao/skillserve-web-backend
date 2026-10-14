@@ -64,6 +64,7 @@ class DataManagementService extends BaseService
             ['reviews', 'reviewer_id', 'review'],
             ['messages', 'sender_id', 'sent message'],
             ['messages', 'receiver_id', 'received message'],
+            ['inquiries', 'customer_id', 'conversation before booking'],
         ],
         'services' => [
             ['bookings', 'service_id', 'booking'],

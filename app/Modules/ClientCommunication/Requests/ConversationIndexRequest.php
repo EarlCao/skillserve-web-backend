@@ -10,6 +10,10 @@ class ConversationIndexRequest extends BaseFormRequest
     {
         return [
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            // Conversations before a booking too; off for app builds that
+            // only know booking threads.
+            'include_inquiries' => ['sometimes', 'boolean'],
         ];
     }
 }

@@ -195,6 +195,7 @@ class ProviderBookingService extends BaseService
             'service.provider:id,business_name,average_rating,total_reviews',
             'client:id,name,phone,profile_photo_path',
             'review:id,booking_id,reviewer_id,provider_id,service_id,rating,comment,status,created_at,updated_at',
+            'paymentProofs',
         ];
     }
 

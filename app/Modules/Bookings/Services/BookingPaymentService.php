@@ -14,8 +14,13 @@ use App\Shared\Services\BaseService;
  * payment happens off-platform (cash, GCash, …) and is recorded here, by
  * the provider who received it or by an administrator.
  *
- * unpaid ──markPaid──▶ paid ──refund (part)──▶ partially_refunded ──refund (rest)──▶ refunded
- *                        └────────refund (all)──────────────────────────────────────▶ refunded
+ * unpaid ──receive (part)──▶ partially_paid ──receive (rest)──▶ paid
+ *   └──────────────markPaid / receive (all)──────────────────────▶ paid
+ * paid ──refund (part)──▶ partially_refunded ──refund (rest)──▶ refunded
+ *   └────────refund (all)──────────────────────────────────────▶ refunded
+ *
+ * A part payment is a downpayment the provider confirmed from the customer's
+ * GCash proof ({@see BookingPaymentProofService}); `amount_paid` adds them up.
  *
  * Every write re-reads the booking under a row lock, so two people recording
  * the same payment cannot both succeed.
@@ -24,6 +29,9 @@ class BookingPaymentService extends BaseService
 {
     /** Work was agreed or done, so payment can be owed. */
     public const PAYABLE_STATUSES = ['confirmed', 'active', 'completed', 'disputed'];
+
+    /** Payment states in which the customer still owes something. */
+    public const OWING_STATUSES = ['unpaid', 'partially_paid'];
 
     public function __construct(private readonly CommissionLedger $ledger) {}
 
@@ -42,13 +50,7 @@ class BookingPaymentService extends BaseService
         return $this->transaction(function () use ($booking, $actor, $reference, $allowedStatuses): Booking {
             $booking = Booking::query()->lockForUpdate()->findOrFail($booking->id);
 
-            if ($booking->payment_status !== 'unpaid') {
-                throw new ApiException(
-                    'This booking is already marked as paid.',
-                    409,
-                    errors: ['payment_status' => ['The payment status is '.$booking->payment_status.'.']],
-                );
-            }
+            $this->assertOwing($booking);
 
             if (! in_array($booking->status, $allowedStatuses, true)) {
                 throw new ApiException(
@@ -58,22 +60,59 @@ class BookingPaymentService extends BaseService
                 );
             }
 
-            $booking->update([
-                'payment_status' => 'paid',
-                'paid_at' => now(),
-                'payment_recorded_by' => $actor->id,
-                'payment_reference' => $reference ?? $booking->payment_reference,
-            ]);
+            // Whatever is still owed, so a downpayment already confirmed is
+            // not counted twice.
+            return $this->receive($booking, $actor, $booking->balanceDue(), $reference);
+        });
+    }
 
-            // The commission is inclusive, so the provider has just been
-            // handed SkillServe's share along with their own: they now owe it
-            // back. A booking carrying no commission settles itself.
-            $this->ledger->markOutstanding($booking);
+    /**
+     * Adds [$amount] received to a booking that still owes money. The caller
+     * holds the booking's row lock. Reaching the total settles it as paid;
+     * less leaves it partially paid.
+     */
+    public function receive(Booking $booking, User $actor, float $amount, ?string $reference = null): Booking
+    {
+        $this->assertOwing($booking);
 
-            event(new BookingPaymentRecorded($booking, $actor, 'paid', 'unpaid', (float) $booking->total_price));
+        $oldStatus = $booking->payment_status;
+        $total = round((float) $booking->total_price, 2);
+        $paid = min($total, round((float) $booking->amount_paid + $amount, 2));
+
+        if ($paid < $total) {
+            $booking->update(['payment_status' => 'partially_paid', 'amount_paid' => $paid]);
+            event(new BookingPaymentRecorded($booking, $actor, 'partially_paid', $oldStatus, $amount));
 
             return $booking->refresh();
-        });
+        }
+
+        $booking->update([
+            'payment_status' => 'paid',
+            'amount_paid' => $total,
+            'paid_at' => now(),
+            'payment_recorded_by' => $actor->id,
+            'payment_reference' => $reference ?? $booking->payment_reference,
+        ]);
+
+        // The commission is inclusive, so the provider has now been handed
+        // SkillServe's share along with their own: they owe it back. A
+        // booking carrying no commission settles itself.
+        $this->ledger->markOutstanding($booking);
+
+        event(new BookingPaymentRecorded($booking, $actor, 'paid', $oldStatus, $amount));
+
+        return $booking->refresh();
+    }
+
+    private function assertOwing(Booking $booking): void
+    {
+        if (! in_array($booking->payment_status, self::OWING_STATUSES, true)) {
+            throw new ApiException(
+                'This booking is already marked as paid.',
+                409,
+                errors: ['payment_status' => ['The payment status is '.$booking->payment_status.'.']],
+            );
+        }
     }
 
     /**

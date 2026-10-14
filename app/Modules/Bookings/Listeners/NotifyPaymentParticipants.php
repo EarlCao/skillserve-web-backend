@@ -22,16 +22,23 @@ class NotifyPaymentParticipants
         $name = $service ? "\u{201C}{$service}\u{201D}" : 'your booking';
         $amount = number_format((float) $event->amount, 2);
 
-        $notification = $event->action === 'refunded'
-            ? new BookingStatusNotification(
+        $balance = number_format($booking->balanceDue(), 2);
+
+        $notification = match ($event->action) {
+            'refunded' => new BookingStatusNotification(
                 $booking, 'refunded', 'Refund recorded',
                 "A refund of {$booking->currency} {$amount} was recorded for {$name}.",
                 $booking->refund_reason,
-            )
-            : new BookingStatusNotification(
-                $booking, 'paid', 'Payment recorded',
-                "Payment of {$booking->currency} {$amount} for {$name} was recorded. Thank you!",
-            );
+            ),
+            'partially_paid' => new BookingStatusNotification(
+                $booking, 'partially_paid', 'Downpayment confirmed',
+                "{$booking->currency} {$amount} was confirmed for {$name}. {$booking->currency} {$balance} is still to pay.",
+            ),
+            default => new BookingStatusNotification(
+                $booking, 'paid', 'Payment complete',
+                "Payment of {$booking->currency} {$amount} for {$name} was recorded — it is fully paid. Thank you!",
+            ),
+        };
 
         // Resolved from ids, as in NotifyBookingParticipants.
         $recipients = [

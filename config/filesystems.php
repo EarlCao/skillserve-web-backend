@@ -71,6 +71,15 @@ return [
             'report' => false,
         ],
 
+        // GCash payment screenshots a customer sends; the provider opens them.
+        'payment_proofs' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/payment-proofs'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'support_attachments' => [
             'driver' => 'local',
             'root' => storage_path('app/private/support-attachments'),

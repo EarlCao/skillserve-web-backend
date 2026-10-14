@@ -28,16 +28,20 @@ use App\Modules\Bookings\Events\BookingDisputeManaged;
 use App\Modules\Bookings\Events\BookingPaymentRecorded;
 use App\Modules\Bookings\Events\BookingRescheduled;
 use App\Modules\Bookings\Events\BookingStatusChanged;
+use App\Modules\Bookings\Events\PaymentProofReviewed;
+use App\Modules\Bookings\Events\PaymentProofSubmitted;
 use App\Modules\Bookings\Listeners\LogBookingActivity;
 use App\Modules\Bookings\Listeners\NotifyBookingParticipants;
 use App\Modules\Bookings\Listeners\NotifyDisputeParties;
 use App\Modules\Bookings\Listeners\NotifyPaymentParticipants;
+use App\Modules\Bookings\Listeners\NotifyPaymentProof;
 use App\Modules\Bookings\Listeners\NotifyProviderOfReschedule;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
+use App\Modules\ClientMarketplace\Listeners\PushBookingChange;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
 use App\Modules\Commissions\Events\CommissionRemittanceFlagged;
 use App\Modules\Commissions\Events\CommissionRemittanceRejected;
@@ -388,6 +392,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(BookingStatusChanged::class, NotifyBookingParticipants::class);
         Event::listen(BookingRescheduled::class, NotifyProviderOfReschedule::class);
         Event::listen(BookingPaymentRecorded::class, NotifyPaymentParticipants::class);
+        Event::listen([PaymentProofSubmitted::class, PaymentProofReviewed::class], NotifyPaymentProof::class);
+        // Open booking screens reload at once, whatever the notification settings.
+        Event::listen(
+            [BookingStatusChanged::class, BookingPaymentRecorded::class, PaymentProofSubmitted::class, PaymentProofReviewed::class],
+            PushBookingChange::class,
+        );
         Event::listen(BookingDisputeManaged::class, NotifyDisputeParties::class);
 
         // Booking Management module policies.

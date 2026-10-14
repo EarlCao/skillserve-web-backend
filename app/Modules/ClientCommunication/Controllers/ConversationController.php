@@ -20,11 +20,15 @@ class ConversationController extends Controller
 
     #[OA\Get(
         path: '/api/client/v1/conversations',
-        summary: 'List the signed-in account\'s booking conversations',
-        description: 'Bookings the account can message on that already carry at least one message, newest activity first. Reading this list does not mark anything as read.',
+        summary: 'List the signed-in account\'s conversations',
+        description: 'Threads the account can message on that already carry at least one message, newest activity first: booking chats, and with `include_inquiries=1` also conversations before a booking (`kind: inquiry`). Reading this list does not mark anything as read.',
         tags: ['Conversations'],
         security: [['bearerAuth' => []]],
-        parameters: [new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 20))],
+        parameters: [
+            new OA\Parameter(name: 'per_page', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1, maximum: 100, default: 20)),
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', minimum: 1)),
+            new OA\Parameter(name: 'include_inquiries', in: 'query', description: 'Also list conversations before a booking', schema: new OA\Schema(type: 'boolean', default: false)),
+        ],
         responses: [
             new OA\Response(response: 200, description: 'Conversations', content: new OA\JsonContent(ref: '#/components/schemas/ConversationListEnvelope')),
             new OA\Response(response: 401, description: 'Unauthenticated'),

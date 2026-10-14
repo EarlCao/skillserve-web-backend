@@ -5,7 +5,9 @@ use App\Modules\ClientCommunication\Controllers\ClientNotificationController;
 use App\Modules\ClientCommunication\Controllers\ClientReportController;
 use App\Modules\ClientCommunication\Controllers\ClientSupportTicketController;
 use App\Modules\ClientCommunication\Controllers\ConversationController;
+use App\Modules\ClientCommunication\Controllers\InquiryController;
 use App\Modules\ClientCommunication\Middleware\EnsureBackgroundNotificationToken;
+use App\Modules\ClientMarketplace\Middleware\EnsureClient;
 use App\Modules\ClientMarketplace\Middleware\EnsureMobileAccount;
 use Illuminate\Support\Facades\Route;
 
@@ -55,6 +57,17 @@ Route::prefix('reports')->middleware(['auth:sanctum', EnsureMobileAccount::class
 Route::prefix('conversations')->middleware(['auth:sanctum', EnsureMobileAccount::class])->group(function (): void {
     Route::get('/', [ConversationController::class, 'index']);
     Route::get('/unread-count', [ConversationController::class, 'unreadCount']);
+});
+
+// Chat before booking: a customer starts one conversation per provider
+// (throttled against unsolicited mass messaging); both parties then write in
+// it, authorised per conversation like a booking chat.
+Route::prefix('inquiries')->middleware('auth:sanctum')->group(function (): void {
+    Route::post('/', [InquiryController::class, 'store'])->middleware([EnsureClient::class, 'throttle:30,60']);
+    Route::get('/{inquiry}/messages', [InquiryController::class, 'index'])->whereNumber('inquiry');
+    Route::post('/{inquiry}/messages', [InquiryController::class, 'storeMessage'])->whereNumber('inquiry');
+    Route::post('/{inquiry}/messages/read', [InquiryController::class, 'markRead'])->whereNumber('inquiry');
+    Route::get('/{inquiry}/messages/{message}/image', [InquiryController::class, 'image'])->whereNumber(['inquiry', 'message']);
 });
 
 Route::prefix('bookings/{booking}/messages')->middleware('auth:sanctum')->group(function (): void {

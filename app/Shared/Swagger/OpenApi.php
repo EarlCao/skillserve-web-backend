@@ -367,6 +367,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'completed_bookings', type: 'integer'),
         new OA\Property(property: 'is_featured', type: 'boolean', description: 'Highlighted by administrators'),
         new OA\Property(property: 'is_accepting_bookings', type: 'boolean', description: 'Whether the provider is taking new bookings'),
+        new OA\Property(property: 'on_job_now', type: 'boolean', description: 'Working a job right now (a booking in progress). Informational: the provider can still be booked and messaged. Present on the public list and detail.'),
         new OA\Property(property: 'availability', type: 'array', nullable: true, description: 'Published weekly hours, present on the provider detail response. An empty array means no published hours, which does not restrict booking times.', items: new OA\Items(ref: '#/components/schemas/ProviderAvailabilityWindow')),
         new OA\Property(property: 'verification_status', type: 'string', example: 'verified'),
         new OA\Property(property: 'verified_at', type: 'string', format: 'date-time', nullable: true),
@@ -412,7 +413,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'booking_number', type: 'string'),
         new OA\Property(property: 'status', type: 'string'),
-        new OA\Property(property: 'payment_status', type: 'string', enum: ['unpaid', 'paid', 'refunded', 'partially_refunded']),
+        new OA\Property(property: 'payment_status', type: 'string', enum: ['unpaid', 'partially_paid', 'paid', 'refunded', 'partially_refunded']),
         new OA\Property(property: 'paid_at', type: 'string', format: 'date-time', nullable: true, description: 'When the payment was recorded'),
         new OA\Property(property: 'refunded_amount', type: 'string', example: '0.00', description: 'Total refunded so far'),
         new OA\Property(property: 'refunded_at', type: 'string', format: 'date-time', nullable: true),
@@ -484,7 +485,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'id', type: 'integer'),
         new OA\Property(property: 'booking_number', type: 'string'),
         new OA\Property(property: 'status', type: 'string', enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'disputed']),
-        new OA\Property(property: 'payment_status', type: 'string', enum: ['unpaid', 'paid', 'refunded', 'partially_refunded']),
+        new OA\Property(property: 'payment_status', type: 'string', enum: ['unpaid', 'partially_paid', 'paid', 'refunded', 'partially_refunded']),
         new OA\Property(property: 'paid_at', type: 'string', format: 'date-time', nullable: true, description: 'When the payment was recorded'),
         new OA\Property(property: 'refunded_amount', type: 'string', example: '0.00', description: 'Total refunded so far'),
         new OA\Property(property: 'refunded_at', type: 'string', format: 'date-time', nullable: true),
@@ -550,11 +551,13 @@ use OpenApi\Attributes as OA;
 )]
 #[OA\Schema(
     schema: 'Conversation',
-    description: 'One booking message thread in the Messages inbox.',
+    description: 'One message thread in the Messages inbox: a booking\'s chat, or (kind `inquiry`) a customer\'s conversation with a provider before booking.',
     properties: [
-        new OA\Property(property: 'booking_id', type: 'integer', description: 'Addresses the thread: a booking is the conversation'),
-        new OA\Property(property: 'booking_number', type: 'string'),
-        new OA\Property(property: 'booking_status', type: 'string'),
+        new OA\Property(property: 'kind', type: 'string', enum: ['booking', 'inquiry']),
+        new OA\Property(property: 'booking_id', type: 'integer', nullable: true, description: 'Addresses a booking thread (/bookings/{booking}/messages); null for an inquiry'),
+        new OA\Property(property: 'inquiry_id', type: 'integer', nullable: true, description: 'Addresses an inquiry thread (/inquiries/{inquiry}/messages); null for a booking'),
+        new OA\Property(property: 'booking_number', type: 'string', nullable: true),
+        new OA\Property(property: 'booking_status', type: 'string', nullable: true),
         new OA\Property(property: 'service_title', type: 'string', nullable: true),
         new OA\Property(property: 'counterpart', ref: '#/components/schemas/ConversationCounterpart', nullable: true),
         new OA\Property(property: 'last_message', type: 'object', nullable: true, properties: [
@@ -567,6 +570,10 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'unread_count', type: 'integer', description: 'Unread messages in this thread addressed to the signed-in account'),
         new OA\Property(property: 'last_message_at', type: 'string', format: 'date-time', nullable: true),
     ],
+)]
+#[OA\Schema(
+    schema: 'ConversationEnvelope',
+    allOf: [new OA\Schema(ref: '#/components/schemas/ApiEnvelope'), new OA\Schema(properties: [new OA\Property(property: 'data', ref: '#/components/schemas/Conversation')])],
 )]
 #[OA\Schema(
     schema: 'ClientReport',

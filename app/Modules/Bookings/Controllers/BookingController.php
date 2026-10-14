@@ -4,18 +4,21 @@ namespace App\Modules\Bookings\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\Bookings\Models\BookingPaymentProof;
 use App\Modules\Bookings\Requests\CancelBookingRequest;
 use App\Modules\Bookings\Requests\HistoryIndexRequest;
 use App\Modules\Bookings\Requests\ManageDisputeRequest;
 use App\Modules\Bookings\Requests\MarkBookingPaidRequest;
 use App\Modules\Bookings\Requests\RefundBookingRequest;
 use App\Modules\Bookings\Resources\BookingResource;
+use App\Modules\Bookings\Services\BookingPaymentProofService;
 use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Bookings\Services\BookingService;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[OA\Tag(name: 'Bookings', description: 'Manage bookings (view, search, filter, cancel, manage disputes)')]
 class BookingController extends Controller
@@ -38,7 +41,7 @@ class BookingController extends Controller
         parameters: [
             new OA\Parameter(name: 'search', in: 'query', description: 'Search by booking ID, client, provider, or service', required: false, schema: new OA\Schema(type: 'string')),
             new OA\Parameter(name: 'status', in: 'query', description: 'Filter by status', required: false, schema: new OA\Schema(type: 'string', enum: ['pending', 'confirmed', 'active', 'completed', 'cancelled', 'disputed'])),
-            new OA\Parameter(name: 'payment_status', in: 'query', description: 'Filter by payment status', required: false, schema: new OA\Schema(type: 'string', enum: ['unpaid', 'paid', 'refunded', 'partially_refunded'])),
+            new OA\Parameter(name: 'payment_status', in: 'query', description: 'Filter by payment status', required: false, schema: new OA\Schema(type: 'string', enum: ['unpaid', 'partially_paid', 'paid', 'refunded', 'partially_refunded'])),
             new OA\Parameter(name: 'provider_id', in: 'query', description: 'Filter by provider profile ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'client_id', in: 'query', description: 'Filter by client user ID', required: false, schema: new OA\Schema(type: 'integer')),
             new OA\Parameter(name: 'service_id', in: 'query', description: 'Filter by service ID', required: false, schema: new OA\Schema(type: 'integer')),
@@ -134,6 +137,21 @@ class BookingController extends Controller
         $booking = $this->bookingService->show($booking);
 
         return $this->success(new BookingResource($booking));
+    }
+
+    #[OA\Get(
+        path: '/api/bookings/{booking}/payment-proofs/{proof}/image',
+        summary: 'The screenshot of a customer\'s GCash payment proof',
+        tags: ['Bookings'],
+        security: [['bearerAuth' => []]],
+        parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer')), new OA\Parameter(name: 'proof', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
+        responses: [new OA\Response(response: 200, description: 'The image file'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'No such proof on this booking')],
+    )]
+    public function paymentProofImage(Booking $booking, BookingPaymentProof $proof, BookingPaymentProofService $proofs): StreamedResponse
+    {
+        $this->authorize('view', $booking);
+
+        return $proofs->image($booking, $proof);
     }
 
     /**

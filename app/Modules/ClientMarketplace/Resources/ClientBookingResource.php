@@ -2,6 +2,8 @@
 
 namespace App\Modules\ClientMarketplace\Resources;
 
+use App\Modules\Bookings\Resources\PaymentProofPresenter;
+use App\Modules\Bookings\Services\BookingPaymentService;
 use App\Modules\Bookings\Services\BookingRules;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Helpers\QrPh;
@@ -16,6 +18,9 @@ class ClientBookingResource extends BaseResource
             'booking_number' => $this->booking_number,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
+            // What has been confirmed so far (downpayments add up) and what is left.
+            'amount_paid' => $this->amount_paid,
+            'balance_due' => number_format($this->resource->balanceDue(), 2, '.', ''),
             'paid_at' => $this->paid_at?->toIso8601String(),
             'refunded_amount' => $this->refunded_amount,
             'refunded_at' => $this->refunded_at?->toIso8601String(),
@@ -63,7 +68,7 @@ class ClientBookingResource extends BaseResource
             // handed out for a finished or cancelled job.
             'payment_instructions' => $this->when(
                 $this->payment_method === 'gcash'
-                    && $this->payment_status === 'unpaid'
+                    && in_array($this->payment_status, BookingPaymentService::OWING_STATUSES, true)
                     && ! in_array($this->status, ['cancelled'], true)
                     && $this->relationLoaded('provider'),
                 fn () => $this->provider?->canReceiveGcash() === true
@@ -71,26 +76,32 @@ class ClientBookingResource extends BaseResource
                         'method' => 'gcash',
                         'gcash_number' => $this->provider->gcash_number,
                         'gcash_name' => $this->provider->gcash_name,
-                        'amount' => $this->total_price,
+                        // What is still to pay, after any confirmed downpayment.
+                        'amount' => number_format($this->resource->balanceDue(), 2, '.', ''),
                         'reference' => $this->booking_number,
                         // The provider's own QR with this booking's amount in
                         // it: scanning it pays the provider directly, amount
                         // pre-filled.
                         'qr_payload' => $this->qrWithAmount(),
-                        'note' => 'Send this amount to the provider in GCash, then ask them to confirm it. '
+                        'note' => 'Send this amount — or a downpayment — to the provider in GCash, then send the screenshot below so they can confirm it. '
                             .'Check the name GCash shows you matches before you send.',
                     ]
                     : [
                         'method' => 'gcash',
                         'gcash_number' => null,
                         'gcash_name' => null,
-                        'amount' => $this->total_price,
+                        'amount' => number_format($this->resource->balanceDue(), 2, '.', ''),
                         'reference' => $this->booking_number,
                         'qr_payload' => $this->qrWithAmount(),
                         'note' => 'This provider has not added their GCash details yet. '
                             .'Message them to arrange payment.',
                     ],
             ),
+            // GCash payment proofs the customer sent, newest first.
+            'payment_proofs' => $this->whenLoaded('paymentProofs', fn () => PaymentProofPresenter::list(
+                $this->paymentProofs,
+                "/api/client/v1/bookings/{$this->id}/payment-proofs",
+            )),
             'review' => $this->whenLoaded('review', fn () => $this->review
                 ? new ClientReviewResource($this->review)
                 : null),
@@ -111,6 +122,6 @@ class ClientBookingResource extends BaseResource
             return null;
         }
 
-        return QrPh::withAmount($payload, (float) $this->total_price);
+        return QrPh::withAmount($payload, $this->resource->balanceDue());
     }
 }

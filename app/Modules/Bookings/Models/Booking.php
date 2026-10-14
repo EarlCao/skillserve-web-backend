@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'service_id', 'client_id', 'provider_id', 'booking_number', 'status',
-    'payment_status', 'total_price', 'service_price', 'platform_fee',
+    'payment_status', 'amount_paid', 'total_price', 'service_price', 'platform_fee',
     'commission_rate', 'commission_tier_id', 'commission_status',
     'commission_settled_at', 'currency',
     'payment_method', 'payment_reference', 'paid_at', 'payment_recorded_by',
@@ -151,6 +151,18 @@ class Booking extends Model
         return in_array($this->status, ['pending', 'confirmed'], true);
     }
 
+    /** What the customer still owes: the total less every confirmed payment. */
+    public function balanceDue(): float
+    {
+        return max(0, round((float) $this->total_price - (float) $this->amount_paid, 2));
+    }
+
+    /** Proofs of GCash payments, newest first. */
+    public function paymentProofs(): HasMany
+    {
+        return $this->hasMany(BookingPaymentProof::class)->latest('id');
+    }
+
     public function cancellationPaymentPolicy(): string
     {
         return match ($this->payment_status) {
@@ -167,6 +179,11 @@ class Booking extends Model
             'dispute_evidence',
             array_column($booking->dispute_evidence ?? [], 'path'),
         ));
+        // And its payment screenshots — read before the rows cascade away.
+        static::forceDeleting(fn (Booking $booking) => PrivateImages::deleteAfterCommit(
+            BookingPaymentProof::DISK,
+            BookingPaymentProof::query()->where('booking_id', $booking->id)->pluck('image_path')->all(),
+        ));
     }
 
     protected function casts(): array
@@ -178,6 +195,7 @@ class Booking extends Model
             'commission_rate' => 'decimal:2',
             'commission_settled_at' => 'datetime',
             'refunded_amount' => 'decimal:2',
+            'amount_paid' => 'decimal:2',
             'cancellation_fee' => 'decimal:2',
             'paid_at' => 'datetime',
             'refunded_at' => 'datetime',

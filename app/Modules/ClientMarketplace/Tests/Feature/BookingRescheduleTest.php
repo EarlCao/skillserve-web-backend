@@ -118,7 +118,7 @@ class BookingRescheduleTest extends TestCase
             ->assertJsonValidationErrors('scheduled_date');
     }
 
-    public function test_the_new_time_must_not_overlap_another_booking_but_may_overlap_its_own(): void
+    public function test_the_new_time_may_overlap_another_booking_and_its_own(): void
     {
         [$provider] = $this->provider();
         $client = $this->client();
@@ -138,7 +138,7 @@ class BookingRescheduleTest extends TestCase
             ->patchJson("/api/client/v1/bookings/{$booking->id}/reschedule", [
                 'scheduled_date' => Carbon::parse('+3 days 11:00')->toIso8601String(),
             ])
-            ->assertStatus(409);
+            ->assertOk();
 
         // Sliding an hour later overlaps only the booking's own old window.
         $this->withToken($token)

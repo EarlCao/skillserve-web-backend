@@ -151,6 +151,14 @@ class RealtimeChangeTracker
             return $removed || $model->wasChanged(self::MARKETPLACE_USER_FIELDS) ? 'providers' : null;
         }
 
+        // A job starting or finishing moves the provider's "On a job now"
+        // badge; no other booking change shows in the catalog.
+        if ($model instanceof Booking) {
+            $wasActive = ($model->getPrevious()['status'] ?? null) === 'active';
+
+            return $model->wasChanged('status') && ($model->status === 'active' || $wasActive) ? 'providers' : null;
+        }
+
         return self::MARKETPLACE_RESOURCES[$model::class] ?? null;
     }
 

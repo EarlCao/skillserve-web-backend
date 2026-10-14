@@ -76,7 +76,7 @@ class ClientBookingController extends Controller
             new OA\Response(response: 200, description: 'Existing booking returned for a repeated idempotency key', content: new OA\JsonContent(ref: '#/components/schemas/ClientBookingEnvelope')),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Active, verified client access required'),
-            new OA\Response(response: 409, description: 'Idempotency or provider schedule conflict'),
+            new OA\Response(response: 409, description: 'Idempotency key reused for a different request'),
             new OA\Response(response: 422, description: 'Unavailable or unbookable service'),
         ],
     )]
@@ -133,7 +133,7 @@ class ClientBookingController extends Controller
     #[OA\Patch(
         path: '/api/client/v1/bookings/{booking}/reschedule',
         summary: 'Move an owned pending or confirmed booking to a new time',
-        description: 'Re-runs the provider hours and overlap checks for the new window. A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.',
+        description: 'Re-runs the provider hours check for the new window (other bookings at that time are allowed: providers may hold several jobs at once). A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.',
         tags: ['Client Bookings'],
         security: [['bearerAuth' => []]],
         parameters: [new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))],
@@ -146,7 +146,6 @@ class ClientBookingController extends Controller
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Not owned by the customer'),
             new OA\Response(response: 404, description: 'Booking not found'),
-            new OA\Response(response: 409, description: 'The new time overlaps another booking for this provider'),
             new OA\Response(response: 422, description: 'Validation error, same time as now, outside the provider hours, or the booking is no longer pending/confirmed'),
         ],
     )]

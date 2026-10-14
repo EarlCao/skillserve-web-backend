@@ -18,6 +18,14 @@ class BookingResource extends BaseResource
             'booking_number' => $this->booking_number,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
+            'amount_paid' => $this->amount_paid,
+            'balance_due' => number_format($this->resource->balanceDue(), 2, '.', ''),
+            // The customer's GCash proofs; screenshots open through the admin API.
+            'payment_proofs' => $this->whenLoaded('paymentProofs', fn () => PaymentProofPresenter::list(
+                $this->paymentProofs,
+                "/bookings/{$this->id}/payment-proofs",
+                absolute: false,
+            )),
             'total_price' => $this->total_price,
             'service_price' => $this->service_price,
             'platform_fee' => $this->platform_fee,

@@ -33,6 +33,12 @@ class ClientProviderResource extends BaseResource
             'completed_bookings' => $this->completed_bookings,
             'is_featured' => (bool) $this->is_featured,
             'is_accepting_bookings' => (bool) $this->is_accepting_bookings,
+            // Working a job right now (a booking in progress). Informational:
+            // they can still be booked and messaged.
+            'on_job_now' => $this->when(
+                array_key_exists('on_job_now', $this->resource->getAttributes()),
+                fn () => (bool) $this->on_job_now,
+            ),
             // Published weekly hours, on the detail response only. Empty
             // means the provider publishes none, which does not restrict
             // when they can be booked.

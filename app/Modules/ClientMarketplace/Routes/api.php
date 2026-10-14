@@ -6,6 +6,7 @@ use App\Modules\ClientMarketplace\Controllers\ClientCatalogController;
 use App\Modules\ClientMarketplace\Controllers\ClientPaymentController;
 use App\Modules\ClientMarketplace\Controllers\ClientReviewController;
 use App\Modules\ClientMarketplace\Controllers\FavoriteProviderController;
+use App\Modules\ClientMarketplace\Controllers\PaymentProofController;
 use App\Modules\ClientMarketplace\Controllers\ProviderBookingController;
 use App\Modules\ClientMarketplace\Controllers\ProviderCommissionController;
 use App\Modules\ClientMarketplace\Controllers\ProviderProfileController;
@@ -37,6 +38,12 @@ Route::middleware(['auth:sanctum', EnsureClient::class])->group(function (): voi
         // Starts an online payment. The booking is marked paid by the
         // gateway's webhook, never by the customer returning from it.
         Route::post('/{booking}/pay', [ClientPaymentController::class, 'store'])->whereNumber('booking');
+
+        // Proof of a GCash payment to the provider (a downpayment or the rest).
+        Route::post('/{booking}/payment-proofs', [PaymentProofController::class, 'store'])
+            ->whereNumber('booking')->middleware('throttle:10,1');
+        Route::get('/{booking}/payment-proofs/{proof}/image', [PaymentProofController::class, 'customerImage'])
+            ->whereNumber(['booking', 'proof']);
     });
 
     Route::get('/favorites', [FavoriteProviderController::class, 'index']);
@@ -114,6 +121,9 @@ Route::prefix('provider/bookings')->middleware(['auth:sanctum', EnsureProvider::
     Route::patch('/{booking}/start', [ProviderBookingController::class, 'start'])->whereNumber('booking');
     Route::patch('/{booking}/complete', [ProviderBookingController::class, 'complete'])->whereNumber('booking');
     Route::patch('/{booking}/payment-received', [ProviderBookingController::class, 'paymentReceived'])->whereNumber('booking');
+    Route::patch('/{booking}/payment-proofs/{proof}/confirm', [PaymentProofController::class, 'confirm'])->whereNumber(['booking', 'proof']);
+    Route::patch('/{booking}/payment-proofs/{proof}/reject', [PaymentProofController::class, 'reject'])->whereNumber(['booking', 'proof']);
+    Route::get('/{booking}/payment-proofs/{proof}/image', [PaymentProofController::class, 'providerImage'])->whereNumber(['booking', 'proof']);
 });
 
 /* What a price means for the provider, before they publish it. Outside the

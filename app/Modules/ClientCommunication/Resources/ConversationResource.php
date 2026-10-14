@@ -2,11 +2,15 @@
 
 namespace App\Modules\ClientCommunication\Resources;
 
+use App\Models\User;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
+use App\Modules\ClientCommunication\Models\Inquiry;
+use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Resources\BaseResource;
 
 /**
- * One booking thread as it appears in the Messages tab.
+ * One thread as it appears in the Messages tab: a booking's chat, or an
+ * inquiry (a customer's conversation with a provider before booking).
  *
  * `counterpart` is resolved against the signed-in account, so each side sees
  * the other: a customer sees the provider's business name, a provider sees the
@@ -17,15 +21,19 @@ class ConversationResource extends BaseResource
     public function toArray($request): array
     {
         $viewer = $request->user();
-        $isClient = (int) $this->client_id === (int) $viewer?->id;
+        $isInquiry = $this->resource instanceof Inquiry;
+        $customer = $isInquiry ? $this->customer : $this->client;
+        $isCustomer = (int) ($isInquiry ? $this->customer_id : $this->client_id) === (int) $viewer?->id;
 
         return [
-            // The booking is the conversation, so its id addresses the thread.
-            'booking_id' => $this->id,
-            'booking_number' => $this->booking_number,
-            'booking_status' => $this->status,
-            'service_title' => $this->service?->title,
-            'counterpart' => $isClient ? $this->providerSide() : $this->clientSide(),
+            'kind' => $isInquiry ? 'inquiry' : 'booking',
+            // The thread's address: /bookings/{id}/messages or /inquiries/{id}/messages.
+            'booking_id' => $isInquiry ? null : $this->id,
+            'inquiry_id' => $isInquiry ? $this->id : null,
+            'booking_number' => $isInquiry ? null : $this->booking_number,
+            'booking_status' => $isInquiry ? null : $this->status,
+            'service_title' => $isInquiry ? null : $this->service?->title,
+            'counterpart' => $isCustomer ? $this->providerSide($this->provider) : $this->clientSide($customer),
             'last_message' => $this->whenLoaded('latestMessage', fn () => $this->latestMessage ? [
                 'id' => $this->latestMessage->id,
                 // "📷 Photo" for a photo sent without a caption.
@@ -43,11 +51,9 @@ class ConversationResource extends BaseResource
         ];
     }
 
-    /** The provider, as the customer on the booking sees them. */
-    private function providerSide(): ?array
+    /** The provider, as the customer sees them. */
+    private function providerSide(?ProviderProfile $provider): ?array
     {
-        $provider = $this->provider;
-
         if (! $provider) {
             return null;
         }
@@ -61,13 +67,13 @@ class ConversationResource extends BaseResource
         ];
     }
 
-    /** The customer, as the provider on the booking sees them. */
-    private function clientSide(): ?array
+    /** The customer, as the provider sees them. */
+    private function clientSide(?User $customer): ?array
     {
-        return $this->client ? [
-            'id' => $this->client->id,
-            'name' => $this->client->name,
-            'profile_picture' => ClientProfileService::photoUrl($this->client->profile_photo_path),
+        return $customer ? [
+            'id' => $customer->id,
+            'name' => $customer->name,
+            'profile_picture' => ClientProfileService::photoUrl($customer->profile_photo_path),
         ] : null;
     }
 }

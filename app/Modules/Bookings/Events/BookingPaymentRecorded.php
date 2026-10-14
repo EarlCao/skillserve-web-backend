@@ -6,8 +6,9 @@ use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
 
 /**
- * A settlement was recorded by hand: `paid` when the booking was marked paid,
- * `refunded` when a full or partial refund was recorded.
+ * A settlement was recorded: `paid` when the booking became fully paid,
+ * `partially_paid` when a downpayment was confirmed, `refunded` when a full
+ * or partial refund was recorded. [amount] is what this step added.
  */
 class BookingPaymentRecorded
 {

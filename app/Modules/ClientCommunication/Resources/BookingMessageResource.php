@@ -11,10 +11,14 @@ class BookingMessageResource extends BaseResource
         return [
             'id' => $this->id,
             'booking_id' => $this->booking_id,
+            // Set instead of booking_id in a conversation before a booking.
+            'inquiry_id' => $this->inquiry_id,
             'content' => $this->content,
             // A private photo, readable by the two parties with their token.
             'image_url' => $this->hasImage()
-                ? url("/api/client/v1/bookings/{$this->booking_id}/messages/{$this->id}/image")
+                ? url($this->inquiry_id
+                    ? "/api/client/v1/inquiries/{$this->inquiry_id}/messages/{$this->id}/image"
+                    : "/api/client/v1/bookings/{$this->booking_id}/messages/{$this->id}/image")
                 : null,
             'sender' => $this->whenLoaded('sender', fn () => $this->person($this->sender)),
             'receiver' => $this->whenLoaded('receiver', fn () => $this->person($this->receiver)),

@@ -7,7 +7,8 @@ use App\Shared\Notifications\BaseNotification;
 use Illuminate\Support\Str;
 
 /**
- * Tells someone the other party on a booking wrote to them.
+ * Tells someone the other party in a chat — on a booking, or before one —
+ * wrote to them.
  */
 class BookingMessageNotification extends BaseNotification
 {
@@ -34,6 +35,8 @@ class BookingMessageNotification extends BaseNotification
             'message' => $preview,
             'body' => $preview,
             'booking_id' => $this->message->booking_id,
+            // A conversation before a booking has no booking_id.
+            'inquiry_id' => $this->message->inquiry_id,
             'message_id' => $this->message->id,
             'sender_id' => $this->message->sender_id,
             'sender_name' => $this->senderName,

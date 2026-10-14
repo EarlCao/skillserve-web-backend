@@ -3102,6 +3102,7 @@
                             "type": "string",
                             "enum": [
                                 "unpaid",
+                                "partially_paid",
                                 "paid",
                                 "refunded",
                                 "partially_refunded"
@@ -3316,6 +3317,49 @@
                     },
                     "404": {
                         "description": "Booking not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/bookings/{booking}/payment-proofs/{proof}/image": {
+            "get": {
+                "tags": [
+                    "Bookings"
+                ],
+                "summary": "The screenshot of a customer's GCash payment proof",
+                "operationId": "49462e93c69ec2b324856bdae10d9edc",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "proof",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    },
+                    "404": {
+                        "description": "No such proof on this booking"
                     }
                 },
                 "security": [
@@ -7448,8 +7492,8 @@
                 "tags": [
                     "Conversations"
                 ],
-                "summary": "List the signed-in account's booking conversations",
-                "description": "Bookings the account can message on that already carry at least one message, newest activity first. Reading this list does not mark anything as read.",
+                "summary": "List the signed-in account's conversations",
+                "description": "Threads the account can message on that already carry at least one message, newest activity first: booking chats, and with `include_inquiries=1` also conversations before a booking (`kind: inquiry`). Reading this list does not mark anything as read.",
                 "operationId": "e203bc66ba8689239dcd227a0e6fae68",
                 "parameters": [
                     {
@@ -7460,6 +7504,23 @@
                             "default": 20,
                             "maximum": 100,
                             "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "include_inquiries",
+                        "in": "query",
+                        "description": "Also list conversations before a booking",
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
                         }
                     }
                 ],
@@ -7514,6 +7575,318 @@
                     },
                     "403": {
                         "description": "Active, verified customer or provider account required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/inquiries": {
+            "post": {
+                "tags": [
+                    "Inquiries"
+                ],
+                "summary": "Start (or reopen) a conversation with a provider before booking",
+                "description": "Customers only. Returns the one conversation the customer has with this provider, creating it the first time. Only providers the marketplace shows can be messaged.",
+                "operationId": "cf540a4f4e14c163b21616c10f3205a9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "provider_id"
+                                ],
+                                "properties": {
+                                    "provider_id": {
+                                        "description": "The provider's public profile id",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "The conversation (kind `inquiry`)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConversationEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Active, verified customer account required"
+                    },
+                    "404": {
+                        "description": "Provider not found or not listed"
+                    },
+                    "422": {
+                        "description": "Validation error, or the provider is the caller"
+                    },
+                    "429": {
+                        "description": "Too many conversations started"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/inquiries/{inquiry}/messages": {
+            "get": {
+                "tags": [
+                    "Inquiries"
+                ],
+                "summary": "List the messages of a conversation before booking",
+                "description": "Oldest first. Opening it marks the messages addressed to the caller as read.",
+                "operationId": "c36f63c15b411f291a576a80f7121d1b",
+                "parameters": [
+                    {
+                        "name": "inquiry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated messages",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageListEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only the customer and the provider"
+                    },
+                    "404": {
+                        "description": "Conversation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Inquiries"
+                ],
+                "summary": "Send a message in a conversation before booking",
+                "description": "Text, a photo, or both — exactly as in a booking chat: JSON for text, or multipart/form-data with `image` (JPG, PNG or WebP, at most 5 MB) and an optional `content`. An `Idempotency-Key` makes a retried send return the stored message.",
+                "operationId": "b32122f7ef20f08556838f39d265294f",
+                "parameters": [
+                    {
+                        "name": "inquiry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 100
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 5000
+                                    },
+                                    "image": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "content"
+                                ],
+                                "properties": {
+                                    "content": {
+                                        "type": "string",
+                                        "maxLength": 5000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Message sent",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Existing message returned for a repeated idempotency key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingMessageEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only the customer and the provider"
+                    },
+                    "404": {
+                        "description": "Conversation not found"
+                    },
+                    "409": {
+                        "description": "Idempotency conflict"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/inquiries/{inquiry}/messages/read": {
+            "post": {
+                "tags": [
+                    "Inquiries"
+                ],
+                "summary": "Mark the messages received in a conversation before booking as read",
+                "operationId": "39c375c61be6eac0ffbb22f26e9fcd0e",
+                "parameters": [
+                    {
+                        "name": "inquiry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Marked read",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MessagesMarkedReadEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only the customer and the provider"
+                    },
+                    "404": {
+                        "description": "Conversation not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/inquiries/{inquiry}/messages/{message}/image": {
+            "get": {
+                "tags": [
+                    "Inquiries"
+                ],
+                "summary": "The photo of a message in a conversation before booking",
+                "description": "Streamed from private storage to the two parties only.",
+                "operationId": "3885d78596c02adcbb5603a5c5ea47fc",
+                "parameters": [
+                    {
+                        "name": "inquiry",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "message",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only the customer and the provider"
+                    },
+                    "404": {
+                        "description": "No such photo in this conversation"
                     }
                 },
                 "security": [
@@ -7926,7 +8299,7 @@
                         "description": "Active, verified client access required"
                     },
                     "409": {
-                        "description": "Idempotency or provider schedule conflict"
+                        "description": "Idempotency key reused for a different request"
                     },
                     "422": {
                         "description": "Unavailable or unbookable service"
@@ -8055,7 +8428,7 @@
                     "Client Bookings"
                 ],
                 "summary": "Move an owned pending or confirmed booking to a new time",
-                "description": "Re-runs the provider hours and overlap checks for the new window. A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.",
+                "description": "Re-runs the provider hours check for the new window (other bookings at that time are allowed: providers may hold several jobs at once). A confirmed booking returns to pending for the provider to accept again, and the provider is notified. Without scheduled_end_date the booking keeps its current length.",
                 "operationId": "9501476e5e47bba758d5b0881ab1e44a",
                 "parameters": [
                     {
@@ -8113,9 +8486,6 @@
                     },
                     "404": {
                         "description": "Booking not found"
-                    },
-                    "409": {
-                        "description": "The new time overlaps another booking for this provider"
                     },
                     "422": {
                         "description": "Validation error, same time as now, outside the provider hours, or the booking is no longer pending/confirmed"
@@ -8997,6 +9367,309 @@
                     },
                     "404": {
                         "description": "Provider not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/payment-proofs": {
+            "post": {
+                "tags": [
+                    "Payment Proofs"
+                ],
+                "summary": "Send proof of a GCash payment to the provider",
+                "description": "The customer's own GCash booking, once accepted, while something is still owed. `amount` is what was sent — a downpayment or up to everything still owed (`balance_due`). One proof waits for the provider at a time. Returns the booking with its `payment_proofs`.",
+                "operationId": "f344d5c074489c2a45af0b001377c9a9",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "amount",
+                                    "image"
+                                ],
+                                "properties": {
+                                    "amount": {
+                                        "type": "number",
+                                        "format": "float",
+                                        "example": 500,
+                                        "minimum": 1
+                                    },
+                                    "reference": {
+                                        "description": "The GCash reference number",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 100
+                                    },
+                                    "image": {
+                                        "description": "Screenshot of the payment (JPG, PNG or WebP, at most 5 MB)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Proof sent; the provider is notified",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Not the customer's booking"
+                    },
+                    "404": {
+                        "description": "Booking not found"
+                    },
+                    "409": {
+                        "description": "Already paid, or a proof is still waiting"
+                    },
+                    "422": {
+                        "description": "Not a GCash booking, not accepted yet, or the amount is more than is owed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/bookings/{booking}/payment-proofs/{proof}/image": {
+            "get": {
+                "tags": [
+                    "Payment Proofs"
+                ],
+                "summary": "The screenshot of one of the customer's payment proofs",
+                "operationId": "fb8805e81a381452b8fd62a0255f19dc",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "proof",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Not the customer's booking"
+                    },
+                    "404": {
+                        "description": "No such proof on this booking"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/payment-proofs/{proof}/confirm": {
+            "patch": {
+                "tags": [
+                    "Payment Proofs"
+                ],
+                "summary": "Confirm a customer's GCash payment proof",
+                "description": "Before or after the work. The amount is added to `amount_paid`; the booking becomes `partially_paid` (a downpayment) or `paid` once nothing is left, which also makes the commission due. Returns the booking.",
+                "operationId": "e0b2e7801a786d8946e75ceef0e5202f",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "proof",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Confirmed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the provider's booking"
+                    },
+                    "404": {
+                        "description": "No such proof on this booking"
+                    },
+                    "409": {
+                        "description": "Already reviewed, or more than is still owed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/payment-proofs/{proof}/reject": {
+            "patch": {
+                "tags": [
+                    "Payment Proofs"
+                ],
+                "summary": "Reject a customer's GCash payment proof",
+                "description": "Nothing is recorded as paid; the customer is told the reason and can send another.",
+                "operationId": "57546e6c5f3c1f83d950edaaee805914",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "proof",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "No payment with this reference reached my GCash.",
+                                        "maxLength": 500,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Rejected",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not the provider's booking"
+                    },
+                    "404": {
+                        "description": "No such proof on this booking"
+                    },
+                    "409": {
+                        "description": "Already reviewed"
+                    },
+                    "422": {
+                        "description": "A reason is required"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/client/v1/provider/bookings/{booking}/payment-proofs/{proof}/image": {
+            "get": {
+                "tags": [
+                    "Payment Proofs"
+                ],
+                "summary": "The screenshot of a customer's payment proof",
+                "operationId": "d1df8804d7ef7cac484d7c1956236f71",
+                "parameters": [
+                    {
+                        "name": "booking",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "proof",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The image file"
+                    },
+                    "403": {
+                        "description": "Not the provider's booking"
+                    },
+                    "404": {
+                        "description": "No such proof on this booking"
                     }
                 },
                 "security": [
@@ -23666,6 +24339,10 @@
                         "description": "Whether the provider is taking new bookings",
                         "type": "boolean"
                     },
+                    "on_job_now": {
+                        "description": "Working a job right now (a booking in progress). Informational: the provider can still be booked and messaged. Present on the public list and detail.",
+                        "type": "boolean"
+                    },
                     "availability": {
                         "description": "Published weekly hours, present on the provider detail response. An empty array means no published hours, which does not restrict booking times.",
                         "type": "array",
@@ -23816,6 +24493,7 @@
                         "type": "string",
                         "enum": [
                             "unpaid",
+                            "partially_paid",
                             "paid",
                             "refunded",
                             "partially_refunded"
@@ -24090,6 +24768,7 @@
                         "type": "string",
                         "enum": [
                             "unpaid",
+                            "partially_paid",
                             "paid",
                             "refunded",
                             "partially_refunded"
@@ -24356,17 +25035,32 @@
                 "type": "object"
             },
             "Conversation": {
-                "description": "One booking message thread in the Messages inbox.",
+                "description": "One message thread in the Messages inbox: a booking's chat, or (kind `inquiry`) a customer's conversation with a provider before booking.",
                 "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": [
+                            "booking",
+                            "inquiry"
+                        ]
+                    },
                     "booking_id": {
-                        "description": "Addresses the thread: a booking is the conversation",
-                        "type": "integer"
+                        "description": "Addresses a booking thread (/bookings/{booking}/messages); null for an inquiry",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "inquiry_id": {
+                        "description": "Addresses an inquiry thread (/inquiries/{inquiry}/messages); null for a booking",
+                        "type": "integer",
+                        "nullable": true
                     },
                     "booking_number": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "booking_status": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "service_title": {
                         "type": "string",
@@ -24417,6 +25111,21 @@
                     }
                 },
                 "type": "object"
+            },
+            "ConversationEnvelope": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiEnvelope"
+                    },
+                    {
+                        "properties": {
+                            "data": {
+                                "$ref": "#/components/schemas/Conversation"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "ClientReport": {
                 "description": "A complaint as the person who filed it sees it. Moderation internals — investigation notes, the moderators involved and what was done to the other account — are deliberately absent.",
@@ -26207,6 +26916,10 @@
             "description": "The signed-in account's booking message threads"
         },
         {
+            "name": "Inquiries",
+            "description": "Chat before booking: a customer's conversation with a provider, one per provider. The customer starts it; both sides write in it like a booking chat."
+        },
+        {
             "name": "Booking Disputes",
             "description": "Disputes raised by a booking's customer or provider"
         },
@@ -26229,6 +26942,10 @@
         {
             "name": "Client Favorites",
             "description": "The signed-in customer's saved providers"
+        },
+        {
+            "name": "Payment Proofs",
+            "description": "GCash payment proofs: the customer sends what they paid the provider — a downpayment or the rest — with a screenshot; the provider confirms or rejects it. SkillServe never holds the money."
         },
         {
             "name": "Provider Bookings",

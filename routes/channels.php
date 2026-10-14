@@ -2,7 +2,9 @@
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientCommunication\Models\Inquiry;
 use App\Modules\ClientCommunication\Policies\BookingMessagePolicy;
+use App\Modules\ClientCommunication\Policies\InquiryPolicy;
 use App\Shared\Realtime\AdminDataChanged;
 use Illuminate\Support\Facades\Broadcast;
 
@@ -23,6 +25,16 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 // events (whispers). Only someone who may read the thread may join.
 Broadcast::channel('booking-chat.{booking}', function (User $user, Booking $booking) {
     if (! app(BookingMessagePolicy::class)->viewAny($user, $booking)) {
+        return false;
+    }
+
+    return ['id' => $user->id, 'name' => $user->name];
+});
+
+// A conversation before a booking: the same presence and typing hints as a
+// booking chat, for its customer and provider only.
+Broadcast::channel('inquiry-chat.{inquiry}', function (User $user, Inquiry $inquiry) {
+    if (! app(InquiryPolicy::class)->viewAny($user, $inquiry)) {
         return false;
     }
 

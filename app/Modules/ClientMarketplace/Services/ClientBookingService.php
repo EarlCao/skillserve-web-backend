@@ -96,16 +96,14 @@ class ClientBookingService extends BaseService
                     }
                 }
 
-                // Lock the provider row so two concurrent requests cannot both
-                // pass the overlap check before either booking is inserted.
-                $provider = ProviderProfile::query()
-                    ->whereKey($service->provider_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                $provider = ProviderProfile::query()->findOrFail($service->provider_id);
 
+                // A provider may hold several jobs at once, so another booking
+                // at the same time is no reason to refuse: they accept or
+                // decline each request themselves. Only their weekly hours
+                // and their "accepting bookings" switch are enforced here.
                 $this->assertAcceptingBookings($provider);
                 $this->assertWithinProviderHours($provider, $data['scheduled_date'], $scheduledEnd);
-                $this->assertNoOverlap($service->provider_id, $data['scheduled_date'], $scheduledEnd);
 
                 $booking = $this->createBookingAction->handle(
                     $client,
@@ -171,7 +169,7 @@ class ClientBookingService extends BaseService
 
     /**
      * Move a pending or confirmed booking to a new time. The new window must
-     * pass the same hours and overlap checks as a new booking; an accepted
+     * fall inside the provider's hours, as a new booking must; an accepted
      * booking goes back to pending, because the provider agreed to the old
      * time, not this one.
      *
@@ -206,15 +204,11 @@ class ClientBookingService extends BaseService
                 );
             }
 
-            // Same provider lock as create(), so a reschedule and a new
-            // booking cannot both claim the same window.
-            $provider = ProviderProfile::query()
-                ->whereKey($booking->provider_id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $provider = ProviderProfile::query()->findOrFail($booking->provider_id);
 
+            // Other jobs at the new time do not matter: providers may hold
+            // several at once, and decline what they cannot fit.
             $this->assertWithinProviderHours($provider, $data['scheduled_date'], $scheduledEnd);
-            $this->assertNoOverlap($booking->provider_id, $data['scheduled_date'], $scheduledEnd, $booking->id);
 
             $oldStatus = $booking->status;
             $previousStart = $booking->scheduled_date;
@@ -366,36 +360,6 @@ class ClientBookingService extends BaseService
         }
     }
 
-    private function assertNoOverlap(int $providerId, string $scheduledDate, Carbon $scheduledEnd, ?int $ignoreBookingId = null): void
-    {
-        $start = Carbon::parse($scheduledDate);
-        $bookings = Booking::query()
-            ->where('provider_id', $providerId)
-            ->when($ignoreBookingId, fn ($query) => $query->whereKeyNot($ignoreBookingId))
-            ->whereIn('status', ['pending', 'confirmed', 'active'])
-            ->whereNotNull('scheduled_date')
-            ->where('scheduled_date', '<', $scheduledEnd)
-            ->get(['scheduled_date', 'scheduled_end_date']);
-
-        $overlap = $bookings->contains(function (Booking $booking) use ($start, $scheduledEnd): bool {
-            $existingStart = $booking->scheduled_date;
-            $existingEnd = $booking->scheduled_end_date ?? $existingStart?->copy()->addHour();
-
-            return $existingStart !== null
-                && $existingEnd !== null
-                && $existingStart->lt($scheduledEnd)
-                && $existingEnd->gt($start);
-        });
-
-        if ($overlap) {
-            throw new ApiException(
-                'The provider is already booked during the requested time window.',
-                409,
-                errors: ['scheduled_date' => ['The requested time overlaps another booking for this provider.']],
-            );
-        }
-    }
-
     private function bookingRelations(): array
     {
         return [
@@ -407,6 +371,7 @@ class ClientBookingService extends BaseService
             // GCash booking; ClientBookingResource decides whether to show them.
             'provider:id,business_name,average_rating,total_reviews,gcash_number,gcash_name,gcash_qr_payload',
             'review:id,booking_id,reviewer_id,provider_id,service_id,rating,comment,status,created_at,updated_at',
+            'paymentProofs',
         ];
     }
 

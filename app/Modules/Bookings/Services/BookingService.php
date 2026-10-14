@@ -111,6 +111,7 @@ class BookingService extends BaseService
             'provider.user:id,name,email',
             'cancelledByUser:id,name',
             'paymentRecordedBy:id,name',
+            'paymentProofs',
         ]);
     }
 

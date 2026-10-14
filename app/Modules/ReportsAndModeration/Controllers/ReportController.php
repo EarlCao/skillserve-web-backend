@@ -3,7 +3,7 @@
 namespace App\Modules\ReportsAndModeration\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\ClientCommunication\Services\BookingMessageService;
+use App\Modules\ClientCommunication\Services\ChatMessageService;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\ReportsAndModeration\Models\ReportAttachment;
@@ -159,7 +159,7 @@ class ReportController extends Controller
         $message = $report->reportable;
         abort_unless($message instanceof Message && $message->hasImage(), 404);
 
-        return BookingMessageService::streamImage($message);
+        return ChatMessageService::streamImage($message);
     }
 
     /**

@@ -30,8 +30,10 @@ class ClientMessageCreated implements ShouldBroadcastNow
      */
     public function __construct(
         public readonly int $receiverId,
-        public readonly int $bookingId,
+        public readonly ?int $bookingId,
         public readonly array $message,
+        // Set instead of bookingId for a conversation before a booking.
+        public readonly ?int $inquiryId = null,
     ) {}
 
     public function broadcastOn(): array
@@ -51,6 +53,7 @@ class ClientMessageCreated implements ShouldBroadcastNow
     {
         return [
             'booking_id' => $this->bookingId,
+            'inquiry_id' => $this->inquiryId,
             'message' => $this->message,
         ];
     }

@@ -19,6 +19,7 @@ Route::prefix('bookings')->middleware('auth:sanctum')->group(function (): void {
     Route::get('/', [BookingController::class, 'index']);
     Route::get('/{booking}', [BookingController::class, 'show']);
     Route::get('/{booking}/history', [BookingController::class, 'history']);
+    Route::get('/{booking}/payment-proofs/{proof}/image', [BookingController::class, 'paymentProofImage'])->whereNumber(['booking', 'proof']);
     Route::patch('/{booking}/cancel', [BookingController::class, 'cancel']);
     Route::patch('/{booking}/mark-paid', [BookingController::class, 'markPaid']);
     Route::patch('/{booking}/refund', [BookingController::class, 'refund']);

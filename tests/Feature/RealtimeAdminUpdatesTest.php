@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ServiceCategories\Models\ServiceCategory;
 use App\Modules\Services\Models\Service;
@@ -137,6 +138,36 @@ class RealtimeAdminUpdatesTest extends TestCase
             MarketplaceChanged::class,
             fn (MarketplaceChanged $event) => $event->resources === ['providers'],
         );
+    }
+
+    public function test_a_job_starting_or_finishing_refreshes_the_providers_on_job_badge(): void
+    {
+        $category = ServiceCategory::create(['name' => 'Aircon', 'status' => 'enabled']);
+        $providerUser = User::factory()->create(['user_type' => 'provider']);
+        $provider = ProviderProfile::create(['user_id' => $providerUser->id, 'business_name' => 'Cool', 'verification_status' => 'verified']);
+        $service = Service::create([
+            'provider_id' => $provider->id, 'category_id' => $category->id, 'title' => 'Cleaning', 'price' => 800,
+            'price_type' => 'fixed', 'currency' => 'PHP', 'status' => 'published', 'approval_status' => 'approved',
+        ]);
+        $booking = Booking::create([
+            'service_id' => $service->id, 'client_id' => User::factory()->create(['user_type' => 'customer'])->id,
+            'provider_id' => $provider->id, 'booking_number' => 'BK-RT-1', 'status' => 'pending', 'payment_status' => 'unpaid',
+            'total_price' => 800, 'service_price' => 800, 'platform_fee' => 80, 'currency' => 'PHP', 'scheduled_date' => now()->addDay(),
+        ]);
+        app(RealtimeChangeTracker::class)->flush();
+        Event::fake([MarketplaceChanged::class]);
+
+        // Accepting changes nothing the catalog shows.
+        $booking->update(['status' => 'confirmed']);
+        app(RealtimeChangeTracker::class)->flush();
+        Event::assertNotDispatched(MarketplaceChanged::class);
+
+        foreach (['active', 'completed'] as $status) {
+            $booking->update(['status' => $status]);
+            app(RealtimeChangeTracker::class)->flush();
+        }
+        Event::assertDispatchedTimes(MarketplaceChanged::class, 2);
+        Event::assertDispatched(MarketplaceChanged::class, fn (MarketplaceChanged $event) => $event->resources === ['providers']);
     }
 
     public function test_the_marketplace_channel_is_public(): void

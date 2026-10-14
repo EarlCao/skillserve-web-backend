@@ -272,6 +272,9 @@ class ClientCatalogService extends BaseService
             ->select('provider_profiles.*')
             ->addSelect(['primary_category' => $primaryCategory])
             ->withMin(['services as starting_price' => fn ($query) => $this->applyPublicServiceFilters($query)], 'price')
+            // A job in progress right now, for the "On a job now" badge. They
+            // can still be booked and messaged: providers hold several jobs.
+            ->withExists(['bookings as on_job_now' => fn ($query) => $query->where('status', 'active')])
             // The account name stands in for a missing business name, and the
             // account photo is the provider's avatar on cards and the profile.
             ->with('user:id,name,profile_photo_path')

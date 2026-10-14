@@ -4,6 +4,7 @@ namespace App\Modules\ReportsAndModeration\Models;
 
 use App\Models\User;
 use App\Modules\Bookings\Models\Booking;
+use App\Modules\ClientCommunication\Models\Inquiry;
 use App\Shared\Helpers\PrivateImages;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
-    'sender_id', 'receiver_id', 'booking_id', 'content', 'image_path',
+    'sender_id', 'receiver_id', 'booking_id', 'inquiry_id', 'content', 'image_path',
     'status', 'removed_by', 'removed_at', 'deleted_by', 'read_at', 'client_idempotency_key',
 ])]
 class Message extends Model
@@ -53,6 +54,12 @@ class Message extends Model
     public function booking(): BelongsTo
     {
         return $this->belongsTo(Booking::class, 'booking_id');
+    }
+
+    /** The conversation before a booking, when the message belongs to one. */
+    public function inquiry(): BelongsTo
+    {
+        return $this->belongsTo(Inquiry::class, 'inquiry_id');
     }
 
     public function removedBy(): BelongsTo
