@@ -175,11 +175,11 @@ class UserManagementService extends BaseService
     /**
      * Restore a suspended user and record the activity.
      */
-    public function activate(User $user, User $actor): User
+    public function activate(User $user, User $actor, ?string $note = null): User
     {
         $this->assertPlatformUser($user);
 
-        return $this->transaction(function () use ($user, $actor): User {
+        return $this->transaction(function () use ($user, $actor, $note): User {
             $from = $user->status;
 
             $this->activateUserAction->handle($user, $actor);
@@ -187,7 +187,7 @@ class UserManagementService extends BaseService
             $this->loadRelations($user);
 
             if ($from !== $user->status) {
-                event(new UserActivated(user: $user, actor: $actor));
+                event(new UserActivated(user: $user, actor: $actor, reason: $note));
             }
 
             return $user;
@@ -270,14 +270,14 @@ class UserManagementService extends BaseService
     /**
      * Soft-delete a user and record the activity.
      */
-    public function destroy(User $user, User $actor): void
+    public function destroy(User $user, User $actor, string $reason): void
     {
         $this->assertPlatformUser($user);
 
-        $this->transaction(function () use ($user, $actor): void {
-            $this->deleteUserAction->handle($user, $actor);
+        $this->transaction(function () use ($user, $actor, $reason): void {
+            $this->deleteUserAction->handle($user, $actor, $reason);
 
-            event(new UserDeleted(user: $user, actor: $actor));
+            event(new UserDeleted(user: $user, actor: $actor, reason: $reason));
         });
     }
 

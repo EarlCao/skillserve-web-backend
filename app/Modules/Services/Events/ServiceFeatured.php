@@ -14,5 +14,6 @@ class ServiceFeatured
         public readonly Service $service,
         public readonly User $actor,
         public readonly bool $isFeatured,
+        public readonly ?string $reason = null,
     ) {}
 }

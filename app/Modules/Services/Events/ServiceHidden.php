@@ -14,5 +14,6 @@ class ServiceHidden
         public readonly Service $service,
         public readonly User $actor,
         public readonly bool $isHidden,
+        public readonly ?string $reason = null,
     ) {}
 }

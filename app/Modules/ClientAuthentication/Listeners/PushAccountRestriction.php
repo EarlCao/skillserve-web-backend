@@ -29,7 +29,7 @@ class PushAccountRestriction
         $event = $removed
             ? new ClientAccountRestricted(
                 $user->id,
-                ['status' => 'deleted', 'reason' => null, 'since' => now()->toIso8601String(), 'until' => null],
+                ['status' => 'deleted', 'reason' => $user->deletion_reason, 'since' => now()->toIso8601String(), 'until' => null],
                 'Your account was deleted by an administrator.',
             )
             : new ClientAccountRestricted(

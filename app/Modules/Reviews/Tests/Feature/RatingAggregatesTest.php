@@ -70,13 +70,13 @@ class RatingAggregatesTest extends TestCase
         $review = Review::query()->where('service_id', $fiveStar->id)->sole();
         $this->assertRatings($fiveStar, '5.00', '4.25', 3);
 
-        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true])->assertOk();
+        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true, 'reason' => 'Breaks the community guidelines.'])->assertOk();
         $this->assertRatings($fiveStar, '0.00', '3.50', 2);
 
         $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => false])->assertOk();
         $this->assertRatings($fiveStar, '5.00', '4.25', 3);
 
-        $this->withToken($token)->deleteJson("/api/reviews/{$review->id}")->assertOk();
+        $this->withToken($token)->deleteJson("/api/reviews/{$review->id}", ['reason' => 'Breaks the community guidelines.'])->assertOk();
         $this->assertRatings($fiveStar, '0.00', '3.50', 2);
 
         $this->withToken($token)->postJson("/api/data-management/deleted/reviews/{$review->id}/restore")->assertOk();
@@ -91,7 +91,7 @@ class RatingAggregatesTest extends TestCase
         $poorlyRated->delete();
 
         $review = Review::query()->where('service_id', $other->id)->firstOrFail();
-        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true])->assertOk();
+        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true, 'reason' => 'Breaks the community guidelines.'])->assertOk();
 
         $this->assertSame('3.00', (string) $this->provider->fresh()->average_rating);
     }

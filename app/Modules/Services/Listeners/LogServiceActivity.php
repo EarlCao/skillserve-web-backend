@@ -45,15 +45,15 @@ class LogServiceActivity
             ),
             $event instanceof ServiceHidden => $this->log(
                 'services', $event->actor, $event->service,
-                ['is_hidden' => $event->isHidden], 'service_hidden',
+                array_filter(['is_hidden' => $event->isHidden, 'reason' => $event->reason], fn ($value) => $value !== null), 'service_hidden',
             ),
             $event instanceof ServiceFeatured => $this->log(
                 'services', $event->actor, $event->service,
-                ['is_featured' => $event->isFeatured], 'service_featured',
+                array_filter(['is_featured' => $event->isFeatured, 'reason' => $event->reason], fn ($value) => $value !== null), 'service_featured',
             ),
             default => $this->log(
                 'services', $event->actor, $event->service,
-                ['title' => $event->service->title], 'service_deleted',
+                array_filter(['title' => $event->service->title, 'reason' => $event->reason]), 'service_deleted',
             ),
         };
     }

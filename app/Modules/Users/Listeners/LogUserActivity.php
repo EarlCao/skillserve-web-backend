@@ -40,7 +40,7 @@ class LogUserActivity
             ),
             $event instanceof UserActivated => $this->log(
                 $event->actor, $event->user,
-                [], 'user_activated',
+                array_filter(['reason' => $event->reason]), 'user_activated',
             ),
             $event instanceof UserBanned => $this->log(
                 $event->actor, $event->user,
@@ -55,7 +55,7 @@ class LogUserActivity
             ),
             default => $this->log(
                 $event->actor, $event->user,
-                [], 'user_deleted',
+                array_filter(['reason' => $event->reason]), 'user_deleted',
             ),
         };
     }

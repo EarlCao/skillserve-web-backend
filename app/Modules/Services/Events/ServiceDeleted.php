@@ -13,5 +13,6 @@ class ServiceDeleted
     public function __construct(
         public readonly Service $service,
         public readonly User $actor,
+        public readonly ?string $reason = null,
     ) {}
 }

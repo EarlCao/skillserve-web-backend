@@ -31,7 +31,7 @@ class DeleteProviderAction
     /**
      * @throws ApiException 409 while the provider has unsettled obligations.
      */
-    public function handle(ProviderProfile $profile, User $actor): ProviderProfile
+    public function handle(ProviderProfile $profile, User $actor, ?string $reason = null): ProviderProfile
     {
         // Taken before the checks so a booking cannot slip in meanwhile:
         // creating one holds a shared lock on the same row.
@@ -55,7 +55,7 @@ class DeleteProviderAction
             );
         }
 
-        $this->deleteUserAction->handle($user, $actor);
+        $this->deleteUserAction->handle($user, $actor, $reason);
         $this->clientSessionService->revokeRefreshTokens($user);
 
         return $profile;

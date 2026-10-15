@@ -64,9 +64,12 @@ class LogProviderActivity
             $event instanceof ProviderAdditionalInfoRequested => [
                 'message' => $event->message,
             ],
-            $event instanceof ProviderSuspended => [
+            $event instanceof ProviderSuspended,
+            $event instanceof ProviderActivated,
+            $event instanceof ProviderVerificationRemoved,
+            $event instanceof ProviderDeleted => array_filter([
                 'reason' => $event->reason,
-            ],
+            ]),
             $event instanceof ProviderVerificationSubmitted => [
                 'verification_request_id' => $event->request->id,
                 'documents' => $event->documentCount,

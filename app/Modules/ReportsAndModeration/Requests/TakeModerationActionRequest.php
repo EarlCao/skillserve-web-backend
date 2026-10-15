@@ -11,7 +11,8 @@ class TakeModerationActionRequest extends BaseFormRequest
     {
         return [
             'action' => ['required', 'string', Rule::in(['warning', 'suspend', 'ban', 'hide', 'remove'])],
-            'reason' => ['required_if:action,suspend', 'required_if:action,ban', 'nullable', 'string', 'max:500'],
+            // Every action against someone says why; the person is told.
+            'reason' => ['required_if:action,suspend,ban,hide,remove', 'nullable', 'string', 'max:500'],
             'duration' => ['required_if:action,ban', 'nullable', 'string', Rule::in(['days', 'forever'])],
             'days' => ['required_if:duration,days', 'nullable', 'integer', 'min:1', 'max:3650'],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],

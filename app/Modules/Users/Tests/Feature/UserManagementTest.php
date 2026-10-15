@@ -432,7 +432,7 @@ class UserManagementTest extends TestCase
         $target = $this->createUser(['email' => 'delete.me@skillserve.test']);
 
         $this->withToken($token)
-            ->deleteJson("/api/users/{$target->id}")
+            ->deleteJson("/api/users/{$target->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('success', true);
 
@@ -453,7 +453,7 @@ class UserManagementTest extends TestCase
         [$actor, $token] = $this->actingManager();
 
         $this->withToken($token)
-            ->deleteJson("/api/users/{$actor->id}")
+            ->deleteJson("/api/users/{$actor->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertStatus(422)
             ->assertJsonStructure(['errors' => ['id']]);
     }
@@ -467,7 +467,7 @@ class UserManagementTest extends TestCase
         $admin->assignRole('admin');
 
         $this->withToken($token)
-            ->deleteJson("/api/users/{$admin->id}")
+            ->deleteJson("/api/users/{$admin->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertStatus(422)
             ->assertJsonStructure(['errors' => ['id']]);
 

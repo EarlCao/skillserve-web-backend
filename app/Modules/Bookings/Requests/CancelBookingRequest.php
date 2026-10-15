@@ -12,7 +12,8 @@ class CancelBookingRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            // Both parties are told why an administrator called the booking off.
+            'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ];
     }
 
@@ -22,6 +23,7 @@ class CancelBookingRequest extends BaseFormRequest
     public function messages(): array
     {
         return [
+            'reason.required' => 'Please give a reason. The customer and the provider are told what you write.',
             'reason.max' => 'The cancellation reason must not exceed 1000 characters.',
         ];
     }

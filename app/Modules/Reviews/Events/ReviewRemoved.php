@@ -10,5 +10,6 @@ class ReviewRemoved
     public function __construct(
         public readonly Review $review,
         public readonly User $actor,
+        public readonly ?string $reason = null,
     ) {}
 }

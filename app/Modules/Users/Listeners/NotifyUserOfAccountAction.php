@@ -38,7 +38,9 @@ class NotifyUserOfAccountAction
             ),
             default => new AccountStatusNotification(
                 'activated', 'Account active again',
-                'Your account was reactivated. Welcome back — you can use SkillServe again.',
+                'Your account was reactivated. Welcome back — you can use SkillServe again.'
+                    .($event->reason ? " Note from SkillServe: {$event->reason}" : ''),
+                $event->reason,
             ),
         });
     }

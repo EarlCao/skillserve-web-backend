@@ -29,15 +29,18 @@ class NotifyReviewModeration
         $notice = match (true) {
             $event instanceof ReviewHidden => new ReviewModerationNotification(
                 $review, 'hidden', 'Review hidden',
-                ucfirst($about).' was hidden while our team reviews it against the community guidelines.',
+                ucfirst($about).' was hidden while our team reviews it against the community guidelines.'
+                    .($event->reason ? " Reason: {$event->reason}" : ''),
             ),
             $event instanceof ReviewRemoved => new ReviewModerationNotification(
                 $review, 'removed', 'Review removed',
-                ucfirst($about).' was removed because it breaks the community guidelines.',
+                ucfirst($about).' was removed because it breaks the community guidelines.'
+                    .($event->reason ? " Reason: {$event->reason}" : ''),
             ),
             default => new ReviewModerationNotification(
                 $review, 'restored', 'Review visible again',
-                ucfirst($about).' was reviewed and is visible again.',
+                ucfirst($about).' was reviewed and is visible again.'
+                    .($event->reason ? " Note from SkillServe: {$event->reason}" : ''),
             ),
         };
 

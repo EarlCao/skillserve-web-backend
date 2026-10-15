@@ -100,11 +100,11 @@ class ProviderRecognitionService extends BaseService
         return $query->orderByDesc('average_rating')->orderByDesc('total_reviews_count')->paginate($this->perPage($filters));
     }
 
-    public function assignBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor): ProviderProfile
+    public function assignBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor, ?string $note = null): ProviderProfile
     {
         $this->assertEligibleProvider($provider);
 
-        return $this->transaction(function () use ($provider, $badge, $actor): ProviderProfile {
+        return $this->transaction(function () use ($provider, $badge, $actor, $note): ProviderProfile {
             $lockedBadge = ProviderBadge::query()->lockForUpdate()->find($badge->id);
 
             if (! $lockedBadge || ! $lockedBadge->is_active) {
@@ -120,34 +120,35 @@ class ProviderRecognitionService extends BaseService
                 'updated_at' => now(),
             ]);
             if ($inserted) {
-                event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_assigned', ['badge_id' => $badge->id]));
+                event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_assigned', array_filter(['badge_id' => $badge->id, 'badge' => $lockedBadge->name, 'reason' => $note])));
             }
 
             return $provider->load(['user:id,name,email', 'badges']);
         });
     }
 
-    public function removeBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor): ProviderProfile
+    public function removeBadge(ProviderProfile $provider, ProviderBadge $badge, User $actor, string $reason): ProviderProfile
     {
-        return $this->transaction(function () use ($provider, $badge, $actor): ProviderProfile {
-            $provider->badges()->detach($badge->id);
-            event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_removed', ['badge_id' => $badge->id]));
+        return $this->transaction(function () use ($provider, $badge, $actor, $reason): ProviderProfile {
+            if ($provider->badges()->detach($badge->id) > 0) {
+                event(new ProviderRecognitionChanged($provider, $actor, 'provider_badge_removed', ['badge_id' => $badge->id, 'badge' => $badge->name, 'reason' => $reason]));
+            }
 
             return $provider->load(['user:id,name,email', 'badges']);
         });
     }
 
-    public function toggleFeatured(ProviderProfile $provider, bool $featured, User $actor): ProviderProfile
+    public function toggleFeatured(ProviderProfile $provider, bool $featured, User $actor, ?string $reason = null): ProviderProfile
     {
         $this->assertEligibleProvider($provider, requireVerified: $featured);
 
-        return $this->transaction(function () use ($provider, $featured, $actor): ProviderProfile {
+        return $this->transaction(function () use ($provider, $featured, $actor, $reason): ProviderProfile {
             $provider->update(['is_featured' => $featured]);
             event(new ProviderRecognitionChanged(
                 $provider,
                 $actor,
                 $featured ? 'provider_featured' : 'provider_unfeatured',
-                ['is_featured' => $featured],
+                array_filter(['is_featured' => $featured, 'reason' => $reason], fn ($value) => $value !== null),
             ));
 
             return $provider->load(['user:id,name,email', 'badges']);

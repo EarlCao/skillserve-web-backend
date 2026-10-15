@@ -13,6 +13,8 @@ use App\Modules\Providers\Resources\ProviderResource;
 use App\Modules\Providers\Services\ProviderService;
 use App\Modules\Users\Requests\UnbanUserRequest;
 use App\Shared\Helpers\StoredFile;
+use App\Shared\Requests\ActionNoteRequest;
+use App\Shared\Requests\ActionReasonRequest;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -931,6 +933,7 @@ class ProviderController extends Controller
         parameters: [
             new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'reason', type: 'string', maxLength: 1000, nullable: true, description: 'Optional note passed on to the person affected.', example: 'Appeal accepted.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -1042,13 +1045,14 @@ class ProviderController extends Controller
             ),
         ],
     )]
-    public function activate(Request $request, ProviderProfile $provider): JsonResponse
+    public function activate(ActionNoteRequest $request, ProviderProfile $provider): JsonResponse
     {
         $this->authorize('activate', $provider);
 
         $provider = $this->providerService->activate(
             $provider,
             $request->user(),
+            $request->validated('reason'),
         );
 
         return $this->success(new ProviderResource($this->providerService->show($provider)), 'Provider activated.');
@@ -1065,6 +1069,7 @@ class ProviderController extends Controller
         parameters: [
             new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why the verified status is removed — the provider is told.', example: 'Licence expired.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -1176,13 +1181,14 @@ class ProviderController extends Controller
             ),
         ],
     )]
-    public function removeVerification(Request $request, ProviderProfile $provider): JsonResponse
+    public function removeVerification(ActionReasonRequest $request, ProviderProfile $provider): JsonResponse
     {
         $this->authorize('removeVerification', $provider);
 
         $provider = $this->providerService->removeVerification(
             $provider,
             $request->user(),
+            $request->validated('reason'),
         );
 
         return $this->success(new ProviderResource($this->providerService->show($provider)), 'Provider verification removed.');
@@ -1462,6 +1468,7 @@ class ProviderController extends Controller
         parameters: [
             new OA\Parameter(name: 'provider', in: 'path', description: 'Provider profile ID', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why — the person affected is told (notification; for a deletion, email and the sign-out message in the app).', example: 'Repeated no-shows reported by customers.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -1549,11 +1556,11 @@ class ProviderController extends Controller
             ),
         ],
     )]
-    public function destroy(Request $request, ProviderProfile $provider): JsonResponse
+    public function destroy(ActionReasonRequest $request, ProviderProfile $provider): JsonResponse
     {
         $this->authorize('delete', $provider);
 
-        $this->providerService->destroy($provider, $request->user());
+        $this->providerService->destroy($provider, $request->user(), $request->validated('reason'));
 
         return $this->success(null, 'Provider deleted.');
     }

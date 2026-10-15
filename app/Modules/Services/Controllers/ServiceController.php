@@ -9,6 +9,7 @@ use App\Modules\Services\Requests\RejectServiceRequest;
 use App\Modules\Services\Requests\UpdateServiceRequest;
 use App\Modules\Services\Resources\ServiceResource;
 use App\Modules\Services\Services\ServiceService;
+use App\Shared\Requests\ActionReasonRequest;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -717,9 +718,11 @@ class ServiceController extends Controller
                 required: ['is_hidden'],
                 example: [
                     'is_hidden' => true,
+                    'reason' => 'Breaks the community guidelines.',
                 ],
                 properties: [
                     new OA\Property(property: 'is_hidden', type: 'boolean', example: true),
+                    new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, nullable: true, description: 'Required when hiding — the provider is told; an optional note when showing it again.', example: 'Breaks the community guidelines.'),
                 ],
             ),
         ),
@@ -792,9 +795,15 @@ class ServiceController extends Controller
 
         $request->validate([
             'is_hidden' => ['required', 'boolean'],
+            // Hiding says why — the provider is told; showing it again may
+            // carry a note.
+            'reason' => ['required_if_accepted:is_hidden', 'nullable', 'string', 'min:3', 'max:1000'],
+        ], [
+            'reason.required_if_accepted' => 'Please give a reason. The provider is told what you write.',
         ]);
 
-        $service = $this->serviceService->toggleHide($service, $request->boolean('is_hidden'), $request->user());
+        $reason = trim((string) $request->input('reason')) ?: null;
+        $service = $this->serviceService->toggleHide($service, $request->boolean('is_hidden'), $request->user(), $reason);
 
         return $this->success(new ServiceResource($service), $service->is_hidden ? 'Service hidden.' : 'Service visible.');
     }
@@ -819,6 +828,7 @@ class ServiceController extends Controller
                 ],
                 properties: [
                     new OA\Property(property: 'is_featured', type: 'boolean', example: true),
+                    new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, nullable: true, description: 'Required when un-featuring — the provider is told; an optional note when featuring.'),
                 ],
             ),
         ),
@@ -891,9 +901,14 @@ class ServiceController extends Controller
 
         $request->validate([
             'is_featured' => ['required', 'boolean'],
+            // Taking the featured spot away says why — the provider is told.
+            'reason' => ['required_if_declined:is_featured', 'nullable', 'string', 'min:3', 'max:1000'],
+        ], [
+            'reason.required_if_declined' => 'Please give a reason. The provider is told what you write.',
         ]);
 
-        $service = $this->serviceService->toggleFeature($service, $request->boolean('is_featured'), $request->user());
+        $reason = trim((string) $request->input('reason')) ?: null;
+        $service = $this->serviceService->toggleFeature($service, $request->boolean('is_featured'), $request->user(), $reason);
 
         return $this->success(new ServiceResource($service), $service->is_featured ? 'Service featured.' : 'Service unfeatured.');
     }
@@ -910,6 +925,7 @@ class ServiceController extends Controller
         parameters: [
             new OA\Parameter(name: 'service', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why the service is removed — the provider is told.', example: 'Duplicate listing.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -969,11 +985,11 @@ class ServiceController extends Controller
             ),
         ],
     )]
-    public function destroy(Request $request, Service $service): JsonResponse
+    public function destroy(ActionReasonRequest $request, Service $service): JsonResponse
     {
         $this->authorize('delete', $service);
 
-        $this->serviceService->destroy($service, $request->user());
+        $this->serviceService->destroy($service, $request->user(), $request->validated('reason'));
 
         return $this->success(null, 'Service deleted.');
     }

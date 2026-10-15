@@ -401,7 +401,7 @@ class ReportsAndModerationTest extends TestCase
         $report = $this->createReport($review);
 
         $this->withToken($token)
-            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide'])
+            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide', 'reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('data.moderation_action', 'hide');
 
@@ -415,7 +415,7 @@ class ReportsAndModerationTest extends TestCase
         $report = $this->createReport($message);
 
         $this->withToken($token)
-            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'remove'])
+            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'remove', 'reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('data.moderation_action', 'remove');
 
@@ -429,7 +429,7 @@ class ReportsAndModerationTest extends TestCase
         $report = $this->createReport($customer);
 
         $this->withToken($token)
-            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide'])
+            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide', 'reason' => 'Breaks the community guidelines.'])
             ->assertStatus(422)
             ->assertJsonStructure(['errors' => ['action']]);
     }
@@ -490,7 +490,7 @@ class ReportsAndModerationTest extends TestCase
         $report = $this->createReport($service);
 
         $this->withToken($token)
-            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide'])
+            ->patchJson("/api/reports/{$report->id}/action", ['action' => 'hide', 'reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('data.moderation_action', 'hide');
 

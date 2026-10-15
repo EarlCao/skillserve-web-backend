@@ -55,14 +55,31 @@ class NotifyProviderOfServiceModeration
                 $event->reason,
             ),
             $event instanceof ServiceHidden => $event->isHidden
-                ? new ServiceModerationNotification($service, 'hidden', 'Service hidden', "An administrator hid your service {$name} from customers.")
-                : new ServiceModerationNotification($service, 'unhidden', 'Service visible again', "Your service {$name} is visible to customers again."),
+                ? new ServiceModerationNotification(
+                    $service, 'hidden', 'Service hidden',
+                    "An administrator hid your service {$name} from customers.".($event->reason ? " Reason: {$event->reason}" : ''),
+                    $event->reason,
+                )
+                : new ServiceModerationNotification(
+                    $service, 'unhidden', 'Service visible again',
+                    "Your service {$name} is visible to customers again.".($event->reason ? " Note from SkillServe: {$event->reason}" : ''),
+                    $event->reason,
+                ),
             $event instanceof ServiceFeatured => $event->isFeatured
-                ? new ServiceModerationNotification($service, 'featured', 'Service featured', "Your service {$name} is now featured.")
-                : new ServiceModerationNotification($service, 'unfeatured', 'Service no longer featured', "Your service {$name} is no longer featured."),
+                ? new ServiceModerationNotification(
+                    $service, 'featured', 'Service featured',
+                    "Your service {$name} is now featured.".($event->reason ? " Note from SkillServe: {$event->reason}" : ''),
+                    $event->reason,
+                )
+                : new ServiceModerationNotification(
+                    $service, 'unfeatured', 'Service no longer featured',
+                    "Your service {$name} is no longer featured.".($event->reason ? " Reason: {$event->reason}" : ''),
+                    $event->reason,
+                ),
             $event instanceof ServiceDeleted => new ServiceModerationNotification(
                 $service, 'deleted', 'Service removed',
-                "An administrator removed your service {$name}.",
+                "An administrator removed your service {$name}.".($event->reason ? " Reason: {$event->reason}" : ''),
+                $event->reason,
             ),
             default => $this->updatedNotification($event, $name),
         };

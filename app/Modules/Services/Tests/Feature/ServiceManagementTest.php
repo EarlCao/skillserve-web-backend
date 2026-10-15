@@ -178,13 +178,13 @@ class ServiceManagementTest extends TestCase
         $this->withToken($token)->patchJson("/api/services/{$rejected->id}/reject", ['reason' => 'Blurry photos'])->assertOk();
 
         $hidden = $this->service($category);
-        $this->withToken($token)->patchJson("/api/services/{$hidden->id}/hide", ['is_hidden' => true])->assertOk();
+        $this->withToken($token)->patchJson("/api/services/{$hidden->id}/hide", ['is_hidden' => true, 'reason' => 'Breaks the community guidelines.'])->assertOk();
 
         $featured = $this->service($category);
         $this->withToken($token)->patchJson("/api/services/{$featured->id}/feature", ['is_featured' => true])->assertOk();
 
         $deleted = $this->service($category);
-        $this->withToken($token)->deleteJson("/api/services/{$deleted->id}")->assertSuccessful();
+        $this->withToken($token)->deleteJson("/api/services/{$deleted->id}", ['reason' => 'Breaks the community guidelines.'])->assertSuccessful();
 
         $this->assertSame('approved', $this->providerNotifications($approved)->sole()->data['action']);
         $this->assertSame('Blurry photos', $this->providerNotifications($rejected)->sole()->data['reason']);

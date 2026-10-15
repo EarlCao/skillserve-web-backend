@@ -84,8 +84,10 @@ class DashboardService
         return [
             'total_clients' => (clone $users)->customers()->count(),
             'total_providers' => (clone $users)->providers()->count(),
-            'active_users' => (clone $users)->where('status', 'active')->count(),
-            'suspended_users' => (clone $users)->where('status', 'suspended')->count(),
+            'active_users' => (clone $users)->activeAccounts()->count(),
+            'suspended_users' => (clone $users)->suspendedAccounts()->count(),
+            // Soft-deleted, still restorable from Data Management.
+            'deleted_users' => User::onlyTrashed()->mobileAccounts()->count(),
         ];
     }
 
@@ -253,8 +255,8 @@ class DashboardService
             'monthly_activity' => $months,
             'booking_statuses' => $bookingSummary,
             'user_statuses' => [
-                'active' => User::query()->mobileAccounts()->where('status', 'active')->count(),
-                'suspended' => User::query()->mobileAccounts()->where('status', 'suspended')->count(),
+                'active' => User::query()->mobileAccounts()->activeAccounts()->count(),
+                'suspended' => User::query()->mobileAccounts()->suspendedAccounts()->count(),
                 'banned' => User::query()->mobileAccounts()->where('status', 'banned')->count(),
             ],
         ];

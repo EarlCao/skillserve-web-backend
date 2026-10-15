@@ -99,15 +99,15 @@ class ReviewService extends BaseService
         ]);
     }
 
-    public function toggleHide(Review $review, bool $isHidden, User $actor): Review
+    public function toggleHide(Review $review, bool $isHidden, User $actor, ?string $reason = null): Review
     {
-        return $this->transaction(function () use ($review, $isHidden, $actor): Review {
+        return $this->transaction(function () use ($review, $isHidden, $actor, $reason): Review {
             if ($isHidden) {
                 $this->hideReviewAction->handle($review, $actor);
-                event(new ReviewHidden(review: $review, actor: $actor));
+                event(new ReviewHidden(review: $review, actor: $actor, reason: $reason));
             } else {
                 $this->restoreReviewAction->handle($review);
-                event(new ReviewRestored(review: $review, actor: $actor));
+                event(new ReviewRestored(review: $review, actor: $actor, reason: $reason));
             }
 
             $review->load([
@@ -122,14 +122,14 @@ class ReviewService extends BaseService
         });
     }
 
-    public function destroy(Review $review, User $actor): void
+    public function destroy(Review $review, User $actor, ?string $reason = null): void
     {
         // Removal is a reversible soft-delete; Data Management can restore the
         // retained audit record without exposing it in normal review queries.
-        $this->transaction(function () use ($review, $actor): void {
+        $this->transaction(function () use ($review, $actor, $reason): void {
             $this->removeReviewAction->handle($review, $actor);
 
-            event(new ReviewRemoved(review: $review, actor: $actor));
+            event(new ReviewRemoved(review: $review, actor: $actor, reason: $reason));
         });
     }
 

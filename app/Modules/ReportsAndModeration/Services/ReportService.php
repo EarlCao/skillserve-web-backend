@@ -15,6 +15,7 @@ use App\Modules\ReportsAndModeration\Events\ReportRejected;
 use App\Modules\ReportsAndModeration\Events\ReportResolved;
 use App\Modules\ReportsAndModeration\Models\Message;
 use App\Modules\ReportsAndModeration\Models\Report;
+use App\Modules\ReportsAndModeration\Notifications\MessageRemovedNotification;
 use App\Modules\Reviews\Events\ReviewHidden;
 use App\Modules\Reviews\Events\ReviewRemoved;
 use App\Modules\Reviews\Models\Review;
@@ -230,13 +231,16 @@ class ReportService extends BaseService
             'suspend' => event(new UserSuspended(user: $target, actor: $actor, reason: $payload['reason'])),
             'ban' => event(new UserBanned(user: $target, actor: $actor, reason: $payload['reason'])),
             'hide' => match ($report->reportable_type) {
-                Service::class => event(new ServiceHidden(service: $target, actor: $actor, isHidden: true)),
-                Review::class => event(new ReviewHidden(review: $target, actor: $actor)),
+                Service::class => event(new ServiceHidden(service: $target, actor: $actor, isHidden: true, reason: $payload['reason'] ?? null)),
+                Review::class => event(new ReviewHidden(review: $target, actor: $actor, reason: $payload['reason'] ?? null)),
                 default => null,
             },
-            'remove' => $report->reportable_type === Review::class
-                ? event(new ReviewRemoved(review: $target, actor: $actor))
-                : null,
+            'remove' => match ($report->reportable_type) {
+                Review::class => event(new ReviewRemoved(review: $target, actor: $actor, reason: $payload['reason'] ?? null)),
+                // The sender hears why their message disappeared.
+                Message::class => User::query()->find($target->sender_id)?->notify(new MessageRemovedNotification($target, $payload['reason'] ?? null)),
+                default => null,
+            },
             default => null,
         };
     }

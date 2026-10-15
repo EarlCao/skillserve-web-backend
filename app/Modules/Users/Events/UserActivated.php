@@ -12,5 +12,6 @@ class UserActivated
     public function __construct(
         public readonly User $user,
         public readonly User $actor,
+        public readonly ?string $reason = null,
     ) {}
 }

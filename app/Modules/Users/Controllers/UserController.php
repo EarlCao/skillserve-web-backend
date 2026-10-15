@@ -10,6 +10,8 @@ use App\Modules\Users\Requests\UnbanUserRequest;
 use App\Modules\Users\Requests\UpdateUserRequest;
 use App\Modules\Users\Resources\UserManagementResource;
 use App\Modules\Users\Services\UserManagementService;
+use App\Shared\Requests\ActionNoteRequest;
+use App\Shared\Requests\ActionReasonRequest;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -604,6 +606,7 @@ class UserController extends Controller
         parameters: [
             new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: false, content: new OA\JsonContent(properties: [new OA\Property(property: 'reason', type: 'string', maxLength: 1000, nullable: true, description: 'Optional note passed on to the person affected.', example: 'Appeal accepted.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -692,11 +695,11 @@ class UserController extends Controller
             ),
         ],
     )]
-    public function activate(Request $request, User $user): JsonResponse
+    public function activate(ActionNoteRequest $request, User $user): JsonResponse
     {
         $this->authorize('activate users', User::class);
 
-        $user = $this->userManagementService->activate($user, $request->user());
+        $user = $this->userManagementService->activate($user, $request->user(), $request->validated('reason'));
 
         return $this->success(new UserManagementResource($user), 'User activated.');
     }
@@ -1060,6 +1063,7 @@ class UserController extends Controller
         parameters: [
             new OA\Parameter(name: 'user', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why — the person affected is told (notification; for a deletion, email and the sign-out message in the app).', example: 'Repeated no-shows reported by customers.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -1133,11 +1137,11 @@ class UserController extends Controller
             ),
         ],
     )]
-    public function destroy(Request $request, User $user): JsonResponse
+    public function destroy(ActionReasonRequest $request, User $user): JsonResponse
     {
         $this->authorize('delete users', User::class);
 
-        $this->userManagementService->destroy($user, $request->user());
+        $this->userManagementService->destroy($user, $request->user(), $request->validated('reason'));
 
         return $this->success(null, 'User deleted.');
     }

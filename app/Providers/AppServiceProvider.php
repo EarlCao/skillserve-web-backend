@@ -82,6 +82,7 @@ use App\Modules\Notifications\Policies\AdminInboxPolicy;
 use App\Modules\Notifications\Policies\AnnouncementPolicy;
 use App\Modules\ProviderRecognition\Events\ProviderRecognitionChanged;
 use App\Modules\ProviderRecognition\Listeners\LogProviderRecognitionActivity;
+use App\Modules\ProviderRecognition\Listeners\NotifyProviderOfRecognition;
 use App\Modules\ProviderRecognition\Policies\ProviderRecognitionPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
@@ -328,6 +329,7 @@ class AppServiceProvider extends ServiceProvider
         // Ban / unban notifications (best-effort email delivery).
         Event::listen(UserBanned::class, SendUserModerationMail::class);
         Event::listen(UserUnbanned::class, SendUserModerationMail::class);
+        Event::listen([UserDeleted::class, ProviderDeleted::class], SendUserModerationMail::class);
 
         // A suspended, banned or deleted mobile account is signed out of its
         // open app at once, whichever module changed it.
@@ -378,6 +380,7 @@ class AppServiceProvider extends ServiceProvider
             ProviderVerificationRemoved::class, ProviderSuspended::class, ProviderActivated::class,
         ], NotifyProviderOfAccountDecision::class);
         Event::listen(ProviderRecognitionChanged::class, LogProviderRecognitionActivity::class);
+        Event::listen(ProviderRecognitionChanged::class, NotifyProviderOfRecognition::class);
         Event::listen(IdentityVerificationApproved::class, VerifyProviderOnIdentityApproval::class);
 
         // Service Management module events.

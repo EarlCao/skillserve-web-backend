@@ -95,7 +95,7 @@ class ProviderRecognitionTest extends TestCase
             ->assertJsonPath('data.0.id', $provider->id);
 
         $this->withToken($token)
-            ->deleteJson("/api/provider-recognition/providers/{$provider->id}/badges/{$badge->id}")
+            ->deleteJson("/api/provider-recognition/providers/{$provider->id}/badges/{$badge->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonCount(0, 'data.badges');
     }

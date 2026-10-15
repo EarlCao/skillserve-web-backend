@@ -39,7 +39,7 @@ class ReviewRemovalTest extends TestCase
         $review = $this->createReview();
 
         $this->withToken($token)
-            ->deleteJson("/api/reviews/{$review->id}")
+            ->deleteJson("/api/reviews/{$review->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('message', 'Review soft-removed.');
 
@@ -81,7 +81,7 @@ class ReviewRemovalTest extends TestCase
         $providerUser = User::query()->findOrFail(ProviderProfile::query()->findOrFail($review->provider_id)->user_id);
         $action = fn (string $expected) => fn (ReviewModerationNotification $n, array $channels, $notifiable) => $n->toArray($notifiable)['action'] === $expected;
 
-        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true])->assertOk();
+        $this->withToken($token)->patchJson("/api/reviews/{$review->id}/hide", ['is_hidden' => true, 'reason' => 'Breaks the community guidelines.'])->assertOk();
         Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('hidden'));
         Notification::assertNotSentTo($providerUser, ReviewModerationNotification::class);
 
@@ -89,7 +89,7 @@ class ReviewRemovalTest extends TestCase
         Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('restored'));
         Notification::assertSentTo($providerUser, ReviewModerationNotification::class, $action('restored'));
 
-        $this->withToken($token)->deleteJson("/api/reviews/{$review->id}")->assertOk();
+        $this->withToken($token)->deleteJson("/api/reviews/{$review->id}", ['reason' => 'Breaks the community guidelines.'])->assertOk();
         Notification::assertSentTo($reviewer, ReviewModerationNotification::class, $action('removed'));
 
         $sample = new ReviewModerationNotification($review, 'hidden', 't', 'm');

@@ -47,7 +47,7 @@ class BookingCancellationTest extends TestCase
         [$token, $booking] = $this->createBooking('paid');
 
         $this->withToken($token)
-            ->patchJson("/api/bookings/{$booking->id}/cancel")
+            ->patchJson("/api/bookings/{$booking->id}/cancel", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('data.payment_status', 'paid')
             ->assertJsonPath('data.cancellation_payment_policy', 'payment_unchanged_refund_not_processed');

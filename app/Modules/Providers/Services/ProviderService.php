@@ -248,14 +248,15 @@ class ProviderService extends BaseService
     /**
      * Activate a suspended provider.
      */
-    public function activate(ProviderProfile $profile, User $actor): ProviderProfile
+    public function activate(ProviderProfile $profile, User $actor, ?string $note = null): ProviderProfile
     {
-        return $this->transaction(function () use ($profile, $actor) {
+        return $this->transaction(function () use ($profile, $actor, $note) {
             $result = $this->activateProviderAction->handle($profile, $actor);
 
             event(new ProviderActivated(
                 providerProfile: $result,
                 actor: $actor,
+                reason: $note,
             ));
 
             return $result;
@@ -282,26 +283,27 @@ class ProviderService extends BaseService
     /**
      * Delete a provider's account (soft delete), once nothing is owed.
      */
-    public function destroy(ProviderProfile $profile, User $actor): void
+    public function destroy(ProviderProfile $profile, User $actor, string $reason): void
     {
-        $this->transaction(function () use ($profile, $actor): void {
-            $this->deleteProviderAction->handle($profile, $actor);
+        $this->transaction(function () use ($profile, $actor, $reason): void {
+            $this->deleteProviderAction->handle($profile, $actor, $reason);
 
-            event(new ProviderDeleted(providerProfile: $profile, actor: $actor));
+            event(new ProviderDeleted(providerProfile: $profile, actor: $actor, reason: $reason));
         });
     }
 
     /**
      * Remove a provider's verified status.
      */
-    public function removeVerification(ProviderProfile $profile, User $actor): ProviderProfile
+    public function removeVerification(ProviderProfile $profile, User $actor, string $reason): ProviderProfile
     {
-        return $this->transaction(function () use ($profile, $actor) {
+        return $this->transaction(function () use ($profile, $actor, $reason) {
             $result = $this->removeVerificationAction->handle($profile, $actor);
 
             event(new ProviderVerificationRemoved(
                 providerProfile: $result,
                 actor: $actor,
+                reason: $reason,
             ));
 
             return $result;

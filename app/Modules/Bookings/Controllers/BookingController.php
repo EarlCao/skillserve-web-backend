@@ -237,11 +237,12 @@ class BookingController extends Controller
             new OA\Parameter(name: 'booking', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         requestBody: new OA\RequestBody(
-            required: false,
+            required: true,
             content: new OA\JsonContent(
+                required: ['reason'],
                 example: ['reason' => 'Client requested cancellation.'],
                 properties: [
-                    new OA\Property(property: 'reason', type: 'string', maxLength: 1000, nullable: true),
+                    new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why the booking is called off — the customer and the provider are told.'),
                 ],
             ),
         ),

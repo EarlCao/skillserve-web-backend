@@ -7,6 +7,7 @@ use App\Modules\Reviews\Models\Review;
 use App\Modules\Reviews\Requests\HideReviewRequest;
 use App\Modules\Reviews\Resources\ReviewResource;
 use App\Modules\Reviews\Services\ReviewService;
+use App\Shared\Requests\ActionReasonRequest;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -103,9 +104,10 @@ class ReviewController extends Controller
             required: true,
             content: new OA\JsonContent(
                 required: ['is_hidden'],
-                example: ['is_hidden' => true],
+                example: ['is_hidden' => true, 'reason' => 'Breaks the community guidelines.'],
                 properties: [
                     new OA\Property(property: 'is_hidden', type: 'boolean', example: true),
+                    new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, nullable: true, description: 'Required when hiding — the reviewer is told; an optional note when showing it again.', example: 'Breaks the community guidelines.'),
                 ],
             ),
         ),
@@ -126,7 +128,7 @@ class ReviewController extends Controller
     {
         $this->authorize('hide', $review);
 
-        $review = $this->reviewService->toggleHide($review, $request->boolean('is_hidden'), $request->user());
+        $review = $this->reviewService->toggleHide($review, $request->boolean('is_hidden'), $request->user(), trim((string) $request->validated('reason')) ?: null);
 
         return $this->success(
             new ReviewResource($review),
@@ -142,6 +144,7 @@ class ReviewController extends Controller
         parameters: [
             new OA\Parameter(name: 'review', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
+        requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why the review is removed — the reviewer is told.', example: 'Contains a phone number.')])),
         responses: [
             new OA\Response(
                 response: 200,
@@ -155,11 +158,11 @@ class ReviewController extends Controller
             new OA\Response(response: 404, description: 'Not found'),
         ],
     )]
-    public function destroy(Request $request, Review $review): JsonResponse
+    public function destroy(ActionReasonRequest $request, Review $review): JsonResponse
     {
         $this->authorize('delete', $review);
 
-        $this->reviewService->destroy($review, $request->user());
+        $this->reviewService->destroy($review, $request->user(), $request->validated('reason'));
 
         return $this->success(null, 'Review soft-removed.');
     }

@@ -46,7 +46,10 @@ class NotifyProviderOfAccountDecision
             ),
             $event instanceof ProviderVerificationRemoved => new ProviderAccountNotification(
                 'provider_verification', 'removed', 'Verification removed',
-                'An administrator removed your verified status. Submit your documents again to be re-verified.',
+                'An administrator removed your verified status.'
+                    .($event->reason ? " Reason: {$event->reason}" : '')
+                    .' Submit your documents again to be re-verified.',
+                $event->reason,
             ),
             $event instanceof ProviderSuspended => new ProviderAccountNotification(
                 'provider_status', 'suspended', 'Provider account suspended',
@@ -55,7 +58,9 @@ class NotifyProviderOfAccountDecision
             ),
             default => new ProviderAccountNotification(
                 'provider_status', 'activated', 'Provider account active again',
-                'Your provider account was reactivated. You can sign in, and clients can find and book you again.',
+                'Your provider account was reactivated. You can sign in, and clients can find and book you again.'
+                    .($event->reason ? " Note from SkillServe: {$event->reason}" : ''),
+                $event->reason,
             ),
         });
     }

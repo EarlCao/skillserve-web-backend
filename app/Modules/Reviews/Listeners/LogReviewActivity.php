@@ -14,15 +14,15 @@ class LogReviewActivity
         match (true) {
             $event instanceof ReviewHidden => $this->log(
                 'reviews', $event->actor, $event->review,
-                ['status' => 'hidden'], 'review_hidden',
+                array_filter(['status' => 'hidden', 'reason' => $event->reason]), 'review_hidden',
             ),
             $event instanceof ReviewRestored => $this->log(
                 'reviews', $event->actor, $event->review,
-                ['status' => 'active'], 'review_restored',
+                array_filter(['status' => 'active', 'reason' => $event->reason]), 'review_restored',
             ),
             $event instanceof ReviewRemoved => $this->log(
                 'reviews', $event->actor, $event->review,
-                ['status' => 'removed'], 'review_removed',
+                array_filter(['status' => 'removed', 'reason' => $event->reason]), 'review_removed',
             ),
         };
     }

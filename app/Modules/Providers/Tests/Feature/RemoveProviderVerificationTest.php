@@ -56,7 +56,7 @@ class RemoveProviderVerificationTest extends TestCase
         $provider = $this->provider();
 
         $this->withToken($this->adminToken(['view providers', 'verify providers']))
-            ->patchJson("/api/providers/{$provider->id}/verification/remove")
+            ->patchJson("/api/providers/{$provider->id}/verification/remove", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('message', 'Provider verification removed.');
 
@@ -72,7 +72,7 @@ class RemoveProviderVerificationTest extends TestCase
         $provider = $this->provider('pending');
 
         $this->withToken($this->adminToken(['view providers', 'verify providers']))
-            ->patchJson("/api/providers/{$provider->id}/verification/remove")
+            ->patchJson("/api/providers/{$provider->id}/verification/remove", ['reason' => 'Breaks the community guidelines.'])
             ->assertUnprocessable();
 
         $this->assertSame('pending', $provider->fresh()->verification_status);
@@ -82,10 +82,10 @@ class RemoveProviderVerificationTest extends TestCase
     {
         $provider = $this->provider();
 
-        $this->patchJson("/api/providers/{$provider->id}/verification/remove")->assertUnauthorized();
+        $this->patchJson("/api/providers/{$provider->id}/verification/remove", ['reason' => 'Breaks the community guidelines.'])->assertUnauthorized();
 
         $this->withToken($this->adminToken(['view providers']))
-            ->patchJson("/api/providers/{$provider->id}/verification/remove")
+            ->patchJson("/api/providers/{$provider->id}/verification/remove", ['reason' => 'Breaks the community guidelines.'])
             ->assertForbidden();
 
         $this->assertSame('verified', $provider->fresh()->verification_status);

@@ -88,7 +88,7 @@ class ProviderAccountLifecycleTest extends TestCase
         $token = $this->adminToken(['view providers', 'delete providers']);
 
         $this->withToken($token)
-            ->deleteJson("/api/providers/{$provider->id}")
+            ->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertOk()
             ->assertJsonPath('message', 'Provider deleted.');
 
@@ -105,7 +105,7 @@ class ProviderAccountLifecycleTest extends TestCase
             ->assertOk()
             ->assertJsonMissing(['id' => $provider->id, 'business_name' => 'Lifecycle Plumbing']);
 
-        $this->withToken($token)->deleteJson("/api/providers/{$provider->id}")->assertUnprocessable();
+        $this->withToken($token)->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])->assertUnprocessable();
     }
 
     public function test_a_provider_with_an_open_booking_cannot_be_deleted(): void
@@ -114,7 +114,7 @@ class ProviderAccountLifecycleTest extends TestCase
         $this->booking($provider, ['status' => 'confirmed']);
 
         $this->withToken($this->adminToken(['view providers', 'delete providers']))
-            ->deleteJson("/api/providers/{$provider->id}")
+            ->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertStatus(409)
             ->assertJsonPath('message', 'This provider cannot be deleted while they have open bookings.');
 
@@ -129,7 +129,7 @@ class ProviderAccountLifecycleTest extends TestCase
         BookingRefund::create(['booking_id' => $booking->id, 'amount' => 500, 'status' => 'due', 'due_by' => now()->addDay()]);
 
         $this->withToken($this->adminToken(['view providers', 'delete providers']))
-            ->deleteJson("/api/providers/{$provider->id}")
+            ->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertStatus(409)
             ->assertJsonPath('message', 'This provider cannot be deleted while they have a downpayment not yet returned to a customer.');
     }
@@ -140,7 +140,7 @@ class ProviderAccountLifecycleTest extends TestCase
         $this->booking($provider, ['status' => 'completed', 'payment_status' => 'paid', 'paid_at' => now(), 'commission_status' => 'outstanding']);
 
         $this->withToken($this->adminToken(['view providers', 'delete providers']))
-            ->deleteJson("/api/providers/{$provider->id}")
+            ->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertStatus(409)
             ->assertJsonPath('message', 'This provider cannot be deleted while they have unpaid commission.');
     }
@@ -149,10 +149,10 @@ class ProviderAccountLifecycleTest extends TestCase
     {
         $provider = $this->provider();
 
-        $this->deleteJson("/api/providers/{$provider->id}")->assertUnauthorized();
+        $this->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])->assertUnauthorized();
 
         $this->withToken($this->adminToken(['view providers', 'suspend providers']))
-            ->deleteJson("/api/providers/{$provider->id}")
+            ->deleteJson("/api/providers/{$provider->id}", ['reason' => 'Breaks the community guidelines.'])
             ->assertForbidden();
 
         $this->assertFalse($provider->user->fresh()->trashed());

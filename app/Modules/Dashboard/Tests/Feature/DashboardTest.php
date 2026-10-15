@@ -42,6 +42,41 @@ class DashboardTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_suspended_and_deleted_users_are_counted_the_way_admins_see_them(): void
+    {
+        [$token] = $this->actingAdministrator();
+        User::factory()->create(['user_type' => 'customer', 'status' => 'active']);
+        User::factory()->create(['user_type' => 'customer', 'status' => 'suspended']);
+        // Suspended from Provider Management before that also locked the
+        // account: the profile says suspended, the account still active.
+        $legacy = User::factory()->create(['user_type' => 'provider', 'status' => 'active']);
+        ProviderProfile::create(['user_id' => $legacy->id, 'business_name' => 'Legacy Plumbing', 'verification_status' => 'verified', 'suspended_at' => now()]);
+        User::factory()->create(['user_type' => 'customer', 'status' => 'banned']);
+        User::factory()->create(['user_type' => 'customer', 'status' => 'active'])->delete();
+        User::factory()->create(['user_type' => 'provider', 'status' => 'suspended'])->delete();
+
+        $this->withToken($token)
+            ->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.user_summary.active_users', 1)
+            ->assertJsonPath('data.user_summary.suspended_users', 2)
+            ->assertJsonPath('data.user_summary.deleted_users', 2)
+            ->assertJsonPath('data.analytics.user_statuses.active', 1)
+            ->assertJsonPath('data.analytics.user_statuses.suspended', 2)
+            ->assertJsonPath('data.analytics.user_statuses.banned', 1);
+    }
+
+    public function test_the_backfill_rerun_suspends_a_provider_missed_during_the_deploy(): void
+    {
+        $user = User::factory()->create(['user_type' => 'provider', 'status' => 'active']);
+        ProviderProfile::create(['user_id' => $user->id, 'business_name' => 'Window Plumbing', 'verification_status' => 'verified', 'suspended_at' => now(), 'suspension_reason' => 'Fraud review.']);
+
+        (require database_path('migrations/2026_10_15_000003_resuspend_providers_suspended_during_deploy.php'))->up();
+
+        $this->assertSame('suspended', $user->fresh()->status);
+        $this->assertSame('Fraud review.', $user->fresh()->suspension_reason);
+    }
+
     public function test_dashboard_returns_platform_summaries_and_analytics(): void
     {
         [$token] = $this->actingAdministrator();

@@ -3567,15 +3567,19 @@
                     }
                 ],
                 "requestBody": {
-                    "required": false,
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
+                                "required": [
+                                    "reason"
+                                ],
                                 "properties": {
                                     "reason": {
+                                        "description": "Why the booking is called off — the customer and the provider are told.",
                                         "type": "string",
-                                        "nullable": true,
-                                        "maxLength": 1000
+                                        "maxLength": 1000,
+                                        "minLength": 3
                                     }
                                 },
                                 "type": "object"
@@ -4493,6 +4497,12 @@
                                         "format": "date",
                                         "example": "1995-04-02"
                                     },
+                                    "id_number": {
+                                        "description": "Optional: the National ID (PhilSys card) number scanned at sign-up, any grouping. Checked only, never stored here: one National ID can verify one provider account and one customer account, so if an account of this type already holds it (pending or verified) the sign-up is refused with 422 on id_number — \"A provider account already uses this National ID.\" The card itself is submitted after the account is created.",
+                                        "type": "string",
+                                        "example": "1234-5678-9012-3456",
+                                        "nullable": true
+                                    },
                                     "address_details": {
                                         "oneOf": [
                                             {
@@ -4627,6 +4637,12 @@
                                         "type": "string",
                                         "format": "date",
                                         "example": "1995-04-02"
+                                    },
+                                    "id_number": {
+                                        "description": "Optional: the National ID (PhilSys card) number scanned at sign-up, any grouping. Checked only, never stored here: one National ID can verify one provider account and one customer account, so if an account of this type already holds it (pending or verified) the sign-up is refused with 422 on id_number — \"A provider account already uses this National ID.\" The card itself is submitted after the account is created.",
+                                        "type": "string",
+                                        "example": "1234-5678-9012-3456",
+                                        "nullable": true
                                     },
                                     "address_details": {
                                         "oneOf": [
@@ -5161,6 +5177,12 @@
                                         "type": "string",
                                         "format": "date",
                                         "example": "1995-04-02"
+                                    },
+                                    "id_number": {
+                                        "description": "Optional: the National ID (PhilSys card) number scanned at sign-up, any grouping. Checked only, never stored here: one National ID can verify one provider account and one customer account, so if an account of this type already holds it (pending or verified) the sign-up is refused with 422 on id_number — \"A provider account already uses this National ID.\" The card itself is submitted after the account is created.",
+                                        "type": "string",
+                                        "example": "1234-5678-9012-3456",
+                                        "nullable": true
                                     },
                                     "address_details": {
                                         "oneOf": [
@@ -13381,7 +13403,7 @@
                     "Dashboard"
                 ],
                 "summary": "Get dashboard summaries and analytics",
-                "description": "commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings' value.",
+                "description": "user_summary counts mobile accounts: suspended_users includes a provider whose profile is suspended, active_users excludes them, and deleted_users counts soft-deleted accounts still restorable in Data Management. commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings' value.",
                 "operationId": "33685f6af2ec69af17a3c5ebe6caa1ef",
                 "responses": {
                     "200": {
@@ -13399,7 +13421,8 @@
                                             "total_clients": 0,
                                             "total_providers": 0,
                                             "active_users": 0,
-                                            "suspended_users": 0
+                                            "suspended_users": 0,
+                                            "deleted_users": 0
                                         },
                                         "service_summary": {
                                             "total_services": 0,
@@ -14014,7 +14037,7 @@
                     "Identity Verification"
                 ],
                 "summary": "Submit a Philippine National ID for review",
-                "description": "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nA National ID can back only one active SkillServe account: submitting one already linked to another live account returns 422 without revealing which account holds it. An ID becomes available again only once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download. A photo of the front or back must be at least 800 × 500 pixels (either orientation), or that file gets a 422 asking for a retake.",
+                "description": "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nOne National ID can verify one provider account and one customer account. Submitting an ID that another account of the same type already holds (pending or verified) returns 422 — `A provider account already uses this National ID.` (or `customer`) — without revealing which account holds it. A rejected submission does not hold the ID. An ID becomes available again once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download. A photo of the front or back must be at least 800 × 500 pixels (either orientation), or that file gets a 422 asking for a retake.",
                 "operationId": "6c2b588d452c204e71a4770e35310989",
                 "requestBody": {
                     "required": true,
@@ -14079,7 +14102,7 @@
                         "description": "Active, email-verified account required"
                     },
                     "422": {
-                        "description": "Validation failed, the ID is already linked to an account, or the account is already pending or verified"
+                        "description": "Validation failed, another account of the same type (provider or customer) already uses the ID, or the account is already pending or verified"
                     },
                     "429": {
                         "description": "Too many submissions"
@@ -15606,6 +15629,12 @@
                                     "badge_id": {
                                         "type": "integer",
                                         "minimum": 1
+                                    },
+                                    "reason": {
+                                        "description": "Optional note passed on to the provider with the badge.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000
                                     }
                                 },
                                 "type": "object"
@@ -15666,6 +15695,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why the badge is removed — the provider is told.",
+                                        "type": "string",
+                                        "example": "Rating dropped below 4.5.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Badge removed",
@@ -15722,6 +15773,13 @@
                                 "properties": {
                                     "is_featured": {
                                         "type": "boolean"
+                                    },
+                                    "reason": {
+                                        "description": "Required when un-featuring (is_featured false) — the provider is told.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000,
+                                        "minLength": 3
                                     }
                                 },
                                 "type": "object"
@@ -16177,6 +16235,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why — the person affected is told (notification; for a deletion, email and the sign-out message in the app).",
+                                        "type": "string",
+                                        "example": "Repeated no-shows reported by customers.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Provider deleted (soft delete)",
@@ -17069,6 +17149,25 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "description": "Optional note passed on to the person affected.",
+                                        "type": "string",
+                                        "example": "Appeal accepted.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Provider activated",
@@ -17233,6 +17332,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why the verified status is removed — the provider is told.",
+                                        "type": "string",
+                                        "example": "Licence expired.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Provider verification removed",
@@ -18322,7 +18443,7 @@
                                         ]
                                     },
                                     "reason": {
-                                        "description": "Required for suspend and ban",
+                                        "description": "Required for suspend, ban, hide and remove — the person affected is told",
                                         "type": "string",
                                         "example": "Repeated policy violations.",
                                         "nullable": true,
@@ -18586,6 +18707,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why the review is removed — the reviewer is told.",
+                                        "type": "string",
+                                        "example": "Contains a phone number.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Review soft-removed. The record remains retained for audit and can be restored through Data Management.",
@@ -18643,12 +18786,21 @@
                                     "is_hidden": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "reason": {
+                                        "description": "Required when hiding — the reviewer is told; an optional note when showing it again.",
+                                        "type": "string",
+                                        "example": "Breaks the community guidelines.",
+                                        "nullable": true,
+                                        "maxLength": 1000,
+                                        "minLength": 3
                                     }
                                 },
                                 "type": "object"
                             },
                             "example": {
-                                "is_hidden": true
+                                "is_hidden": true,
+                                "reason": "Breaks the community guidelines."
                             }
                         }
                     }
@@ -20863,6 +21015,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why the service is removed — the provider is told.",
+                                        "type": "string",
+                                        "example": "Duplicate listing.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Service deleted (soft delete)",
@@ -21414,12 +21588,21 @@
                                     "is_hidden": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "reason": {
+                                        "description": "Required when hiding — the provider is told; an optional note when showing it again.",
+                                        "type": "string",
+                                        "example": "Breaks the community guidelines.",
+                                        "nullable": true,
+                                        "maxLength": 1000,
+                                        "minLength": 3
                                     }
                                 },
                                 "type": "object"
                             },
                             "example": {
-                                "is_hidden": true
+                                "is_hidden": true,
+                                "reason": "Breaks the community guidelines."
                             }
                         }
                     }
@@ -21535,6 +21718,13 @@
                                     "is_featured": {
                                         "type": "boolean",
                                         "example": true
+                                    },
+                                    "reason": {
+                                        "description": "Required when un-featuring — the provider is told; an optional note when featuring.",
+                                        "type": "string",
+                                        "nullable": true,
+                                        "maxLength": 1000,
+                                        "minLength": 3
                                     }
                                 },
                                 "type": "object"
@@ -22855,6 +23045,28 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "reason"
+                                ],
+                                "properties": {
+                                    "reason": {
+                                        "description": "Why — the person affected is told (notification; for a deletion, email and the sign-out message in the app).",
+                                        "type": "string",
+                                        "example": "Repeated no-shows reported by customers.",
+                                        "maxLength": 1000,
+                                        "minLength": 3
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "User deleted (soft delete)",
@@ -23303,6 +23515,25 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "description": "Optional note passed on to the person affected.",
+                                        "type": "string",
+                                        "example": "Appeal accepted.",
+                                        "nullable": true,
+                                        "maxLength": 1000
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "User activated",

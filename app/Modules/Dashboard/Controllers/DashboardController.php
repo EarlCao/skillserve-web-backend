@@ -20,7 +20,7 @@ class DashboardController extends Controller
     #[OA\Get(
         path: '/api/dashboard',
         summary: 'Get dashboard summaries and analytics',
-        description: 'commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings\' value.',
+        description: 'user_summary counts mobile accounts: suspended_users includes a provider whose profile is suspended, active_users excludes them, and deleted_users counts soft-deleted accounts still restorable in Data Management. commission_summary is included only when the viewer holds view commissions or manage commissions. Amounts are Philippine pesos; collected_rate is settled commission as a percentage of the settled bookings\' value.',
         tags: ['Dashboard'],
         security: [['bearerAuth' => []]],
         responses: [
@@ -30,7 +30,7 @@ class DashboardController extends Controller
                     'success' => true,
                     'message' => 'Dashboard retrieved.',
                     'data' => [
-                        'user_summary' => ['total_clients' => 0, 'total_providers' => 0, 'active_users' => 0, 'suspended_users' => 0],
+                        'user_summary' => ['total_clients' => 0, 'total_providers' => 0, 'active_users' => 0, 'suspended_users' => 0, 'deleted_users' => 0],
                         'service_summary' => ['total_services' => 0, 'approved_services' => 0, 'pending_services' => 0, 'reported_services' => 0],
                         'booking_summary' => ['pending' => 0, 'confirmed' => 0, 'active' => 0, 'completed' => 0, 'cancelled' => 0, 'disputed' => 0],
                         'verification_summary' => ['pending' => 0, 'approved' => 0, 'rejected' => 0, 'additional_info_required' => 0],

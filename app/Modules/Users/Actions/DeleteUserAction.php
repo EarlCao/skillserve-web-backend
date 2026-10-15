@@ -18,7 +18,7 @@ final class DeleteUserAction extends BaseAction
     /**
      * @throws ApiException when one of the deletion guards is violated.
      */
-    public function handle(User $user, User $actor): User
+    public function handle(User $user, User $actor, ?string $reason = null): User
     {
         if ($user->is($actor)) {
             throw new ApiException(
@@ -36,10 +36,10 @@ final class DeleteUserAction extends BaseAction
             );
         }
 
-        // Invalidate existing sessions, record who deleted the account, then
-        // soft-delete it.
+        // Invalidate existing sessions, record who deleted the account and
+        // why (the person is told), then soft-delete it.
         $user->tokens()->delete();
-        $user->update(['deleted_by' => $actor->id]);
+        $user->update(['deleted_by' => $actor->id, 'deletion_reason' => $reason]);
         $user->delete();
 
         return $user;

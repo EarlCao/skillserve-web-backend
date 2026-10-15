@@ -13,6 +13,7 @@ use App\Modules\ProviderRecognition\Resources\ProviderBadgeResource;
 use App\Modules\ProviderRecognition\Resources\RecognitionProviderResource;
 use App\Modules\ProviderRecognition\Services\ProviderRecognitionService;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Shared\Requests\ActionReasonRequest;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -74,29 +75,35 @@ class ProviderRecognitionController extends Controller
         return $this->paginated($this->recognitionService->topRated($request->validated()), RecognitionProviderResource::class, 'Top-rated providers retrieved.');
     }
 
-    #[OA\Post(path: '/api/provider-recognition/providers/{provider}/badges', summary: 'Assign a badge to a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['badge_id'], properties: [new OA\Property(property: 'badge_id', type: 'integer', minimum: 1)])), responses: [new OA\Response(response: 200, description: 'Badge assigned', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 422, description: 'Validation error')])]
+    #[OA\Post(path: '/api/provider-recognition/providers/{provider}/badges', summary: 'Assign a badge to a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['badge_id'], properties: [new OA\Property(property: 'badge_id', type: 'integer', minimum: 1), new OA\Property(property: 'reason', type: 'string', maxLength: 1000, nullable: true, description: 'Optional note passed on to the provider with the badge.')])), responses: [new OA\Response(response: 200, description: 'Badge assigned', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 422, description: 'Validation error')])]
     public function assignBadge(AssignBadgeRequest $request, ProviderProfile $provider): JsonResponse
     {
         abort_unless($request->user()->can('assign provider badges'), 403);
         $badge = ProviderBadge::query()->findOrFail($request->integer('badge_id'));
 
-        return $this->success(new RecognitionProviderResource($this->recognitionService->assignBadge($provider, $badge, $request->user())), 'Badge assigned.');
+        return $this->success(new RecognitionProviderResource($this->recognitionService->assignBadge($provider, $badge, $request->user(), trim((string) $request->validated('reason')) ?: null)), 'Badge assigned.');
     }
 
-    #[OA\Delete(path: '/api/provider-recognition/providers/{provider}/badges/{badge}', summary: 'Remove a badge from a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer')), new OA\Parameter(name: 'badge', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], responses: [new OA\Response(response: 200, description: 'Badge removed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'Provider or badge not found')])]
-    public function removeBadge(Request $request, ProviderProfile $provider, ProviderBadge $badge): JsonResponse
+    #[OA\Delete(path: '/api/provider-recognition/providers/{provider}/badges/{badge}', summary: 'Remove a badge from a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer')), new OA\Parameter(name: 'badge', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['reason'], properties: [new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, description: 'Why the badge is removed — the provider is told.', example: 'Rating dropped below 4.5.')])), responses: [new OA\Response(response: 200, description: 'Badge removed', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 404, description: 'Provider or badge not found')])]
+    public function removeBadge(ActionReasonRequest $request, ProviderProfile $provider, ProviderBadge $badge): JsonResponse
     {
         abort_unless($request->user()->can('assign provider badges'), 403);
 
-        return $this->success(new RecognitionProviderResource($this->recognitionService->removeBadge($provider, $badge, $request->user())), 'Badge removed.');
+        return $this->success(new RecognitionProviderResource($this->recognitionService->removeBadge($provider, $badge, $request->user(), $request->validated('reason'))), 'Badge removed.');
     }
 
-    #[OA\Patch(path: '/api/provider-recognition/providers/{provider}/featured', summary: 'Feature or unfeature a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['is_featured'], properties: [new OA\Property(property: 'is_featured', type: 'boolean')])), responses: [new OA\Response(response: 200, description: 'Featured status updated', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 422, description: 'Validation error')])]
+    #[OA\Patch(path: '/api/provider-recognition/providers/{provider}/featured', summary: 'Feature or unfeature a provider', tags: ['Provider Recognition'], security: [['bearerAuth' => []]], parameters: [new OA\Parameter(name: 'provider', in: 'path', required: true, schema: new OA\Schema(type: 'integer'))], requestBody: new OA\RequestBody(required: true, content: new OA\JsonContent(required: ['is_featured'], properties: [new OA\Property(property: 'is_featured', type: 'boolean'), new OA\Property(property: 'reason', type: 'string', minLength: 3, maxLength: 1000, nullable: true, description: 'Required when un-featuring (is_featured false) — the provider is told.')])), responses: [new OA\Response(response: 200, description: 'Featured status updated', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')), new OA\Response(response: 401, description: 'Unauthenticated'), new OA\Response(response: 403, description: 'Unauthorized'), new OA\Response(response: 422, description: 'Validation error')])]
     public function featured(Request $request, ProviderProfile $provider): JsonResponse
     {
         abort_unless($request->user()->can('manage featured providers'), 403);
-        $isFeatured = $request->validate(['is_featured' => ['required', 'boolean']])['is_featured'];
+        $validated = $request->validate([
+            'is_featured' => ['required', 'boolean'],
+            // Taking the spot away says why — the provider is told.
+            'reason' => ['required_if_declined:is_featured', 'nullable', 'string', 'min:3', 'max:1000'],
+        ], ['reason.required_if_declined' => 'Please give a reason. The provider is told what you write.']);
+        $isFeatured = (bool) $validated['is_featured'];
+        $reason = trim((string) ($validated['reason'] ?? '')) ?: null;
 
-        return $this->success(new RecognitionProviderResource($this->recognitionService->toggleFeatured($provider, $isFeatured, $request->user())), $isFeatured ? 'Provider featured.' : 'Provider unfeatured.');
+        return $this->success(new RecognitionProviderResource($this->recognitionService->toggleFeatured($provider, $isFeatured, $request->user(), $reason)), $isFeatured ? 'Provider featured.' : 'Provider unfeatured.');
     }
 }

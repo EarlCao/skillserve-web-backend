@@ -331,7 +331,7 @@ class ReportController extends Controller
                 example: ['action' => 'suspend', 'reason' => 'Repeated policy violations.', 'note' => 'Suspended after investigation.'],
                 properties: [
                     new OA\Property(property: 'action', type: 'string', enum: ['warning', 'suspend', 'ban', 'hide', 'remove'], description: 'Applicability depends on the reported item type (user: warning/suspend/ban, service: hide, review: hide/remove, message: remove)', example: 'suspend'),
-                    new OA\Property(property: 'reason', type: 'string', maxLength: 500, description: 'Required for suspend and ban', example: 'Repeated policy violations.', nullable: true),
+                    new OA\Property(property: 'reason', type: 'string', maxLength: 500, description: 'Required for suspend, ban, hide and remove — the person affected is told', example: 'Repeated policy violations.', nullable: true),
                     new OA\Property(property: 'duration', type: 'string', enum: ['days', 'forever'], description: 'Required for ban', example: 'forever', nullable: true),
                     new OA\Property(property: 'days', type: 'integer', minimum: 1, maximum: 3650, description: 'Required when ban duration is days', example: 30, nullable: true),
                     new OA\Property(property: 'note', type: 'string', maxLength: 2000, description: 'Optional note recorded with the action', example: 'Suspended after investigation.', nullable: true),

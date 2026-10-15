@@ -31,7 +31,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'role_id', 'user_type', 'phone', 'address', 'address_region_code', 'address_province_code', 'address_city_code', 'address_barangay_code', 'address_street', 'address_postal_code', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by'])]
+#[Fillable(['name', 'email', 'password', 'first_name', 'last_name', 'status', 'last_login_at', 'created_by', 'role_id', 'user_type', 'phone', 'address', 'address_region_code', 'address_province_code', 'address_city_code', 'address_barangay_code', 'address_street', 'address_postal_code', 'birthday', 'suspended_at', 'suspended_by', 'suspension_reason', 'activated_at', 'activated_by', 'banned_at', 'banned_by', 'ban_reason', 'banned_until', 'unban_reason', 'deleted_by', 'deletion_reason'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -101,6 +101,29 @@ class User extends Authenticatable implements CanResetPasswordContract
      * Staff accounts (any role other than customer and provider) — the
      * counterpart of {@see isAdministrator()}.
      */
+    /**
+     * Suspended accounts — including a provider whose profile is suspended
+     * while the account itself is still active (suspended before provider
+     * suspension also locked the account), so every count matches what
+     * Provider Management shows.
+     */
+    public function scopeSuspendedAccounts(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $inner) => $inner
+            ->where('status', 'suspended')
+            ->orWhere(fn (Builder $provider) => $provider
+                ->where('status', 'active')
+                ->whereHas('providerProfile', fn (Builder $profile) => $profile->whereNotNull('suspended_at'))));
+    }
+
+    /** Active accounts that are not suspended in any way ({@see scopeSuspendedAccounts()}). */
+    public function scopeActiveAccounts(Builder $query): Builder
+    {
+        return $query
+            ->where('status', 'active')
+            ->whereDoesntHave('providerProfile', fn (Builder $profile) => $profile->whereNotNull('suspended_at'));
+    }
+
     public function scopeAdministrators(Builder $query): Builder
     {
         return $query->whereNotNull('role_id')->whereNotIn('role_id', AccountRole::accountTypeIds());

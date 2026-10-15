@@ -179,14 +179,14 @@ class ServiceService extends BaseService
     /**
      * Hide/unhide a service and record the activity.
      */
-    public function toggleHide(Service $service, bool $isHidden, User $actor): Service
+    public function toggleHide(Service $service, bool $isHidden, User $actor, ?string $reason = null): Service
     {
-        return $this->transaction(function () use ($service, $isHidden, $actor): Service {
+        return $this->transaction(function () use ($service, $isHidden, $actor, $reason): Service {
             $this->hideServiceAction->handle($service, $isHidden);
 
             $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
-            event(new ServiceHidden(service: $service, actor: $actor, isHidden: $isHidden));
+            event(new ServiceHidden(service: $service, actor: $actor, isHidden: $isHidden, reason: $reason));
 
             return $service;
         });
@@ -195,7 +195,7 @@ class ServiceService extends BaseService
     /**
      * Feature/unfeature a service and record the activity.
      */
-    public function toggleFeature(Service $service, bool $isFeatured, User $actor): Service
+    public function toggleFeature(Service $service, bool $isFeatured, User $actor, ?string $reason = null): Service
     {
         if ($isFeatured && ! app(SettingsService::class)->value('marketplace', 'featured_services_enabled')) {
             throw new ApiException(
@@ -205,12 +205,12 @@ class ServiceService extends BaseService
             );
         }
 
-        return $this->transaction(function () use ($service, $isFeatured, $actor): Service {
+        return $this->transaction(function () use ($service, $isFeatured, $actor, $reason): Service {
             $this->featureServiceAction->handle($service, $isFeatured);
 
             $service->load(['category:id,name', 'subcategory:id,name', 'provider:id,user_id,business_name', 'provider.user:id,name']);
 
-            event(new ServiceFeatured(service: $service, actor: $actor, isFeatured: $isFeatured));
+            event(new ServiceFeatured(service: $service, actor: $actor, isFeatured: $isFeatured, reason: $reason));
 
             return $service;
         });
@@ -219,12 +219,12 @@ class ServiceService extends BaseService
     /**
      * Soft-delete a service and record the activity.
      */
-    public function destroy(Service $service, User $actor): void
+    public function destroy(Service $service, User $actor, ?string $reason = null): void
     {
-        $this->transaction(function () use ($service, $actor): void {
+        $this->transaction(function () use ($service, $actor, $reason): void {
             $this->deleteServiceAction->handle($service, $actor);
 
-            event(new ServiceDeleted(service: $service, actor: $actor));
+            event(new ServiceDeleted(service: $service, actor: $actor, reason: $reason));
         });
     }
 

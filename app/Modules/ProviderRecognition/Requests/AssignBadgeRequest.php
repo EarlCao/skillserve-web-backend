@@ -10,6 +10,8 @@ class AssignBadgeRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
+            // A note passed on to the provider with the badge.
+            'reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'badge_id' => [
                 'required',
                 'integer',

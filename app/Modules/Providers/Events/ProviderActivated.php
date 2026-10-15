@@ -13,5 +13,6 @@ class ProviderActivated
     public function __construct(
         public readonly ProviderProfile $providerProfile,
         public readonly User $actor,
+        public readonly ?string $reason = null,
     ) {}
 }
