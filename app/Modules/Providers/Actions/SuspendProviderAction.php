@@ -4,14 +4,21 @@ namespace App\Modules\Providers\Actions;
 
 use App\Models\User;
 use App\Modules\Providers\Models\ProviderProfile;
+use App\Modules\Users\Actions\SuspendUserAction;
 use App\Shared\Exceptions\ApiException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Suspends a service provider, preventing them from offering services.
+ * Suspends a service provider: they leave the marketplace, and their account
+ * is suspended too, so they are signed out and cannot sign in until an
+ * administrator reactivates them. A banned account stays banned.
  */
 class SuspendProviderAction
 {
+    public function __construct(
+        private readonly SuspendUserAction $suspendUserAction,
+    ) {}
+
     public function handle(ProviderProfile $profile, User $actor, string $reason): ProviderProfile
     {
         if ($profile->isSuspended()) {
@@ -28,6 +35,10 @@ class SuspendProviderAction
                 'suspended_by' => $actor->id,
                 'suspension_reason' => $reason,
             ]);
+
+            if ($profile->user?->isActive()) {
+                $this->suspendUserAction->handle($profile->user, $actor, $reason);
+            }
 
             return $profile->fresh(['user', 'suspendedBy']);
         });

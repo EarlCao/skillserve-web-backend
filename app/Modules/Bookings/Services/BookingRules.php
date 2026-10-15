@@ -15,8 +15,9 @@ use App\Shared\Exceptions\ApiException;
  * A cancellation is *late* when a confirmed booking is called off less than
  * `cancellation_window_hours` before it starts. Late cancellations are still
  * allowed; they record a fee (a percentage of the total) owed by whoever
- * cancelled — off-platform, like the payment. Pending requests and
- * administrator cancellations never carry a fee.
+ * cancelled — off-platform, like the payment. Pending requests,
+ * administrator cancellations, and bookings whose provider was suspended,
+ * banned or deleted never carry a fee.
  */
 class BookingRules
 {
@@ -65,12 +66,17 @@ class BookingRules
         return (int) $this->settings->value('booking', 'cancellation_window_hours');
     }
 
-    /** Whether cancelling [$booking] now would be late. */
+    /**
+     * Whether cancelling [$booking] now would be late. Never once its
+     * provider was suspended, banned or deleted: the customer is not to blame
+     * for calling off a job the provider can no longer do.
+     */
     public function isLate(Booking $booking): bool
     {
         return $booking->status === 'confirmed'
             && $booking->scheduled_date !== null
-            && now()->diffInMinutes($booking->scheduled_date, false) < $this->windowHours() * 60;
+            && now()->diffInMinutes($booking->scheduled_date, false) < $this->windowHours() * 60
+            && $booking->provider?->unavailability() === null;
     }
 
     /** The fee [$side] ('client' or 'provider') would owe for cancelling now. */

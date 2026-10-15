@@ -92,12 +92,27 @@ final class TakeModerationAction extends BaseAction
 
         match ($action) {
             'warning' => null, // recorded on the report; ReportService dispatches UserWarned to notify the user
-            'suspend' => $this->suspendUserAction->handle($target, $actor, $payload['reason']),
+            'suspend' => $this->suspend($target, $actor, $payload['reason']),
             'ban' => $this->banUserAction->handle($target, $actor, $payload['reason'], $payload['duration'] ?? 'forever', $payload['days'] ?? null),
             'hide' => $this->hide($target, $actor),
             'remove' => $this->remove($target, $actor),
             default => null,
         };
+    }
+
+    /**
+     * A reported provider also leaves the marketplace and shows as suspended
+     * in Provider Management, which is where they are reactivated.
+     */
+    private function suspend(User $target, User $actor, string $reason): void
+    {
+        $this->suspendUserAction->handle($target, $actor, $reason);
+
+        $target->providerProfile()->whereNull('suspended_at')->first()?->update([
+            'suspended_at' => now(),
+            'suspended_by' => $actor->id,
+            'suspension_reason' => $reason,
+        ]);
     }
 
     private function hide(mixed $target, User $actor): void

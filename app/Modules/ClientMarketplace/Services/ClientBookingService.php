@@ -96,7 +96,11 @@ class ClientBookingService extends BaseService
                     }
                 }
 
-                $provider = ProviderProfile::query()->findOrFail($service->provider_id);
+                // Shared lock: an administrator deleting this provider takes
+                // the row exclusively, so either the deletion sees this
+                // booking or this booking sees the deletion — never neither.
+                $provider = ProviderProfile::query()->sharedLock()->findOrFail($service->provider_id);
+                $this->assertProviderAvailable($provider);
 
                 // A provider may hold several jobs at once, so another booking
                 // at the same time is no reason to refuse: they accept or
@@ -301,6 +305,21 @@ class ClientBookingService extends BaseService
         };
     }
 
+    /**
+     * Re-checked under the lock: the catalog query that found the service ran
+     * before it, so the provider may have been suspended or deleted since.
+     */
+    private function assertProviderAvailable(ProviderProfile $provider): void
+    {
+        if ($provider->unavailability() !== null) {
+            throw new ApiException(
+                'This provider is not available for bookings right now.',
+                422,
+                errors: ['service_id' => ['The provider is not available for bookings.']],
+            );
+        }
+    }
+
     private function assertAcceptingBookings(ProviderProfile $provider): void
     {
         if (! $provider->is_accepting_bookings) {
@@ -370,7 +389,9 @@ class ClientBookingService extends BaseService
             'service.provider:id,business_name,average_rating,total_reviews',
             // gcash_* are needed for the payment instructions on an unpaid
             // GCash booking; ClientBookingResource decides whether to show them.
-            'provider:id,business_name,average_rating,total_reviews,gcash_number,gcash_name,gcash_qr_payload',
+            'provider:id,user_id,business_name,average_rating,total_reviews,suspended_at,gcash_number,gcash_name,gcash_qr_payload',
+            // Whether the provider was suspended, banned or deleted since.
+            'provider.accountUser:id,status,deleted_at',
             'review:id,booking_id,reviewer_id,provider_id,service_id,rating,comment,status,created_at,updated_at',
             'paymentProofs',
             'refund',

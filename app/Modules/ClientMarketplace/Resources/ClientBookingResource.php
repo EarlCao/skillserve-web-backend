@@ -56,6 +56,9 @@ class ClientBookingResource extends BaseResource
                 'id' => $this->provider->id,
                 'business_name' => $this->provider->business_name,
                 'average_rating' => $this->provider->average_rating,
+                // 'active', 'suspended', 'banned' or 'deleted', and what to
+                // tell the customer when it is not 'active'.
+                ...ProviderStandingPresenter::present($this->provider, $this->resource),
             ] : null),
 
             // Where to send the money. SkillServe is not in the payment path:

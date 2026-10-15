@@ -29,8 +29,9 @@ class ConversationService extends BaseService
     public const INQUIRY_RELATIONS = [
         'latestMessage',
         'customer:id,name,profile_photo_path',
-        'provider:id,user_id,business_name',
+        'provider:id,user_id,business_name,suspended_at',
         'provider.user:id,name,profile_photo_path',
+        'provider.accountUser:id,status,deleted_at',
     ];
 
     public function index(User $user, array $filters): LengthAwarePaginator
@@ -90,8 +91,9 @@ class ConversationService extends BaseService
                 'latestMessage',
                 'service:id,title',
                 'client:id,name,profile_photo_path',
-                'provider:id,user_id,business_name',
+                'provider:id,user_id,business_name,suspended_at',
                 'provider.user:id,name,profile_photo_path',
+                'provider.accountUser:id,status,deleted_at',
             ]);
     }
 

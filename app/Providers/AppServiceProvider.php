@@ -41,10 +41,12 @@ use App\Modules\Bookings\Listeners\NotifyRefundParties;
 use App\Modules\Bookings\Listeners\OpenRefundOnCancellation;
 use App\Modules\Bookings\Models\Booking;
 use App\Modules\Bookings\Policies\BookingPolicy;
+use App\Modules\ClientAuthentication\Listeners\PushAccountRestriction;
 use App\Modules\ClientCommunication\Listeners\BroadcastClientNotification;
 use App\Modules\ClientCommunication\Listeners\NotifyClientSupportTicket;
 use App\Modules\ClientCommunication\Services\BackgroundNotificationService;
 use App\Modules\ClientMarketplace\Listeners\PushBookingChange;
+use App\Modules\ClientMarketplace\Listeners\TellCustomersAboutProvider;
 use App\Modules\Commissions\Events\CommissionRemittanceConfirmed;
 use App\Modules\Commissions\Events\CommissionRemittanceFlagged;
 use App\Modules\Commissions\Events\CommissionRemittanceRejected;
@@ -83,6 +85,7 @@ use App\Modules\ProviderRecognition\Listeners\LogProviderRecognitionActivity;
 use App\Modules\ProviderRecognition\Policies\ProviderRecognitionPolicy;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
+use App\Modules\Providers\Events\ProviderDeleted;
 use App\Modules\Providers\Events\ProviderSuspended;
 use App\Modules\Providers\Events\ProviderVerificationApproved;
 use App\Modules\Providers\Events\ProviderVerificationRejected;
@@ -326,6 +329,13 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(UserBanned::class, SendUserModerationMail::class);
         Event::listen(UserUnbanned::class, SendUserModerationMail::class);
 
+        // A suspended, banned or deleted mobile account is signed out of its
+        // open app at once, whichever module changed it.
+        Event::listen(['eloquent.updated: '.User::class, 'eloquent.deleted: '.User::class], PushAccountRestriction::class);
+        // …and the customers of a provider who was suspended, banned, deleted
+        // or reinstated hear about it on their open bookings.
+        Event::listen(['eloquent.updated: '.User::class, 'eloquent.deleted: '.User::class], TellCustomersAboutProvider::class);
+
         // Service Category Management module events.
         Event::listen(ServiceCategoryCreated::class, LogServiceCategoryActivity::class);
         Event::listen(ServiceCategoryUpdated::class, LogServiceCategoryActivity::class);
@@ -360,6 +370,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(ProviderAdditionalInfoRequested::class, LogProviderActivity::class);
         Event::listen(ProviderSuspended::class, LogProviderActivity::class);
         Event::listen(ProviderActivated::class, LogProviderActivity::class);
+        Event::listen(ProviderDeleted::class, LogProviderActivity::class);
         Event::listen(ProviderVerificationRemoved::class, LogProviderActivity::class);
         Event::listen(ProviderVerificationSubmitted::class, LogProviderActivity::class);
         Event::listen([

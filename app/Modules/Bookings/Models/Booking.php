@@ -37,6 +37,9 @@ class Booking extends Model
 {
     use SoftDeletes;
 
+    /** Bookings still in progress between a customer and a provider. */
+    public const OPEN_STATUSES = ['pending', 'confirmed', 'active', 'disputed'];
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class, 'service_id');

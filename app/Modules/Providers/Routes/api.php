@@ -30,4 +30,6 @@ Route::prefix('providers')->middleware('auth:sanctum')->group(function (): void 
     // Provider status management
     Route::patch('/{provider}/suspend', [ProviderController::class, 'suspend']);
     Route::patch('/{provider}/activate', [ProviderController::class, 'activate']);
+    Route::patch('/{provider}/unban', [ProviderController::class, 'unban']);
+    Route::delete('/{provider}', [ProviderController::class, 'destroy']);
 });

@@ -343,6 +343,17 @@ use OpenApi\Attributes as OA;
     ],
 )]
 #[OA\Schema(
+    schema: 'ClientBookingProvider',
+    description: 'The provider on a customer\'s booking, with their standing once an administrator acted on them.',
+    properties: [
+        new OA\Property(property: 'id', type: 'integer'),
+        new OA\Property(property: 'business_name', type: 'string', nullable: true),
+        new OA\Property(property: 'average_rating', type: 'string', example: '4.50'),
+        new OA\Property(property: 'account_status', type: 'string', enum: ['active', 'suspended', 'banned', 'deleted'], description: 'Whether an administrator suspended, banned or deleted the provider'),
+        new OA\Property(property: 'account_notice', type: 'string', nullable: true, description: 'What to tell the customer when account_status is not active (null while active) — on an open booking it says the booking can be cancelled with no fee', example: 'This provider has been suspended by SkillServe, so they cannot work on this booking. You can cancel it with no cancellation fee. If you already paid them, contact support and we will help you get it back.'),
+    ],
+)]
+#[OA\Schema(
     schema: 'ClientProvider',
     properties: [
         new OA\Property(property: 'id', type: 'integer'),
@@ -440,7 +451,7 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'rescheduled_at', type: 'string', format: 'date-time', nullable: true, description: 'When the customer last moved the booking to a new time'),
         new OA\Property(property: 'is_reviewed', type: 'boolean'),
         new OA\Property(property: 'service', ref: '#/components/schemas/ClientService', nullable: true),
-        new OA\Property(property: 'provider', ref: '#/components/schemas/ClientProviderSummary', nullable: true),
+        new OA\Property(property: 'provider', ref: '#/components/schemas/ClientBookingProvider', nullable: true),
         new OA\Property(property: 'review', ref: '#/components/schemas/ClientReview', nullable: true),
         new OA\Property(property: 'created_at', type: 'string', format: 'date-time', nullable: true),
         new OA\Property(property: 'updated_at', type: 'string', format: 'date-time', nullable: true),
@@ -547,6 +558,8 @@ use OpenApi\Attributes as OA;
         new OA\Property(property: 'provider_id', type: 'integer', nullable: true, description: 'Present only when the other party is the provider (the customer\'s view): their provider profile id, for GET /api/client/v1/providers/{provider}'),
         new OA\Property(property: 'name', type: 'string', description: 'A provider\'s display name (business name, else account name), or a customer\'s name'),
         new OA\Property(property: 'profile_picture', type: 'string', nullable: true),
+        new OA\Property(property: 'account_status', type: 'string', enum: ['active', 'suspended', 'banned', 'deleted'], description: 'Customer\'s view only: whether an administrator suspended, banned or deleted the provider'),
+        new OA\Property(property: 'account_notice', type: 'string', nullable: true, description: 'Customer\'s view only: what to tell the customer when account_status is not active'),
     ],
 )]
 #[OA\Schema(

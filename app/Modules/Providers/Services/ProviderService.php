@@ -5,18 +5,23 @@ namespace App\Modules\Providers\Services;
 use App\Models\User;
 use App\Modules\Providers\Actions\ActivateProviderAction;
 use App\Modules\Providers\Actions\ApproveVerificationAction;
+use App\Modules\Providers\Actions\DeleteProviderAction;
 use App\Modules\Providers\Actions\RejectVerificationAction;
 use App\Modules\Providers\Actions\RemoveVerificationAction;
 use App\Modules\Providers\Actions\RequestAdditionalInfoAction;
 use App\Modules\Providers\Actions\SuspendProviderAction;
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
+use App\Modules\Providers\Events\ProviderDeleted;
 use App\Modules\Providers\Events\ProviderSuspended;
 use App\Modules\Providers\Events\ProviderVerificationApproved;
 use App\Modules\Providers\Events\ProviderVerificationRejected;
 use App\Modules\Providers\Events\ProviderVerificationRemoved;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\Providers\Models\VerificationRequest;
+use App\Modules\Users\Actions\UnbanUserAction;
+use App\Modules\Users\Events\UserUnbanned;
+use App\Shared\Exceptions\ApiException;
 use App\Shared\Helpers\PageSize;
 use App\Shared\Services\BaseService;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,7 +30,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 /**
  * Orchestrates provider management: listing (search/filter/sort/paginate),
  * profile viewing, verification review, approval, rejection, additional info
- * requests, suspension, activation, and verification removal.
+ * requests, suspension, activation, verification removal and deletion.
  *
  * Controllers stay thin.
  */
@@ -43,6 +48,8 @@ class ProviderService extends BaseService
         private readonly SuspendProviderAction $suspendProviderAction,
         private readonly ActivateProviderAction $activateProviderAction,
         private readonly RemoveVerificationAction $removeVerificationAction,
+        private readonly DeleteProviderAction $deleteProviderAction,
+        private readonly UnbanUserAction $unbanUserAction,
     ) {}
 
     /**
@@ -52,8 +59,11 @@ class ProviderService extends BaseService
      */
     public function index(array $filters): LengthAwarePaginator
     {
+        // A deleted provider's profile stays for the records; the account
+        // is listed under Data Management → Deleted instead.
         $query = $this->withAggregates(ProviderProfile::query())
-            ->with(['user:id,name,email,phone,created_at', 'verifiedBy:id,name', 'suspendedBy:id,name']);
+            ->whereHas('user')
+            ->with(['user:id,name,email,phone,status,created_at', 'verifiedBy:id,name', 'suspendedBy:id,name']);
 
         if ($search = trim((string) ($filters['search'] ?? ''))) {
             $term = '%'.mb_strtolower($search).'%';
@@ -106,7 +116,7 @@ class ProviderService extends BaseService
         return $this->withAggregates(ProviderProfile::query())
             ->whereKey($profile->id)
             ->with([
-                'user:id,name,email,phone,address,birthday,created_at',
+                'user:id,name,email,phone,status,address,birthday,created_at',
                 // Their National ID, for the profile's identity section.
                 'user.identityVerification.documents',
                 'verifiedBy:id,name',
@@ -249,6 +259,35 @@ class ProviderService extends BaseService
             ));
 
             return $result;
+        });
+    }
+
+    /**
+     * Lift a ban on the provider's account (one made from a report), so they
+     * can sign in again. Logged and emailed like a customer's unban.
+     */
+    public function unban(ProviderProfile $profile, User $actor, ?string $reason = null): ProviderProfile
+    {
+        return $this->transaction(function () use ($profile, $actor, $reason): ProviderProfile {
+            $user = $profile->user ?? throw new ApiException('This provider account is deleted.', 422);
+
+            $this->unbanUserAction->handle($user, $actor, $reason);
+
+            event(new UserUnbanned(user: $user, actor: $actor, reason: $reason));
+
+            return $profile;
+        });
+    }
+
+    /**
+     * Delete a provider's account (soft delete), once nothing is owed.
+     */
+    public function destroy(ProviderProfile $profile, User $actor): void
+    {
+        $this->transaction(function () use ($profile, $actor): void {
+            $this->deleteProviderAction->handle($profile, $actor);
+
+            event(new ProviderDeleted(providerProfile: $profile, actor: $actor));
         });
     }
 

@@ -3,10 +3,12 @@
 namespace App\Modules\ClientAuthentication\Tests\Feature;
 
 use App\Models\User;
+use App\Modules\ClientAuthentication\Events\ClientAccountRestricted;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Modules\ReportsAndModeration\Models\Report;
 use App\Modules\Users\Notifications\AccountStatusNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -144,6 +146,47 @@ class AccountStatusTest extends TestCase
         $this->withToken($token)->patchJson("/api/users/{$user->id}/activate")->assertOk();
         Notification::assertSentTo($user, AccountStatusNotification::class, fn ($n) => $n->toArray($user)['action'] === 'activated');
         Notification::assertNotSentTo($admin, AccountStatusNotification::class);
+    }
+
+    public function test_a_suspension_or_ban_signs_the_open_app_out_at_once(): void
+    {
+        Event::fake([ClientAccountRestricted::class]);
+        foreach (['manage users', 'suspend users', 'activate users', 'ban users'] as $name) {
+            Permission::findOrCreate($name);
+        }
+        $role = Role::create(['name' => 'user-admin-'.Str::random(5)]);
+        $role->syncPermissions(['suspend users', 'activate users', 'ban users']);
+        $admin = User::factory()->create(['status' => 'active']);
+        $admin->assignRole($role);
+        $token = $admin->createToken('a')->plainTextToken;
+        $user = $this->customer();
+
+        $this->withToken($token)->patchJson("/api/users/{$user->id}/suspend", ['reason' => 'Spam listings.'])->assertOk();
+        Event::assertDispatched(ClientAccountRestricted::class, fn (ClientAccountRestricted $event) => $event->userId === $user->id
+            && $event->broadcastAs() === 'client.account.restricted'
+            && $event->broadcastOn()[0]->name === "private-App.Models.User.{$user->id}"
+            && $event->broadcastWith()['account']['status'] === 'suspended'
+            && $event->broadcastWith()['account']['reason'] === 'Spam listings.');
+
+        // Reactivating pushes nothing; a ban does.
+        $this->withToken($token)->patchJson("/api/users/{$user->id}/activate")->assertOk();
+        Event::assertDispatchedTimes(ClientAccountRestricted::class, 1);
+
+        $this->withToken($token)->patchJson("/api/users/{$user->id}/ban", ['reason' => 'Fraud.', 'duration' => 'forever'])->assertOk();
+        Event::assertDispatched(ClientAccountRestricted::class, fn (ClientAccountRestricted $event) => $event->account['status'] === 'banned'
+            && $event->message === 'Your account has been permanently banned.');
+    }
+
+    public function test_ordinary_account_changes_and_staff_accounts_push_nothing(): void
+    {
+        Event::fake([ClientAccountRestricted::class]);
+
+        $this->customer()->update(['name' => 'Maria Santos', 'last_login_at' => now()]);
+        $staff = User::factory()->create(['status' => 'active']);
+        $staff->assignRole(Role::create(['name' => 'staff-'.Str::random(5)]));
+        $staff->update(['status' => 'suspended']);
+
+        Event::assertNotDispatched(ClientAccountRestricted::class);
     }
 
     private function customer(array $attributes = []): User

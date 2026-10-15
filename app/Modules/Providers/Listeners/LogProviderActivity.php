@@ -4,6 +4,7 @@ namespace App\Modules\Providers\Listeners;
 
 use App\Modules\Providers\Events\ProviderActivated;
 use App\Modules\Providers\Events\ProviderAdditionalInfoRequested;
+use App\Modules\Providers\Events\ProviderDeleted;
 use App\Modules\Providers\Events\ProviderSuspended;
 use App\Modules\Providers\Events\ProviderVerificationApproved;
 use App\Modules\Providers\Events\ProviderVerificationRejected;
@@ -29,6 +30,7 @@ class LogProviderActivity
             $event instanceof ProviderAdditionalInfoRequested => $event->providerProfile,
             $event instanceof ProviderSuspended => $event->providerProfile,
             $event instanceof ProviderActivated => $event->providerProfile,
+            $event instanceof ProviderDeleted => $event->providerProfile,
             $event instanceof ProviderVerificationRemoved => $event->providerProfile,
             $event instanceof ProviderVerificationSubmitted => $event->providerProfile,
             default => null,
@@ -44,6 +46,7 @@ class LogProviderActivity
             $event instanceof ProviderAdditionalInfoRequested => 'provider_additional_info_requested',
             $event instanceof ProviderSuspended => 'provider_suspended',
             $event instanceof ProviderActivated => 'provider_activated',
+            $event instanceof ProviderDeleted => 'provider_deleted',
             $event instanceof ProviderVerificationRemoved => 'provider_verification_removed',
             $event instanceof ProviderVerificationSubmitted => $event->isResponse
                 ? 'provider_additional_info_submitted'

@@ -15902,6 +15902,7 @@
                                             },
                                             "rejection_reason": null,
                                             "is_suspended": false,
+                                            "account_status": "active",
                                             "suspended_at": null,
                                             "suspended_by": null,
                                             "suspension_reason": null,
@@ -16056,6 +16057,7 @@
                                         },
                                         "rejection_reason": null,
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -16143,6 +16145,138 @@
                                 "example": {
                                     "success": false,
                                     "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Delete a provider account",
+                "description": "Soft-deletes the provider's account: they leave the marketplace and every mobile session ends at once (the open app receives `client.account.restricted` with status \"deleted\"). Booking history is kept, and the account can be restored from Data Management. Refused with 409 while the provider has open bookings, a downpayment not yet returned to a customer, or unpaid commission.",
+                "operationId": "228b0032ebb81879f66660f2e753c8f5",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "description": "Provider profile ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Provider deleted (soft delete)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": true,
+                                    "message": "Provider deleted.",
+                                    "data": null,
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the delete providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "The provider still owes something: open bookings, an unreturned downpayment, or unpaid commission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This provider cannot be deleted while they have unpaid commission.",
+                                    "data": {},
+                                    "errors": {
+                                        "provider": [
+                                            "Settle the provider's unpaid commission first."
+                                        ]
+                                    },
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The account is already deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This provider account is already deleted.",
                                     "data": {},
                                     "errors": null,
                                     "meta": []
@@ -16253,6 +16387,7 @@
                                         },
                                         "rejection_reason": null,
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -16440,6 +16575,7 @@
                                         "verified_by": null,
                                         "rejection_reason": "Documents are unclear and illegible.",
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -16627,6 +16763,7 @@
                                         "verified_by": null,
                                         "rejection_reason": null,
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -16726,7 +16863,7 @@
                     "Providers"
                 ],
                 "summary": "Suspend a provider",
-                "description": "PATCH /api/providers/{provider}/suspend — suspend a provider.",
+                "description": "Hides the provider from the marketplace and suspends their account: every mobile session ends at once (the open app receives `client.account.restricted`), and sign-in is refused with `meta.account` until the provider is activated. A banned account stays banned.",
                 "operationId": "c9612689333004e47fab1469396fd7bb",
                 "parameters": [
                     {
@@ -16817,6 +16954,7 @@
                                         },
                                         "rejection_reason": null,
                                         "is_suspended": true,
+                                        "account_status": "suspended",
                                         "suspended_at": "2026-08-12T10:00:00+00:00",
                                         "suspended_by": {
                                             "id": 1,
@@ -16919,7 +17057,7 @@
                     "Providers"
                 ],
                 "summary": "Activate a suspended provider",
-                "description": "PATCH /api/providers/{provider}/activate — activate a suspended provider.",
+                "description": "Returns the provider to the marketplace and reactivates the account suspended with them, so they can sign in again. A banned account stays banned.",
                 "operationId": "55e66f57dbb29b5de226200afa11e8d8",
                 "parameters": [
                     {
@@ -16987,6 +17125,7 @@
                                         },
                                         "rejection_reason": null,
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -17147,6 +17286,7 @@
                                         "verified_by": null,
                                         "rejection_reason": null,
                                         "is_suspended": false,
+                                        "account_status": "active",
                                         "suspended_at": null,
                                         "suspended_by": null,
                                         "suspension_reason": null,
@@ -17432,6 +17572,130 @@
                     },
                     "404": {
                         "description": "Provider, document, or private file not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/providers/{provider}/unban": {
+            "patch": {
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "Unban a provider",
+                "description": "Lifts a ban on the provider's account (bans come from report moderation), so they can sign in again; the provider is emailed and their customers with open bookings are told they are available again. A suspended profile stays suspended — use activate for that.",
+                "operationId": "d2d0e303be63fd13d421924931044f7b",
+                "parameters": [
+                    {
+                        "name": "provider",
+                        "in": "path",
+                        "description": "Provider profile ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "Appeal accepted.",
+                                        "nullable": true,
+                                        "maxLength": 500
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Ban lifted; the provider profile",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated / expired token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Unauthenticated.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Missing the activate providers permission",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "This action is unauthorized.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Provider not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "Resource not found.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "The account is not banned, or the note is too long",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiEnvelope"
+                                },
+                                "example": {
+                                    "success": false,
+                                    "message": "The account is not currently banned.",
+                                    "data": {},
+                                    "errors": null,
+                                    "meta": []
+                                }
+                            }
+                        }
                     }
                 },
                 "security": [
@@ -24679,6 +24943,39 @@
                 },
                 "type": "object"
             },
+            "ClientBookingProvider": {
+                "description": "The provider on a customer's booking, with their standing once an administrator acted on them.",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "business_name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "average_rating": {
+                        "type": "string",
+                        "example": "4.50"
+                    },
+                    "account_status": {
+                        "description": "Whether an administrator suspended, banned or deleted the provider",
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "suspended",
+                            "banned",
+                            "deleted"
+                        ]
+                    },
+                    "account_notice": {
+                        "description": "What to tell the customer when account_status is not active (null while active) — on an open booking it says the booking can be cancelled with no fee",
+                        "type": "string",
+                        "example": "This provider has been suspended by SkillServe, so they cannot work on this booking. You can cancel it with no cancellation fee. If you already paid them, contact support and we will help you get it back.",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "ClientProvider": {
                 "properties": {
                     "id": {
@@ -25082,7 +25379,7 @@
                     "provider": {
                         "oneOf": [
                             {
-                                "$ref": "#/components/schemas/ClientProviderSummary"
+                                "$ref": "#/components/schemas/ClientBookingProvider"
                             }
                         ],
                         "nullable": true
@@ -25474,6 +25771,21 @@
                         "type": "string"
                     },
                     "profile_picture": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "account_status": {
+                        "description": "Customer's view only: whether an administrator suspended, banned or deleted the provider",
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "suspended",
+                            "banned",
+                            "deleted"
+                        ]
+                    },
+                    "account_notice": {
+                        "description": "Customer's view only: what to tell the customer when account_status is not active",
                         "type": "string",
                         "nullable": true
                     }

@@ -61,6 +61,9 @@ class ProviderResource extends BaseResource
             }),
             'rejection_reason' => $this->rejection_reason,
             'is_suspended' => $this->isSuspended(),
+            // The account's own status: 'banned' through report moderation
+            // shows here even though the profile is not suspended.
+            'account_status' => $this->whenLoaded('user', fn () => $this->user?->status),
             'suspended_at' => $this->suspended_at?->toIso8601String(),
             'suspended_by' => $this->whenLoaded('suspendedBy', function () {
                 return [

@@ -11,6 +11,7 @@ use App\Modules\Providers\Requests\RequestAdditionalInfoRequest;
 use App\Modules\Providers\Requests\SuspendProviderRequest;
 use App\Modules\Providers\Resources\ProviderResource;
 use App\Modules\Providers\Services\ProviderService;
+use App\Modules\Users\Requests\UnbanUserRequest;
 use App\Shared\Helpers\StoredFile;
 use App\Shared\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +23,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 /**
  * Provider management endpoints — listing, profile viewing, verification
  * review, approval, rejection, additional info requests, suspension,
- * activation, and verification removal.
+ * activation, verification removal, and deletion.
  *
  * Every action is authorization-gated through the "manage providers" gate.
  */
@@ -92,6 +93,7 @@ class ProviderController extends Controller
                                 'verified_by' => ['id' => 1, 'name' => 'Admin User'],
                                 'rejection_reason' => null,
                                 'is_suspended' => false,
+                                'account_status' => 'active',
                                 'suspended_at' => null,
                                 'suspended_by' => null,
                                 'suspension_reason' => null,
@@ -209,6 +211,7 @@ class ProviderController extends Controller
                             'verified_by' => ['id' => 1, 'name' => 'Admin User'],
                             'rejection_reason' => null,
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -361,6 +364,7 @@ class ProviderController extends Controller
                             'verified_by' => ['id' => 1, 'name' => 'Admin User'],
                             'rejection_reason' => null,
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -516,6 +520,7 @@ class ProviderController extends Controller
                             'verified_by' => null,
                             'rejection_reason' => 'Documents are unclear and illegible.',
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -671,6 +676,7 @@ class ProviderController extends Controller
                             'verified_by' => null,
                             'rejection_reason' => null,
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -771,6 +777,7 @@ class ProviderController extends Controller
     #[OA\Patch(
         path: '/api/providers/{provider}/suspend',
         summary: 'Suspend a provider',
+        description: 'Hides the provider from the marketplace and suspends their account: every mobile session ends at once (the open app receives `client.account.restricted`), and sign-in is refused with `meta.account` until the provider is activated. A banned account stays banned.',
         tags: ['Providers'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -826,6 +833,7 @@ class ProviderController extends Controller
                             'verified_by' => ['id' => 1, 'name' => 'Admin User'],
                             'rejection_reason' => null,
                             'is_suspended' => true,
+                            'account_status' => 'suspended',
                             'suspended_at' => '2026-08-12T10:00:00+00:00',
                             'suspended_by' => ['id' => 1, 'name' => 'Admin User'],
                             'suspension_reason' => 'Violation of platform terms.',
@@ -917,6 +925,7 @@ class ProviderController extends Controller
     #[OA\Patch(
         path: '/api/providers/{provider}/activate',
         summary: 'Activate a suspended provider',
+        description: 'Returns the provider to the marketplace and reactivates the account suspended with them, so they can sign in again. A banned account stays banned.',
         tags: ['Providers'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -962,6 +971,7 @@ class ProviderController extends Controller
                             'verified_by' => ['id' => 1, 'name' => 'Admin User'],
                             'rejection_reason' => null,
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -1095,6 +1105,7 @@ class ProviderController extends Controller
                             'verified_by' => null,
                             'rejection_reason' => null,
                             'is_suspended' => false,
+                            'account_status' => 'active',
                             'suspended_at' => null,
                             'suspended_by' => null,
                             'suspension_reason' => null,
@@ -1344,5 +1355,206 @@ class ProviderController extends Controller
             $this->providerService->verificationHistory($provider),
             'Verification history retrieved.',
         );
+    }
+
+    /**
+     * PATCH /api/providers/{provider}/unban — lift a ban on the provider's account.
+     */
+    #[OA\Patch(
+        path: '/api/providers/{provider}/unban',
+        summary: 'Unban a provider',
+        description: 'Lifts a ban on the provider\'s account (bans come from report moderation), so they can sign in again; the provider is emailed and their customers with open bookings are told they are available again. A suspended profile stays suspended — use activate for that.',
+        tags: ['Providers'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'provider', in: 'path', description: 'Provider profile ID', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            required: false,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'reason', type: 'string', maxLength: 500, nullable: true, example: 'Appeal accepted.'),
+                ],
+            ),
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Ban lifted; the provider profile',
+                content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope'),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the activate providers permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Provider not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'The account is not banned, or the note is too long',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'The account is not currently banned.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    public function unban(UnbanUserRequest $request, ProviderProfile $provider): JsonResponse
+    {
+        $this->authorize('activate', $provider);
+
+        $provider = $this->providerService->unban($provider, $request->user(), $request->validated('reason'));
+
+        return $this->success(new ProviderResource($this->providerService->show($provider)), 'Ban lifted.');
+    }
+
+    /**
+     * DELETE /api/providers/{provider} — delete a provider's account.
+     */
+    #[OA\Delete(
+        path: '/api/providers/{provider}',
+        summary: 'Delete a provider account',
+        description: 'Soft-deletes the provider\'s account: they leave the marketplace and every mobile session ends at once (the open app receives `client.account.restricted` with status "deleted"). Booking history is kept, and the account can be restored from Data Management. Refused with 409 while the provider has open bookings, a downpayment not yet returned to a customer, or unpaid commission.',
+        tags: ['Providers'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'provider', in: 'path', description: 'Provider profile ID', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Provider deleted (soft delete)',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => true,
+                        'message' => 'Provider deleted.',
+                        'data' => null,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 401,
+                description: 'Unauthenticated / expired token',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Unauthenticated.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Missing the delete providers permission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This action is unauthorized.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Provider not found',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'Resource not found.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 409,
+                description: 'The provider still owes something: open bookings, an unreturned downpayment, or unpaid commission',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This provider cannot be deleted while they have unpaid commission.',
+                        'data' => new \stdClass,
+                        'errors' => ['provider' => ["Settle the provider's unpaid commission first."]],
+                        'meta' => [],
+                    ],
+                ),
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'The account is already deleted',
+                content: new OA\JsonContent(
+                    ref: '#/components/schemas/ApiEnvelope',
+                    example: [
+                        'success' => false,
+                        'message' => 'This provider account is already deleted.',
+                        'data' => new \stdClass,
+                        'errors' => null,
+                        'meta' => [],
+                    ],
+                ),
+            ),
+        ],
+    )]
+    public function destroy(Request $request, ProviderProfile $provider): JsonResponse
+    {
+        $this->authorize('delete', $provider);
+
+        $this->providerService->destroy($provider, $request->user());
+
+        return $this->success(null, 'Provider deleted.');
     }
 }

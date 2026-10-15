@@ -50,12 +50,12 @@ class NotifyProviderOfAccountDecision
             ),
             $event instanceof ProviderSuspended => new ProviderAccountNotification(
                 'provider_status', 'suspended', 'Provider account suspended',
-                "Your provider account was suspended, so clients cannot find or book you. Reason: {$event->reason}",
+                "Your provider account was suspended: clients cannot find or book you, and you cannot sign in until it is reactivated. Reason: {$event->reason}",
                 $event->reason,
             ),
             default => new ProviderAccountNotification(
                 'provider_status', 'activated', 'Provider account active again',
-                'Your provider account was reactivated. Clients can find and book you again.',
+                'Your provider account was reactivated. You can sign in, and clients can find and book you again.',
             ),
         });
     }

@@ -81,6 +81,31 @@ class ProviderProfile extends Model
     }
 
     /**
+     * The account even once deleted, for telling customers what became of a
+     * provider they booked or messaged ({@see unavailability()}).
+     */
+    public function accountUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
+    }
+
+    /**
+     * Why customers can no longer count on this provider — 'suspended',
+     * 'banned' or 'deleted' — or null while they can work.
+     */
+    public function unavailability(): ?string
+    {
+        $user = $this->accountUser;
+
+        return match (true) {
+            $user === null || $user->trashed() => 'deleted',
+            $user->isBanned() => 'banned',
+            $user->isSuspended() || $this->isSuspended() => 'suspended',
+            default => null,
+        };
+    }
+
+    /**
      * The administrator who verified this provider.
      */
     public function verifiedBy(): BelongsTo

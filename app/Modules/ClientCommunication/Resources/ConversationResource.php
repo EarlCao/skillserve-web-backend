@@ -3,8 +3,10 @@
 namespace App\Modules\ClientCommunication\Resources;
 
 use App\Models\User;
+use App\Modules\Bookings\Models\Booking;
 use App\Modules\ClientAuthentication\Services\ClientProfileService;
 use App\Modules\ClientCommunication\Models\Inquiry;
+use App\Modules\ClientMarketplace\Resources\ProviderStandingPresenter;
 use App\Modules\Providers\Models\ProviderProfile;
 use App\Shared\Resources\BaseResource;
 
@@ -33,7 +35,7 @@ class ConversationResource extends BaseResource
             'booking_number' => $isInquiry ? null : $this->booking_number,
             'booking_status' => $isInquiry ? null : $this->status,
             'service_title' => $isInquiry ? null : $this->service?->title,
-            'counterpart' => $isCustomer ? $this->providerSide($this->provider) : $this->clientSide($customer),
+            'counterpart' => $isCustomer ? $this->providerSide($this->provider, $isInquiry ? null : $this->resource) : $this->clientSide($customer),
             'last_message' => $this->whenLoaded('latestMessage', fn () => $this->latestMessage ? [
                 'id' => $this->latestMessage->id,
                 // "📷 Photo" for a photo sent without a caption.
@@ -51,8 +53,11 @@ class ConversationResource extends BaseResource
         ];
     }
 
-    /** The provider, as the customer sees them. */
-    private function providerSide(?ProviderProfile $provider): ?array
+    /**
+     * The provider, as the customer sees them — with a notice once an
+     * administrator suspended, banned or deleted them.
+     */
+    private function providerSide(?ProviderProfile $provider, ?Booking $booking): ?array
     {
         if (! $provider) {
             return null;
@@ -64,6 +69,7 @@ class ConversationResource extends BaseResource
             'provider_id' => $provider->id,
             'name' => $provider->displayName(),
             'profile_picture' => ClientProfileService::photoUrl($provider->user?->profile_photo_path),
+            ...ProviderStandingPresenter::present($provider, $booking),
         ];
     }
 
