@@ -3,8 +3,10 @@
 namespace App\Modules\IdentityVerification\Models;
 
 use App\Models\User;
+use App\Shared\Enums\AccountRole;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -26,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `toArray()` anywhere must not leak the number.
  */
 #[Fillable([
-    'user_id', 'status', 'id_number_hash', 'id_number_encrypted', 'id_number_last4',
+    'user_id', 'account_type', 'status', 'id_number_hash', 'id_number_encrypted', 'id_number_last4',
     'full_name', 'birthdate', 'submitted_at', 'reviewed_at', 'reviewed_by',
     'rejection_reason', 'released_at', 'documents_purge_after',
 ])]
@@ -40,6 +42,12 @@ class IdentityVerification extends Model
     public const VERIFIED = 'verified';
 
     public const REJECTED = 'rejected';
+
+    /**
+     * States in which a submission holds its National ID against another
+     * account of the same type (see accountTypeOf()).
+     */
+    public const HOLDING = [self::PENDING, self::VERIFIED];
 
     /** States from which the holder may submit (or resubmit) documents. */
     public const SUBMITTABLE = [self::UNVERIFIED, self::REJECTED];
@@ -68,6 +76,39 @@ class IdentityVerification extends Model
     public function isVerified(): bool
     {
         return $this->status === self::VERIFIED;
+    }
+
+    /**
+     * 'provider' or 'customer': one National ID may back one of each. An
+     * account's type is fixed at sign-up.
+     */
+    public static function accountTypeOf(User $user): string
+    {
+        return (int) $user->role_id === AccountRole::Provider->value ? 'provider' : 'customer';
+    }
+
+    /**
+     * Live submissions that hold [$hash] for [$accountType] accounts: pending
+     * or verified, and not released by a permanent deletion.
+     */
+    public function scopeHoldingId(Builder $query, string $hash, string $accountType): Builder
+    {
+        return $query
+            ->where('id_number_hash', $hash)
+            ->where('account_type', $accountType)
+            ->whereIn('status', self::HOLDING)
+            ->whereNull('released_at');
+    }
+
+    /**
+     * Says which *kind* of account holds the ID — so the person understands
+     * why — but never which account: confirming that would turn sign-up and
+     * submission into a lookup oracle for someone holding a stolen card.
+     */
+    public static function idInUseMessage(string $accountType): string
+    {
+        return "A {$accountType} account already uses this National ID. "
+            .'One National ID can verify only one provider account and one customer account.';
     }
 
     public function canSubmit(): bool

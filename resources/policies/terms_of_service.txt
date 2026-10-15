@@ -6,10 +6,10 @@ These terms apply to everyone who uses the SkillServe mobile app as a customer o
 SkillServe is a marketplace that connects customers in the Philippines with independent service providers. A booking is an agreement between the customer and the provider. SkillServe provides the app, verification, messaging, reviews, reports and dispute handling, but is not a party to the service itself and does not employ providers.
 
 2. Who can use SkillServe
-You must be at least 18 years old. You must give your real name, birthday and contact details, and keep them up to date. One person may hold one account. You are responsible for everything done with your account, so keep your password private.
+You must be at least 18 years old. You must give your real name, birthday and contact details, and keep them up to date. One person may hold one customer account and one provider account. You are responsible for everything done with your account, so keep your password private.
 
 3. Identity verification
-To book or offer services you may be asked to verify your identity with your Philippine National ID (PhilSys card or ePhilID). The photos must be clear, unedited pictures of your own card. A National ID can back only one active SkillServe account. Providers may also be asked for certificates or other documents before their profile is shown to customers. Submitting someone else's ID or altered documents leads to the account being banned.
+To book or offer services you may be asked to verify your identity with your Philippine National ID (PhilSys card or ePhilID). The photos must be clear, unedited pictures of your own card. A National ID can verify only one customer account and one provider account. Providers may also be asked for certificates or other documents before their profile is shown to customers. Submitting someone else's ID or altered documents leads to the account being banned.
 
 4. Bookings and cancellations
 The price shown for a service is the full price the customer pays. A provider confirms a booking before it is scheduled. Either side may cancel within the rules shown in the app; a late cancellation may carry the fee shown before you confirm it. Do not arrange to take a booking outside the app to avoid these rules.

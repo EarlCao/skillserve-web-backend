@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Requests;
 
+use App\Modules\IdentityVerification\Rules\NationalIdAvailable;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
@@ -22,12 +23,17 @@ class CompleteGoogleRegistrationRequest extends BaseFormRequest
             'role' => strtolower(trim((string) $this->input('role', 'customer'))),
             'business_name' => trim((string) $this->input('business_name')),
             'specialization' => trim((string) $this->input('specialization')),
+            // The card number read at sign-up, digits only; checked so a
+            // second account of the same type on one National ID is refused
+            // before it is created. Never stored here.
+            ...($this->filled('id_number') ? ['id_number' => preg_replace('/\D/', '', (string) $this->input('id_number')) ?? ''] : []),
         ]);
     }
 
     public function rules(): array
     {
         return [
+            'id_number' => ['sometimes', 'nullable', 'string', 'digits:'.(int) config('identity.card_number_digits', 16), new NationalIdAvailable($this->input('role') === 'provider' ? 'provider' : 'customer')],
             'id_token' => ['required', 'string', 'min:20'],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],

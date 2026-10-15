@@ -70,7 +70,7 @@ class ClientIdentityVerificationController extends Controller
     #[OA\Post(
         path: '/api/client/v1/identity-verification',
         summary: 'Submit a Philippine National ID for review',
-        description: "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nA National ID can back only one active SkillServe account: submitting one already linked to another live account returns 422 without revealing which account holds it. An ID becomes available again only once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download. A photo of the front or back must be at least 800 × 500 pixels (either orientation), or that file gets a 422 asking for a retake.",
+        description: "Allowed while unverified or rejected; a pending or verified account is refused with 422. The card number is normalised to 16 digits, so grouped input is accepted.\n\nOne National ID can verify one provider account and one customer account. Submitting an ID that another account of the same type already holds (pending or verified) returns 422 — `A provider account already uses this National ID.` (or `customer`) — without revealing which account holds it. A rejected submission does not hold the ID. An ID becomes available again once the original account is permanently deleted.\n\nFiles are private (JPG, PNG or PDF, up to 10 MB each) and are never served directly; an administrator opens them through an authorised download. A photo of the front or back must be at least 800 × 500 pixels (either orientation), or that file gets a 422 asking for a retake.",
         tags: ['Identity Verification'],
         security: [['bearerAuth' => []]],
         requestBody: new OA\RequestBody(required: true, content: new OA\MediaType(
@@ -90,7 +90,7 @@ class ClientIdentityVerificationController extends Controller
             new OA\Response(response: 201, description: 'Submitted; status is now pending', content: new OA\JsonContent(ref: '#/components/schemas/ApiEnvelope')),
             new OA\Response(response: 401, description: 'Unauthenticated'),
             new OA\Response(response: 403, description: 'Active, email-verified account required'),
-            new OA\Response(response: 422, description: 'Validation failed, the ID is already linked to an account, or the account is already pending or verified'),
+            new OA\Response(response: 422, description: 'Validation failed, another account of the same type (provider or customer) already uses the ID, or the account is already pending or verified'),
             new OA\Response(response: 429, description: 'Too many submissions'),
         ],
     )]

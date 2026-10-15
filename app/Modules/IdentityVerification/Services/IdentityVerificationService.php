@@ -81,9 +81,11 @@ class IdentityVerificationService extends BaseService
                     throw new ApiException('Your National ID is already waiting for review.', 422);
                 }
 
-                $this->assertIdNotInUse($hash, $record->id);
+                $accountType = IdentityVerification::accountTypeOf($user);
+                $this->assertIdNotInUse($hash, $accountType, $record->id);
 
                 $record->update([
+                    'account_type' => $accountType,
                     'status' => IdentityVerification::PENDING,
                     'id_number_hash' => $hash,
                     'id_number_encrypted' => $this->hasher->normalise($data['id_number']),
@@ -120,7 +122,7 @@ class IdentityVerificationService extends BaseService
             // The partial unique index is what actually closes the race
             // between two accounts claiming one ID at the same moment.
             if (str_contains($exception->getMessage(), 'identity_verifications_active_id_number')) {
-                throw $this->idInUseException();
+                throw $this->idInUseException(IdentityVerification::accountTypeOf($user));
             }
 
             throw $exception;
@@ -320,31 +322,30 @@ class IdentityVerificationService extends BaseService
         $record->unsetRelation('documents');
     }
 
-    private function assertIdNotInUse(string $hash, int $ignoreId): void
+    /**
+     * One National ID backs at most one provider account and one customer
+     * account. Only a pending or verified submission holds it: a rejected one
+     * is not a claim, so a stranger who tried someone's card cannot lock the
+     * real owner out.
+     */
+    private function assertIdNotInUse(string $hash, string $accountType, int $ignoreId): void
     {
         $taken = IdentityVerification::query()
-            ->where('id_number_hash', $hash)
-            ->whereNull('released_at')
+            ->holdingId($hash, $accountType)
             ->whereKeyNot($ignoreId)
             ->lockForUpdate()
             ->exists();
 
         if ($taken) {
-            throw $this->idInUseException();
+            throw $this->idInUseException($accountType);
         }
     }
 
-    /**
-     * Deliberately vague: confirming *which* account holds an ID would turn
-     * this endpoint into a lookup oracle for someone holding a stolen card.
-     */
-    private function idInUseException(): ApiException
+    private function idInUseException(string $accountType): ApiException
     {
-        return new ApiException(
-            'That National ID is already linked to a SkillServe account.',
-            422,
-            errors: ['id_number' => ['This National ID cannot be used to verify this account.']],
-        );
+        $message = IdentityVerification::idInUseMessage($accountType);
+
+        return new ApiException($message, 422, errors: ['id_number' => [$message]]);
     }
 
     /**

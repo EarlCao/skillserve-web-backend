@@ -3,7 +3,7 @@ SkillServe Community Guidelines
 SkillServe works when customers and providers can trust each other. These guidelines apply to profiles, services, chat, reviews, photos, reports and support requests.
 
 Be honest
-- Use your real name and your own National ID. One person, one account.
+- Use your real name and your own National ID. One person, at most one customer account and one provider account.
 - Describe services, prices, experience and qualifications truthfully. Upload only photos of your own work.
 - Leave reviews only for bookings that really happened, and describe them fairly.
 

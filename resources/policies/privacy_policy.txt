@@ -10,7 +10,7 @@ This policy explains what personal data SkillServe collects, why, and the choice
 - Technical data: sign-in times and the device information needed to keep you signed in and send notifications.
 
 2. Why we use it
-To create and secure your account; to verify that you are who you say you are and that one ID backs one account; to show providers and services and handle bookings, chat and reviews; to calculate and collect SkillServe's commission; to review reports and disputes; to answer support requests; to send codes, booking updates and announcements you have not switched off; and to meet legal obligations.
+To create and secure your account; to verify that you are who you say you are and that one ID backs no more than one customer account and one provider account; to show providers and services and handle bookings, chat and reviews; to calculate and collect SkillServe's commission; to review reports and disputes; to answer support requests; to send codes, booking updates and announcements you have not switched off; and to meet legal obligations.
 
 3. Who can see it
 - Other users see what the app shows them: a provider's public profile, services and reviews; the name of the other person on your booking and the messages you exchange.

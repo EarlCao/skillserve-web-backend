@@ -2,6 +2,7 @@
 
 namespace App\Modules\ClientAuthentication\Requests;
 
+use App\Modules\IdentityVerification\Rules\NationalIdAvailable;
 use App\Modules\Locations\Services\PhAddressService;
 use App\Shared\Helpers\AgeRequirement;
 use App\Shared\Requests\BaseFormRequest;
@@ -15,12 +16,17 @@ class RegisterClientRequest extends BaseFormRequest
             'first_name' => trim((string) $this->input('first_name')),
             'last_name' => trim((string) $this->input('last_name')),
             'email' => strtolower(trim((string) $this->input('email'))),
+            // The card number read at sign-up, digits only; checked so a
+            // second account of the same type on one National ID is refused
+            // before it is created. Never stored here.
+            ...($this->filled('id_number') ? ['id_number' => preg_replace('/\D/', '', (string) $this->input('id_number')) ?? ''] : []),
         ]);
     }
 
     public function rules(): array
     {
         return [
+            'id_number' => ['sometimes', 'nullable', 'string', 'digits:'.(int) config('identity.card_number_digits', 16), new NationalIdAvailable('customer')],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             // The code is emailed here, so the domain must accept mail (see client-auth.check_email_domain).

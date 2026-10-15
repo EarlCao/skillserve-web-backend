@@ -8,6 +8,7 @@ use App\Modules\IdentityVerification\Models\IdentityVerification;
 use App\Modules\IdentityVerification\Models\IdentityVerificationEvent;
 use App\Modules\IdentityVerification\Services\NationalIdHasher;
 use App\Modules\Providers\Models\ProviderProfile;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -166,9 +167,100 @@ class IdentityVerificationTest extends TestCase
         $this->withToken($secondToken)
             ->postJson('/api/client/v1/identity-verification', $this->payload('1234-5678-9012-3456'))
             ->assertStatus(422)
-            ->assertJsonValidationErrors('id_number');
+            ->assertJsonValidationErrors('id_number')
+            ->assertJsonPath('message', 'A customer account already uses this National ID. One National ID can verify only one provider account and one customer account.');
 
         $this->assertSame(1, IdentityVerification::query()->whereNotNull('id_number_hash')->count());
+    }
+
+    public function test_a_verified_providers_national_id_cannot_verify_a_second_provider_account(): void
+    {
+        [$first, $firstToken] = $this->account('provider');
+        [, $secondToken] = $this->account('provider');
+
+        $this->withToken($firstToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+        IdentityVerification::query()->where('user_id', $first->id)->update(['status' => IdentityVerification::VERIFIED]);
+
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($secondToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'A provider account already uses this National ID. One National ID can verify only one provider account and one customer account.')
+            ->assertJsonPath('errors.id_number.0', 'A provider account already uses this National ID. One National ID can verify only one provider account and one customer account.');
+    }
+
+    public function test_one_national_id_can_verify_one_provider_and_one_customer_account(): void
+    {
+        [, $providerToken] = $this->account('provider');
+        [, $customerToken] = $this->account('customer');
+        [, $secondCustomerToken] = $this->account('customer');
+
+        $this->withToken($providerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($customerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+
+        $this->app['auth']->forgetGuards();
+        $this->withToken($secondCustomerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(422);
+
+        $this->assertEqualsCanonicalizing(
+            ['provider', 'customer'],
+            IdentityVerification::query()->whereNotNull('id_number_hash')->pluck('account_type')->all(),
+        );
+    }
+
+    public function test_a_rejected_submission_does_not_hold_the_national_id(): void
+    {
+        [$stranger, $strangerToken] = $this->account();
+        [, $ownerToken] = $this->account();
+
+        $this->withToken($strangerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+        IdentityVerification::query()->where('user_id', $stranger->id)->update([
+            'status' => IdentityVerification::REJECTED,
+            'rejection_reason' => 'The selfie does not match the card.',
+        ]);
+
+        $this->app['auth']->forgetGuards();
+
+        // The card's real owner is not locked out by someone else's failed attempt…
+        $this->withToken($ownerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(201);
+
+        // …and the stranger cannot take it back while the owner holds it.
+        $this->app['auth']->forgetGuards();
+        $this->withToken($strangerToken)
+            ->postJson('/api/client/v1/identity-verification', $this->payload())
+            ->assertStatus(422);
+    }
+
+    public function test_the_database_allows_one_live_holder_per_account_type(): void
+    {
+        $hash = app(NationalIdHasher::class)->hash(self::ID_A);
+        $row = fn (string $type, string $status) => IdentityVerification::query()->create([
+            'user_id' => $this->account($type)[0]->id,
+            'account_type' => $type,
+            'status' => $status,
+            'id_number_hash' => $hash,
+        ]);
+
+        $row('provider', IdentityVerification::VERIFIED);
+        $row('customer', IdentityVerification::PENDING);
+        $row('provider', IdentityVerification::REJECTED);
+
+        $this->expectException(QueryException::class);
+        $row('provider', IdentityVerification::PENDING);
     }
 
     public function test_the_refusal_does_not_reveal_which_account_holds_the_id(): void
